@@ -103,9 +103,14 @@ Route::middleware('auth')->group(function () {
 
             // Facilities management
             Route::get('facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
+            Route::get('facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');
+            Route::post('facilities', [AdminFacilityController::class, 'store'])->name('facilities.store');
             Route::get('facilities/{facility}', [AdminFacilityController::class, 'show'])->name('facilities.show');
+            Route::get('facilities/{facility}/edit', [AdminFacilityController::class, 'edit'])->name('facilities.edit');
+            Route::put('facilities/{facility}', [AdminFacilityController::class, 'update'])->name('facilities.update');
             Route::post('facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('facilities.approve');
             Route::post('facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
+            Route::delete('facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
         });
 
     /*
