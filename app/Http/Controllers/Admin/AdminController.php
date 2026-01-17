@@ -23,7 +23,7 @@ class AdminController extends Controller
         $stats = [
             'total_requests' => SpecimenRequest::count(),
             'pending_requests' => SpecimenRequest::where('status', 'pending_approval')->count(),
-            'active_couriers' => User::whereHas('role', function($q) {
+            'active_couriers' => User::whereHas('role', function ($q) {
                 $q->where('slug', 'courier');
             })->where('is_active', true)->count(),
             'total_facilities' => Facility::count(),
@@ -41,13 +41,27 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
-        // Chart data for requests by status
         $requestsByStatus = SpecimenRequest::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
             ->get()
             ->pluck('count', 'status');
 
         return view('admin.dashboard', compact('stats', 'recentRequests', 'recentActivities', 'requestsByStatus'));
+    }
+
+    private function getActivityIcon($action)
+    {
+        $icons = [
+            'created' => 'plus',
+            'updated' => 'edit',
+            'deleted' => 'trash',
+            'login' => 'sign-in-alt',
+            'logout' => 'sign-out-alt',
+            'status_change' => 'exchange-alt',
+            'assigned' => 'user-check',
+        ];
+
+        return $icons[$action] ?? 'bell';
     }
 
     public function profile()
@@ -58,7 +72,7 @@ class AdminController extends Controller
     public function updateProfile(Request $request)
     {
         $user = auth()->user();
-        
+
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
