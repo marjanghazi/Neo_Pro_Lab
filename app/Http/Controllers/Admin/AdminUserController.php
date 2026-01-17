@@ -15,7 +15,7 @@ class AdminUserController extends Controller
     {
         $users = User::with('role')->paginate(20);
         $roles = Role::all();
-        
+
         return view('admin.users.index', compact('users', 'roles'));
     }
 
@@ -84,11 +84,15 @@ class AdminUserController extends Controller
             ->with('success', 'User deleted successfully.');
     }
 
+    // In app/Http/Controllers/Admin/AdminUserController.php
     public function toggleStatus(User $user)
     {
-        $user->update(['is_active' => !$user->is_active]);
+        $user->update([
+            'is_active' => !$user->is_active
+        ]);
 
         $status = $user->is_active ? 'activated' : 'deactivated';
-        return back()->with('success', "User {$status} successfully.");
+
+        return back()->with('success', "User {$status} successfully!");
     }
 }

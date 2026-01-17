@@ -4,14 +4,14 @@ use Illuminate\Support\Facades\Route;
 
 // Controllers
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\AdminUserController;
-use App\Http\Controllers\Admin\AdminRequestController;
-use App\Http\Controllers\Admin\AdminFacilityController;
-use App\Http\Controllers\Admin\AdminCourierController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminProfileController;
 use App\Http\Controllers\Admin\AdminSettingsController;
 use App\Http\Controllers\Admin\AdminReportsController;
+use App\Http\Controllers\Admin\AdminFacilityController;
+use App\Http\Controllers\Admin\AdminCourierController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminRequestController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CourierController;
 use App\Http\Controllers\PagesController;
@@ -64,132 +64,99 @@ Route::post('/logout', [AuthController::class, 'logout'])
 
 /*
 |--------------------------------------------------------------------------
-| Protected Routes
+| Admin Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+Route::prefix('admin')
+    ->middleware(['auth', 'role:admin'])
+    ->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Admin Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('admin')
-        ->name('admin.')
-        ->middleware('role:admin')
-        ->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
-            // Dashboard
-            Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+        // Profile
+        Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
+        Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
+        Route::put('/profile/update', [AdminProfileController::class, 'update'])->name('admin.profile.update');
 
-            /*
-            |------------------------------------------------------------------
-            | Profile
-            |------------------------------------------------------------------
-            */
-            Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile.index');
-            Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('profile.edit');
-            Route::put('/profile/update', [AdminProfileController::class, 'update'])->name('profile.update');
+        // Settings
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
+        Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('admin.settings.general');
+        Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('admin.settings.notifications');
+        Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('admin.settings.courier');
+        Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
 
-            /*
-            |------------------------------------------------------------------
-            | Settings
-            |------------------------------------------------------------------
-            */
-            Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
-            Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('settings.general');
-            Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('settings.notifications');
-            Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('settings.courier');
-            Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('settings.update');
+        // Reports
+        Route::get('/reports', [AdminReportsController::class, 'index'])->name('admin.reports.index');
+        Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('admin.reports.performance');
+        Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('admin.reports.requests');
+        Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('admin.reports.facilities');
+        Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('admin.reports.export');
 
-            /*
-            |------------------------------------------------------------------
-            | Reports
-            |------------------------------------------------------------------
-            */
-            Route::get('/reports', [AdminReportsController::class, 'index'])->name('reports.index');
-            Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('reports.performance');
-            Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('reports.requests');
-            Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('reports.facilities');
-            Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('reports.export');
+        // Facilities
+        Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('admin.facilities.index');
+        Route::get('/facilities/create', [AdminFacilityController::class, 'create'])->name('admin.facilities.create');
+        Route::post('/facilities', [AdminFacilityController::class, 'store'])->name('admin.facilities.store');
+        Route::get('/facilities/{facility}', [AdminFacilityController::class, 'show'])->name('admin.facilities.show');
+        Route::get('/facilities/{facility}/edit', [AdminFacilityController::class, 'edit'])->name('admin.facilities.edit');
+        Route::put('/facilities/{facility}', [AdminFacilityController::class, 'update'])->name('admin.facilities.update');
+        Route::post('/facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('admin.facilities.approve');
+        Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('admin.facilities.reject');
+        Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('admin.facilities.destroy');
 
-            /*
-            |------------------------------------------------------------------
-            | Users management
-            |------------------------------------------------------------------
-            */
-            Route::resource('users', AdminUserController::class);
-            Route::post('users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])
-                ->name('users.toggle-status');
+        // Couriers
+        Route::get('/couriers', [AdminCourierController::class, 'index'])->name('admin.couriers.index');
+        Route::get('/couriers/create', [AdminCourierController::class, 'create'])->name('admin.couriers.create');
+        Route::post('/couriers', [AdminCourierController::class, 'store'])->name('admin.couriers.store');
+        Route::get('/couriers/{courier}', [AdminCourierController::class, 'show'])->name('admin.couriers.show');
+        Route::get('/couriers/{courier}/edit', [AdminCourierController::class, 'edit'])->name('admin.couriers.edit');
+        Route::put('/couriers/{courier}', [AdminCourierController::class, 'update'])->name('admin.couriers.update');
 
-            /*
-            |------------------------------------------------------------------
-            | Requests management
-            |------------------------------------------------------------------
-            */
-            Route::get('requests', [AdminRequestController::class, 'index'])->name('requests.index');
-            Route::get('requests/{request}', [AdminRequestController::class, 'show'])->name('requests.show');
-            Route::post('requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
-            Route::post('requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
+        // Users
+        Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
+        Route::get('/users/create', [AdminUserController::class, 'create'])->name('admin.users.create');
+        Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('admin.users.show');
+        Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
+        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
+        Route::post('/users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('admin.users.toggle-status');
 
-            /*
-            |------------------------------------------------------------------
-            | Couriers management
-            |------------------------------------------------------------------
-            */
-            Route::get('couriers', [AdminCourierController::class, 'index'])->name('couriers.index');
-            Route::get('couriers/create', [AdminCourierController::class, 'create'])->name('couriers.create');
-            Route::post('couriers', [AdminCourierController::class, 'store'])->name('couriers.store');
-            Route::get('couriers/{courier}', [AdminCourierController::class, 'show'])->name('couriers.show');
-            Route::get('couriers/{courier}/edit', [AdminCourierController::class, 'edit'])->name('couriers.edit');
-            Route::put('couriers/{courier}', [AdminCourierController::class, 'update'])->name('couriers.update');
-            Route::post('couriers/{courier}/deactivate', [AdminCourierController::class, 'deactivate'])->name('couriers.deactivate');
-            Route::delete('couriers/{courier}', [AdminCourierController::class, 'destroy'])->name('couriers.destroy');
+        // Requests
+        Route::get('/requests', [AdminRequestController::class, 'index'])->name('admin.requests.index');
+        Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
+        Route::post('/requests/{request}/approve', [AdminRequestController::class, 'approve'])->name('admin.requests.approve');
+        Route::post('/requests/{request}/reject', [AdminRequestController::class, 'reject'])->name('admin.requests.reject');
+        Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assign'])->name('admin.requests.assign');
+    });
 
-            /*
-            |------------------------------------------------------------------
-            | Facilities management
-            |------------------------------------------------------------------
-            */
-            Route::get('facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
-            Route::get('facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');
-            Route::post('facilities', [AdminFacilityController::class, 'store'])->name('facilities.store');
-            Route::get('facilities/{facility}', [AdminFacilityController::class, 'show'])->name('facilities.show');
-            Route::get('facilities/{facility}/edit', [AdminFacilityController::class, 'edit'])->name('facilities.edit');
-            Route::put('facilities/{facility}', [AdminFacilityController::class, 'update'])->name('facilities.update');
-            Route::post('facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('facilities.approve');
-            Route::post('facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
-            Route::delete('facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
-        });
+/*
+|--------------------------------------------------------------------------
+| Client Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('client')
+    ->name('client.')
+    ->middleware('role:client')
+    ->group(function () {
+        Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
+        Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
+        Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
+        Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
+        Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');
+    });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Client Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('client')
-        ->name('client.')
-        ->middleware('role:client')
-        ->group(function () {
-            Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
-            Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
-            Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
-            Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
-            Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');
-        });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Courier Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('courier')
-        ->name('courier.')
-        ->middleware('role:courier')
-        ->group(function () {
-            Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
-            Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
-            Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
-            Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
-        });
-});
+/*
+|--------------------------------------------------------------------------
+| Courier Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('courier')
+    ->name('courier.')
+    ->middleware('role:courier')
+    ->group(function () {
+        Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
+        Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
+        Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
+        Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
+    });
