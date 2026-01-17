@@ -37,6 +37,12 @@ class User extends Authenticatable
         'is_active' => 'boolean',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
@@ -45,24 +51,39 @@ class User extends Authenticatable
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class, 'facility_users')
-                    ->withPivot('position', 'department', 'is_primary_contact')
-                    ->withTimestamps();
+            ->withPivot('position', 'department', 'is_primary_contact')
+            ->withTimestamps();
     }
 
+    // Requests created by this user (client)
     public function createdRequests(): HasMany
     {
         return $this->hasMany(SpecimenRequest::class, 'client_id');
     }
 
+    // Requests assigned to this user (courier)
     public function assignedRequests(): HasMany
     {
         return $this->hasMany(SpecimenRequest::class, 'assigned_to');
     }
 
+    // Notifications
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
+
+    // Unread notifications helper
+    public function unreadNotifications(): HasMany
+    {
+        return $this->notifications()->where('is_read', false);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role Helpers
+    |--------------------------------------------------------------------------
+    */
 
     public function isAdmin(): bool
     {
@@ -79,8 +100,19 @@ class User extends Authenticatable
         return $this->role->slug === 'client';
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Accessors
+    |--------------------------------------------------------------------------
+    */
+
     public function getFullNameAttribute(): string
     {
         return $this->first_name . ' ' . $this->last_name;
+    }
+
+    public function currentLocation()
+    {
+        return $this->hasOne(CourierLocation::class, 'courier_id')->latest();
     }
 }

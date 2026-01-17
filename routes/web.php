@@ -12,7 +12,7 @@ use App\Http\Controllers\Admin\AdminFacilityController;
 use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
-use App\Http\Controllers\ClientController;
+use App\Http\Controllers\Client\ClientController; 
 use App\Http\Controllers\CourierController;
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
@@ -135,16 +135,45 @@ Route::prefix('admin')
 | Client Routes
 |--------------------------------------------------------------------------
 */
-Route::prefix('client')
-    ->name('client.')
-    ->middleware('role:client')
-    ->group(function () {
-        Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
-        Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
-        Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
-        Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
-        Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');
-    });
+Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
+
+    // Profile
+    Route::get('/profile', [ClientController::class, 'profile'])->name('profile');
+    Route::post('/profile', [ClientController::class, 'updateProfile'])->name('profile.update');
+
+    // Notifications
+    Route::get('/notifications', [ClientController::class, 'notifications'])->name('notifications');
+    Route::post('/notifications/{notification}/read', [ClientController::class, 'markNotificationAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [ClientController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
+
+    // Requests
+    Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
+    Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
+    Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
+    Route::get('/requests/{request}', [ClientController::class, 'showRequest'])->name('requests.show');
+    Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');
+    Route::post('/requests/{request}/cancel', [ClientController::class, 'cancelRequest'])->name('requests.cancel');
+    Route::get('/requests/{request}/confirm', [ClientController::class, 'confirmDelivery'])->name('requests.confirm');
+    Route::post('/requests/{request}/confirm', [ClientController::class, 'submitConfirmation'])->name('requests.confirm.submit');
+
+    // Request Documents
+    Route::get('/requests/{request}/documents', [ClientController::class, 'documents'])->name('requests.documents');
+    Route::get('/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('documents.download');
+
+    // Proofs
+    Route::get('/requests/{request}/proofs', [ClientController::class, 'proofs'])->name('requests.proofs');
+
+    // Tracking
+    Route::get('/tracking', [ClientController::class, 'tracking'])->name('tracking');
+    Route::get('/tracking/active', [ClientController::class, 'getActiveTracking'])->name('tracking.active');
+
+    // Reports
+    Route::get('/reports', [ClientController::class, 'reports'])->name('reports');
+    Route::post('/reports/download', [ClientController::class, 'downloadReport'])->name('reports.download');
+});
 
 /*
 |--------------------------------------------------------------------------

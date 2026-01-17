@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SpecimenRequest extends Model
 {
@@ -69,6 +70,12 @@ class SpecimenRequest extends Model
         'total_distance' => 'decimal:2',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function facility(): BelongsTo
     {
         return $this->belongsTo(Facility::class);
@@ -96,26 +103,36 @@ class SpecimenRequest extends Model
 
     public function stops(): HasMany
     {
-        return $this->hasMany(RequestStop::class);
+        return $this->hasMany(RequestStop::class, 'request_id');
     }
 
     public function documents(): HasMany
     {
-        return $this->hasMany(RequestDocument::class);
+        return $this->hasMany(RequestDocument::class, 'request_id');
     }
 
     public function pickupProofs(): HasMany
     {
-        return $this->hasMany(PickupProof::class);
+        return $this->hasMany(PickupProof::class, 'request_id');
     }
 
     public function signatures(): HasMany
     {
-        return $this->hasMany(Signature::class);
+        return $this->hasMany(Signature::class, 'request_id');
     }
 
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get the latest courier location for this request
+     */
+    public function courierLocation(): HasOne
+    {
+        return $this->hasOne(CourierLocation::class, 'request_id')
+                    ->where('courier_id', $this->assigned_to)
+                    ->latest();
     }
 }

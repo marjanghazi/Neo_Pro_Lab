@@ -340,7 +340,7 @@
                                         <i class="fas fa-cog mr-2"></i>Settings
                                     </a>
                                 @else
-                                    <a href="{{ route('client.profile.index') }}" class="dropdown-item">
+                                    <a href="{{ route('client.profile') }}" class="dropdown-item">
                                         <i class="fas fa-user mr-2"></i>Profile
                                     </a>
                                     <a href="#" class="dropdown-item">
