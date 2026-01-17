@@ -28,7 +28,7 @@ class AdminDashboardController extends Controller
         ];
 
         // Recent requests
-        $recentRequests = SpecimenRequest::with(['client', 'facility', 'assignedTo'])
+        $recentRequests = SpecimenRequest::with(['client', 'facility', 'courier'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

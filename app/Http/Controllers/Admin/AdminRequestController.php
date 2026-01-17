@@ -21,24 +21,24 @@ class AdminRequestController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('request_number', 'LIKE', "%{$search}%")
-                  ->orWhere('recipient_name', 'LIKE', "%{$search}%");
+                    ->orWhere('recipient_name', 'LIKE', "%{$search}%");
             });
         }
 
         $requests = $query->orderBy('created_at', 'desc')->paginate(20);
-        
+
         return view('admin.requests.index', compact('requests'));
     }
 
     public function show(SpecimenRequest $request)
     {
         $request->load(['client', 'facility', 'courier', 'stops', 'documents']);
-        $couriers = User::whereHas('role', function($q) {
+        $couriers = User::whereHas('role', function ($q) {
             $q->where('slug', 'courier');
         })->where('is_active', true)->get();
-        
+
         return view('admin.requests.show', compact('request', 'couriers'));
     }
 
@@ -64,16 +64,29 @@ class AdminRequestController extends Controller
     public function updateStatus(Request $request, SpecimenRequest $specimenRequest)
     {
         $validated = $request->validate([
-            'status' => 'required|in:pending_approval,approved,rejected,cancelled',
-            'notes' => 'nullable|string',
+            'status' => 'required|in:approved,rejected,cancelled'
         ]);
 
-        $oldStatus = $specimenRequest->status;
-        $specimenRequest->update($validated);
+        // Update status based on the submitted value
+        $specimenRequest->update([
+            'status' => $validated['status'],
+            'approved_at' => $validated['status'] == 'approved' ? now() : null,
+            'cancelled_at' => $validated['status'] == 'cancelled' ? now() : null,
+            'cancelled_by' => $validated['status'] == 'cancelled' ? Auth::id() : null,
+        ]);
 
-        // Create audit log
-        // ...
+        // Create notification
+        if (in_array($validated['status'], ['approved', 'rejected'])) {
+            Notification::create([
+                'user_id' => $specimenRequest->client_id,
+                'request_id' => $specimenRequest->id,
+                'type' => 'status_update',
+                'title' => 'Request ' . ucfirst($validated['status']),
+                'message' => "Your request {$specimenRequest->request_number} has been {$validated['status']}.",
+                'data' => json_encode(['request_id' => $specimenRequest->id, 'status' => $validated['status']]),
+            ]);
+        }
 
-        return back()->with('success', 'Request status updated successfully.');
+        return back()->with('success', "Request {$validated['status']} successfully!");
     }
 }

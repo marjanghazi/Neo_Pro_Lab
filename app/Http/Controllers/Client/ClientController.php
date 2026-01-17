@@ -30,7 +30,7 @@ class ClientController extends Controller
     {
         $user = Auth::user();
         $facility = $user->facilities()->first();
-        
+
         $stats = [
             'total_requests' => $user->createdRequests()->count(),
             'pending_requests' => $user->createdRequests()->where('status', 'pending_approval')->count(),
@@ -51,9 +51,9 @@ class ClientController extends Controller
     {
         $status = request('status');
         $user = Auth::user();
-        
+
         $query = $user->createdRequests()->with(['courier', 'facility']);
-        
+
         if ($status) {
             if ($status === 'in_transit') {
                 $query->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery']);
@@ -61,7 +61,7 @@ class ClientController extends Controller
                 $query->where('status', $status);
             }
         }
-        
+
         $requests = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return view('client.requests.index', compact('requests', 'status'));
@@ -69,13 +69,11 @@ class ClientController extends Controller
 
     public function createRequest()
     {
-        $facility = Auth::user()->facilities()->first();
-        
-        if (!$facility) {
-            return redirect()->route('client.dashboard')
-                ->with('error', 'You need to be associated with a facility to create requests.');
-        }
+        $user = Auth::user();
+        $facility = $user->facilities()->first();
 
+        // Facility is optional, so we don't redirect if not found
+        // We'll just pass null to the view
         return view('client.requests.create', compact('facility'));
     }
 
@@ -108,7 +106,7 @@ class ClientController extends Controller
 
         // Create specimen request
         $specimenRequest = SpecimenRequest::create([
-            'facility_id' => $facility->id,
+            'facility_id' => $facility ? $facility->id : null,
             'client_id' => $user->id,
             'recipient_name' => $validated['recipient_name'],
             'pickup_address' => $validated['pickup_address'],
@@ -141,7 +139,7 @@ class ClientController extends Controller
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $document) {
                 $path = $document->store('request_documents', 'public');
-                
+
                 $specimenRequest->documents()->create([
                     'document_type' => 'other',
                     'file_name' => $document->getClientOriginalName(),
@@ -153,14 +151,21 @@ class ClientController extends Controller
             }
         }
 
-        // Create notification for admins
-        Notification::create([
-            'type' => 'new_request',
-            'title' => 'New Specimen Request',
-            'message' => "New specimen request submitted by {$user->first_name} {$user->last_name}. Request ID: {$specimenRequest->request_number}",
-            'data' => json_encode(['request_id' => $specimenRequest->id, 'client_id' => $user->id]),
-            'user_role' => 'admin',
-        ]);
+        // CREATE NOTIFICATION FOR ADMINS - ADD THIS CODE HERE
+        $adminUsers = \App\Models\User::whereHas('role', function ($query) {
+            $query->where('slug', 'admin');
+        })->get();
+
+        foreach ($adminUsers as $admin) {
+            Notification::create([
+                'user_id' => $admin->id,
+                'request_id' => $specimenRequest->id,
+                'type' => 'new_request',
+                'title' => 'New Specimen Request',
+                'message' => "New specimen request submitted by {$user->first_name} {$user->last_name}. Request ID: {$specimenRequest->request_number}",
+                'data' => json_encode(['request_id' => $specimenRequest->id, 'client_id' => $user->id]),
+            ]);
+        }
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval.');
@@ -176,7 +181,7 @@ class ClientController extends Controller
             '16-18' => '17:00:00',
             'stat' => date('H:i:s'),
         ];
-        
+
         return $times[$window] ?? '12:00:00';
     }
 
@@ -187,7 +192,7 @@ class ClientController extends Controller
         }
 
         $request->load(['courier', 'stops', 'documents']);
-        
+
         return view('client.requests.track', compact('request'));
     }
 
@@ -198,7 +203,7 @@ class ClientController extends Controller
         }
 
         $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
-        
+
         return view('client.requests.show', compact('request'));
     }
 
@@ -339,16 +344,16 @@ class ClientController extends Controller
     {
         $user = Auth::user();
         $facility = $user->facilities()->first();
-        
+
         $startDate = request('start_date', now()->subDays(30)->format('Y-m-d'));
         $endDate = request('end_date', now()->format('Y-m-d'));
-        
+
         $requests = $user->createdRequests()
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->with(['courier', 'facility'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         // Calculate statistics
         $stats = [
             'total' => $requests->count(),
@@ -357,23 +362,23 @@ class ClientController extends Controller
             'cancelled' => $requests->where('status', 'cancelled')->count(),
             'pending' => $requests->where('status', 'pending_approval')->count(),
         ];
-        
+
         // Group by specimen type
         $specimenTypes = $requests->groupBy('specimen_type')->map->count();
-        
+
         // Group by priority
         $priorities = $requests->groupBy('priority_level')->map->count();
-        
+
         // Monthly trend
         $monthlyTrend = $requests->groupBy(function ($item) {
             return $item->created_at->format('Y-m');
         })->map->count();
 
         return view('client.reports.index', compact(
-            'requests', 
-            'stats', 
-            'specimenTypes', 
-            'priorities', 
+            'requests',
+            'stats',
+            'specimenTypes',
+            'priorities',
             'monthlyTrend',
             'startDate',
             'endDate',
@@ -384,38 +389,38 @@ class ClientController extends Controller
     public function downloadReport(Request $request)
     {
         $user = Auth::user();
-        
+
         $validated = $request->validate([
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'format' => 'required|in:pdf,csv',
         ]);
-        
+
         $requests = $user->createdRequests()
             ->whereBetween('created_at', [$validated['start_date'] . ' 00:00:00', $validated['end_date'] . ' 23:59:59'])
             ->with(['courier', 'facility'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         if ($validated['format'] === 'csv') {
             return $this->generateCSV($requests, $validated);
         }
-        
+
         return $this->generatePDF($requests, $validated);
     }
 
     private function generateCSV($requests, $params)
     {
         $filename = "specimen_requests_{$params['start_date']}_to_{$params['end_date']}.csv";
-        
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
         ];
-        
-        $callback = function() use ($requests) {
+
+        $callback = function () use ($requests) {
             $file = fopen('php://output', 'w');
-            
+
             // Header
             fputcsv($file, [
                 'Request Number',
@@ -429,7 +434,7 @@ class ClientController extends Controller
                 'Created At',
                 'Completed At',
             ]);
-            
+
             // Data
             foreach ($requests as $request) {
                 fputcsv($file, [
@@ -445,10 +450,10 @@ class ClientController extends Controller
                     $request->completed_at ? $request->completed_at->format('Y-m-d H:i:s') : '',
                 ]);
             }
-            
+
             fclose($file);
         };
-        
+
         return response()->stream($callback, 200, $headers);
     }
 
@@ -471,7 +476,7 @@ class ClientController extends Controller
         $notifications = $user->notifications()
             ->orderBy('created_at', 'desc')
             ->paginate(20);
-        
+
         return view('client.notifications.index', compact('notifications'));
     }
 
@@ -480,12 +485,12 @@ class ClientController extends Controller
         if ($notification->user_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $notification->update([
             'is_read' => true,
             'read_at' => now(),
         ]);
-        
+
         return response()->json(['success' => true]);
     }
 
@@ -495,7 +500,7 @@ class ClientController extends Controller
             'is_read' => true,
             'read_at' => now(),
         ]);
-        
+
         return back()->with('success', 'All notifications marked as read.');
     }
 
@@ -503,14 +508,14 @@ class ClientController extends Controller
     {
         $user = Auth::user();
         $facility = $user->facilities()->first();
-        
+
         return view('client.profile.index', compact('user', 'facility'));
     }
 
     public function updateProfile(Request $request)
     {
         $user = Auth::user();
-        
+
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
@@ -519,29 +524,29 @@ class ClientController extends Controller
             'new_password' => 'nullable|string|min:8|confirmed',
             'profile_image' => 'nullable|image|max:2048',
         ]);
-        
+
         $updateData = [
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'phone' => $validated['phone'],
         ];
-        
+
         if ($request->hasFile('profile_image')) {
             // Delete old profile image if exists
             if ($user->profile_image) {
                 Storage::disk('public')->delete($user->profile_image);
             }
-            
+
             $path = $request->file('profile_image')->store('profile_images', 'public');
             $updateData['profile_image'] = $path;
         }
-        
+
         if (!empty($validated['new_password'])) {
             $updateData['password'] = bcrypt($validated['new_password']);
         }
-        
+
         $user->update($updateData);
-        
+
         return back()->with('success', 'Profile updated successfully.');
     }
 
@@ -550,9 +555,9 @@ class ClientController extends Controller
         if ($request->client_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $documents = $request->documents()->orderBy('created_at', 'desc')->get();
-        
+
         return view('client.requests.documents', compact('request', 'documents'));
     }
 
@@ -561,11 +566,11 @@ class ClientController extends Controller
         if ($document->request->client_id !== Auth::id()) {
             abort(403);
         }
-        
+
         if (!Storage::disk('public')->exists($document->file_path)) {
             abort(404);
         }
-        
+
         return Storage::disk('public')->download($document->file_path, $document->file_name);
     }
 
@@ -574,9 +579,9 @@ class ClientController extends Controller
         if ($request->client_id !== Auth::id()) {
             abort(403);
         }
-        
+
         $proofs = $request->pickupProofs()->orderBy('created_at', 'desc')->get();
-        
+
         return view('client.requests.proofs', compact('request', 'proofs'));
     }
 }

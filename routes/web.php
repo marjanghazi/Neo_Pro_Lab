@@ -12,7 +12,7 @@ use App\Http\Controllers\Admin\AdminFacilityController;
 use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
-use App\Http\Controllers\Client\ClientController; 
+use App\Http\Controllers\Client\ClientController;
 use App\Http\Controllers\CourierController;
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
@@ -73,7 +73,8 @@ Route::prefix('admin')
 
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-
+        // In your admin routes group in web.php
+        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
         // Profile
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
         Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
