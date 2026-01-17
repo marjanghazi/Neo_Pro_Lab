@@ -9,6 +9,9 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
 use App\Http\Controllers\Admin\AdminFacilityController;
 use App\Http\Controllers\Admin\AdminCourierController;
+use App\Http\Controllers\Admin\AdminProfileController;
+use App\Http\Controllers\Admin\AdminSettingsController;
+use App\Http\Controllers\Admin\AdminReportsController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CourierController;
 use App\Http\Controllers\PagesController;
@@ -20,6 +23,7 @@ use App\Http\Controllers\FormsController;
 | Public Website Pages
 |--------------------------------------------------------------------------
 */
+
 Route::get('/', [PagesController::class, 'home'])->name('home');
 Route::get('/about', [PagesController::class, 'about'])->name('about');
 Route::get('/services', [PagesController::class, 'services'])->name('services');
@@ -50,7 +54,6 @@ Route::get('/download/{filename}', [FormsController::class, 'download'])->name('
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
-
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register']);
 });
@@ -76,22 +79,64 @@ Route::middleware('auth')->group(function () {
         ->middleware('role:admin')
         ->group(function () {
 
+            // Dashboard
             Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
-            Route::get('/profile', [AdminController::class, 'profile'])->name('profile');
-            Route::post('/profile', [AdminController::class, 'updateProfile'])->name('profile.update');
 
-            // Users management
+            /*
+            |------------------------------------------------------------------
+            | Profile
+            |------------------------------------------------------------------
+            */
+            Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile.index');
+            Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('profile.edit');
+            Route::put('/profile/update', [AdminProfileController::class, 'update'])->name('profile.update');
+
+            /*
+            |------------------------------------------------------------------
+            | Settings
+            |------------------------------------------------------------------
+            */
+            Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+            Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('settings.general');
+            Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('settings.notifications');
+            Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('settings.courier');
+            Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+            /*
+            |------------------------------------------------------------------
+            | Reports
+            |------------------------------------------------------------------
+            */
+            Route::get('/reports', [AdminReportsController::class, 'index'])->name('reports.index');
+            Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('reports.performance');
+            Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('reports.requests');
+            Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('reports.facilities');
+            Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('reports.export');
+
+            /*
+            |------------------------------------------------------------------
+            | Users management
+            |------------------------------------------------------------------
+            */
             Route::resource('users', AdminUserController::class);
             Route::post('users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])
                 ->name('users.toggle-status');
 
-            // Requests management
+            /*
+            |------------------------------------------------------------------
+            | Requests management
+            |------------------------------------------------------------------
+            */
             Route::get('requests', [AdminRequestController::class, 'index'])->name('requests.index');
             Route::get('requests/{request}', [AdminRequestController::class, 'show'])->name('requests.show');
             Route::post('requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
             Route::post('requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
 
-            // Couriers management
+            /*
+            |------------------------------------------------------------------
+            | Couriers management
+            |------------------------------------------------------------------
+            */
             Route::get('couriers', [AdminCourierController::class, 'index'])->name('couriers.index');
             Route::get('couriers/create', [AdminCourierController::class, 'create'])->name('couriers.create');
             Route::post('couriers', [AdminCourierController::class, 'store'])->name('couriers.store');
@@ -101,7 +146,11 @@ Route::middleware('auth')->group(function () {
             Route::post('couriers/{courier}/deactivate', [AdminCourierController::class, 'deactivate'])->name('couriers.deactivate');
             Route::delete('couriers/{courier}', [AdminCourierController::class, 'destroy'])->name('couriers.destroy');
 
-            // Facilities management
+            /*
+            |------------------------------------------------------------------
+            | Facilities management
+            |------------------------------------------------------------------
+            */
             Route::get('facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
             Route::get('facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');
             Route::post('facilities', [AdminFacilityController::class, 'store'])->name('facilities.store');
