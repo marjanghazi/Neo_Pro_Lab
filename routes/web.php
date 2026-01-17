@@ -40,7 +40,6 @@ Route::get('/terms', [PagesController::class, 'terms'])->name('terms');
 */
 Route::get('/schedule-pickup', [PickupController::class, 'create'])->name('pickup.create');
 Route::post('/schedule-pickup', [PickupController::class, 'store'])->name('pickup.store');
-
 Route::get('/download/{filename}', [FormsController::class, 'download'])->name('download');
 
 /*
@@ -92,9 +91,15 @@ Route::middleware('auth')->group(function () {
             Route::post('requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
             Route::post('requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
 
-            // Couriers management (NEW)
+            // Couriers management
             Route::get('couriers', [AdminCourierController::class, 'index'])->name('couriers.index');
+            Route::get('couriers/create', [AdminCourierController::class, 'create'])->name('couriers.create');
+            Route::post('couriers', [AdminCourierController::class, 'store'])->name('couriers.store');
             Route::get('couriers/{courier}', [AdminCourierController::class, 'show'])->name('couriers.show');
+            Route::get('couriers/{courier}/edit', [AdminCourierController::class, 'edit'])->name('couriers.edit');
+            Route::put('couriers/{courier}', [AdminCourierController::class, 'update'])->name('couriers.update');
+            Route::post('couriers/{courier}/deactivate', [AdminCourierController::class, 'deactivate'])->name('couriers.deactivate');
+            Route::delete('couriers/{courier}', [AdminCourierController::class, 'destroy'])->name('couriers.destroy');
 
             // Facilities management
             Route::get('facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
@@ -112,7 +117,6 @@ Route::middleware('auth')->group(function () {
         ->name('client.')
         ->middleware('role:client')
         ->group(function () {
-
             Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
             Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
             Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
@@ -129,7 +133,6 @@ Route::middleware('auth')->group(function () {
         ->name('courier.')
         ->middleware('role:courier')
         ->group(function () {
-
             Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
             Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
             Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
