@@ -105,7 +105,7 @@
                 <div class="flex flex-wrap gap-3">
                     @switch($specimenRequest->status)
                         @case('assigned')
-                            <form action="{{ route('courier.assignments.accept', $specimenRequest) }}" method="POST" class="inline">
+                            <form action="{{ route('courier.assignments.accept', $specimenRequest->id) }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit" class="btn-primary">
                                     <i class="fas fa-check mr-2"></i>Accept Assignment
@@ -113,48 +113,52 @@
                             </form>
                             @break
                         @case('accepted_by_courier')
-                            <button onclick="handleWorkflowAction('start-pickup', {{ $specimenRequest->id }})" 
-                                    class="btn-primary">
-                                <i class="fas fa-play mr-2"></i>Start Pickup
-                            </button>
-                            <button onclick="openPhotoModal({{ $specimenRequest->id }}, 'pickup')" 
-                                    class="btn-secondary">
+                            <form action="{{ route('courier.requests.start-pickup', $specimenRequest->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-play mr-2"></i>Start Pickup
+                                </button>
+                            </form>
+                            <button type="button" onclick="showPickupModal()" class="btn-secondary">
                                 <i class="fas fa-camera mr-2"></i>Upload Pickup Proof
                             </button>
                             @break
                         @case('at_stop')
-                            <button onclick="openPhotoModal({{ $specimenRequest->id }}, 'pickup')" 
-                                    class="btn-primary">
+                            <button type="button" onclick="showPickupModal()" class="btn-primary">
                                 <i class="fas fa-camera mr-2"></i>Upload Pickup Proof
                             </button>
                             @break
                         @case('picked_up')
-                            <button onclick="handleWorkflowAction('start-transit', {{ $specimenRequest->id }})" 
-                                    class="btn-primary">
-                                <i class="fas fa-truck mr-2"></i>Start Transit
-                            </button>
+                            <form action="{{ route('courier.requests.start-transit', $specimenRequest->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-truck mr-2"></i>Start Transit
+                                </button>
+                            </form>
                             @break
                         @case('in_transit')
-                            <button onclick="handleWorkflowAction('arrive-destination', {{ $specimenRequest->id }})" 
-                                    class="btn-primary">
-                                <i class="fas fa-map-marker-alt mr-2"></i>Mark Arrival
-                            </button>
-                            <button onclick="openSignatureModal({{ $specimenRequest->id }})" 
-                                    class="btn-secondary">
+                            <form action="{{ route('courier.requests.arrive-destination', $specimenRequest->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-map-marker-alt mr-2"></i>Mark Arrival
+                                </button>
+                            </form>
+                            <button type="button" onclick="showSignatureModal()" class="btn-secondary">
                                 <i class="fas fa-signature mr-2"></i>Complete Delivery
                             </button>
                             @break
                         @case('arrived_at_destination')
-                            <button onclick="openSignatureModal({{ $specimenRequest->id }})" 
-                                    class="btn-primary">
+                            <button type="button" onclick="showSignatureModal()" class="btn-primary">
                                 <i class="fas fa-signature mr-2"></i>Complete Delivery
                             </button>
                             @break
                         @case('delivered')
-                            <button onclick="handleWorkflowAction('complete', {{ $specimenRequest->id }})" 
-                                    class="btn-primary">
-                                <i class="fas fa-check-double mr-2"></i>Mark as Completed
-                            </button>
+                            <form action="{{ route('courier.requests.complete', $specimenRequest->id) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-check-double mr-2"></i>Mark as Completed
+                                </button>
+                            </form>
                             @break
                     @endswitch
 
@@ -326,8 +330,7 @@
                     <i class="fas fa-camera text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No pickup proof uploaded yet</p>
                     @if(in_array($specimenRequest->status, ['accepted_by_courier', 'at_stop']))
-                    <button onclick="openPhotoModal({{ $specimenRequest->id }}, 'pickup')" 
-                            class="btn-secondary mt-3">
+                    <button onclick="showPickupModal()" class="btn-secondary mt-3">
                         <i class="fas fa-upload mr-2"></i>Upload Pickup Proof
                     </button>
                     @endif
@@ -372,8 +375,7 @@
                     <i class="fas fa-signature text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No delivery proof uploaded yet</p>
                     @if(in_array($specimenRequest->status, ['in_transit', 'arrived_at_destination', 'delivered']))
-                    <button onclick="openSignatureModal({{ $specimenRequest->id }})" 
-                            class="btn-secondary mt-3">
+                    <button onclick="showSignatureModal()" class="btn-secondary mt-3">
                         <i class="fas fa-signature mr-2"></i>Complete Delivery
                     </button>
                     @endif
@@ -385,17 +387,13 @@
 
     <!-- Right Column - Information & Client Details -->
     <div class="space-y-6">
-        <!-- Specimen Information (HIPAA Compliant View) -->
+        <!-- Handling Instructions (HIPAA Compliant - No specimen details) -->
         <div class="card p-6">
-            <h3 class="font-semibold mb-4">Specimen Information</h3>
+            <h3 class="font-semibold mb-4">Handling Instructions</h3>
             <div class="space-y-4">
                 <div>
-                    <p class="text-sm text-gray-500">Specimen Type</p>
-                    <p class="font-medium">{{ ucfirst($specimenRequest->specimen_type) }}</p>
-                </div>
-                <div>
                     <p class="text-sm text-gray-500">Temperature Requirements</p>
-                    <p class="font-medium">{{ strtoupper($specimenRequest->temperature_requirements) }}</p>
+                    <p class="font-medium">{{ $specimenRequest->temperature_requirement ? strtoupper($specimenRequest->temperature_requirement) : 'Standard' }}</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-500">Special Instructions</p>
@@ -403,8 +401,14 @@
                 </div>
                 <div>
                     <p class="text-sm text-gray-500">Handling Instructions</p>
-                    <p class="font-medium">{{ $specimenRequest->handling_instructions ?: 'Standard handling' }}</p>
+                    <p class="font-medium">{{ $specimenRequest->delivery_instructions ?: 'Standard handling' }}</p>
                 </div>
+                @if($specimenRequest->container_type)
+                <div>
+                    <p class="text-sm text-gray-500">Container Type</p>
+                    <p class="font-medium">{{ $specimenRequest->container_type }}</p>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -418,15 +422,6 @@
                     <p class="text-sm text-gray-500">Address</p>
                     <p class="font-medium">{{ $specimenRequest->pickup_address }}</p>
                 </div>
-                @if($specimenRequest->pickup_contact_name)
-                <div>
-                    <p class="text-sm text-gray-500">Contact Person</p>
-                    <p class="font-medium">{{ $specimenRequest->pickup_contact_name }}</p>
-                    @if($specimenRequest->pickup_contact_phone)
-                    <p class="text-sm text-gray-600">{{ $specimenRequest->pickup_contact_phone }}</p>
-                    @endif
-                </div>
-                @endif
                 @if($specimenRequest->scheduled_pickup_time)
                 <div>
                     <p class="text-sm text-gray-500">Scheduled Pickup</p>
@@ -440,12 +435,14 @@
                 </div>
                 @endif
             </div>
+            @if($specimenRequest->pickup_latitude && $specimenRequest->pickup_longitude)
             <div class="mt-4">
                 <a href="https://www.google.com/maps?q={{ $specimenRequest->pickup_latitude }},{{ $specimenRequest->pickup_longitude }}" 
                    target="_blank" class="btn-secondary w-full justify-center">
                     <i class="fas fa-map-marked-alt mr-2"></i>View on Map
                 </a>
             </div>
+            @endif
         </div>
 
         <!-- Delivery Information -->
@@ -458,15 +455,6 @@
                     <p class="text-sm text-gray-500">Address</p>
                     <p class="font-medium">{{ $specimenRequest->delivery_address }}</p>
                 </div>
-                @if($specimenRequest->delivery_contact_name)
-                <div>
-                    <p class="text-sm text-gray-500">Contact Person</p>
-                    <p class="font-medium">{{ $specimenRequest->delivery_contact_name }}</p>
-                    @if($specimenRequest->delivery_contact_phone)
-                    <p class="text-sm text-gray-600">{{ $specimenRequest->delivery_contact_phone }}</p>
-                    @endif
-                </div>
-                @endif
                 @if($specimenRequest->scheduled_delivery_time)
                 <div>
                     <p class="text-sm text-gray-500">Scheduled Delivery</p>
@@ -493,20 +481,19 @@
         <!-- Client Information (Limited for HIPAA) -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">
-                <i class="fas fa-hospital text-teal-500 mr-2"></i>Client Facility
+                <i class="fas fa-hospital text-teal-500 mr-2"></i>Client Information
             </h3>
             <div class="space-y-3">
                 <div>
-                    <p class="text-sm text-gray-500">Facility</p>
-                    <p class="font-medium">{{ $specimenRequest->client->facility->name ?? 'N/A' }}</p>
+                    <p class="text-sm text-gray-500">Client Name</p>
+                    <p class="font-medium">{{ $specimenRequest->client->full_name }}</p>
                 </div>
+                @if($specimenRequest->client->phone)
                 <div>
-                    <p class="text-sm text-gray-500">Contact</p>
-                    <p class="font-medium">{{ $specimenRequest->client->first_name }} {{ $specimenRequest->client->last_name }}</p>
-                    @if($specimenRequest->client->phone)
-                    <p class="text-sm text-gray-600">{{ $specimenRequest->client->phone }}</p>
-                    @endif
+                    <p class="text-sm text-gray-500">Contact Phone</p>
+                    <p class="font-medium">{{ $specimenRequest->client->phone }}</p>
                 </div>
+                @endif
             </div>
         </div>
 
@@ -522,7 +509,7 @@
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </a>
                 
-                <button onclick="updateCourierLocation({{ $specimenRequest->id }})" 
+                <button onclick="updateLocationNow()" 
                         class="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div class="flex items-center">
                         <i class="fas fa-map-marker-alt text-blue-600 mr-3"></i>
@@ -543,49 +530,322 @@
         </div>
     </div>
 </div>
+
+<!-- Pickup Proof Modal -->
+<div id="pickupModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="text-lg font-bold">Upload Pickup Proof</h3>
+            <button type="button" class="modal-close" onclick="closePickupModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="pickupProofForm" action="{{ route('courier.requests.pickup-proof', $specimenRequest->id) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Pickup Photo *</label>
+                        <input type="file" name="pickup_photo" accept="image/*" capture="environment" required class="w-full border rounded-lg p-2">
+                        <p class="text-xs text-gray-500 mt-1">Take a clear photo of the specimen container</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Specimen Condition *</label>
+                        <select name="specimen_condition" required class="w-full border rounded-lg p-2">
+                            <option value="">Select Condition</option>
+                            <option value="good">Good</option>
+                            <option value="acceptable">Acceptable</option>
+                            <option value="damaged">Damaged</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
+                        <select name="temperature_check" required class="w-full border rounded-lg p-2">
+                            <option value="">Select Status</option>
+                            <option value="within_range">Within Range</option>
+                            <option value="out_of_range">Out of Range</option>
+                            <option value="not_checked">Not Checked</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Notes</label>
+                        <textarea name="pickup_notes" rows="3" class="w-full border rounded-lg p-2" placeholder="Any additional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closePickupModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Submit Proof</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Signature Modal -->
+<div id="signatureModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="text-lg font-bold">Complete Delivery</h3>
+            <button type="button" class="modal-close" onclick="closeSignatureModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="signatureForm" action="{{ route('courier.requests.submit-delivery', $specimenRequest->id) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Recipient Name *</label>
+                        <input type="text" name="recipient_name" required class="w-full border rounded-lg p-2" placeholder="Full name of recipient">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Recipient Relationship *</label>
+                        <input type="text" name="recipient_relationship" required class="w-full border rounded-lg p-2" placeholder="e.g., Lab Technician, Nurse, etc.">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Delivery Photo (Optional)</label>
+                        <input type="file" name="delivery_photo" accept="image/*" capture="environment" class="w-full border rounded-lg p-2">
+                        <p class="text-xs text-gray-500 mt-1">Photo of delivered specimen at destination</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Signature *</label>
+                        <div class="border rounded-lg p-4 bg-gray-50">
+                            <div id="signaturePad" style="width: 100%; height: 150px; border: 1px solid #ddd;"></div>
+                            <div class="mt-2 flex justify-between">
+                                <button type="button" onclick="clearSignature()" class="text-sm text-red-600">Clear</button>
+                            </div>
+                            <input type="hidden" name="signature" id="signatureInput">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Delivery Notes</label>
+                        <textarea name="delivery_notes" rows="3" class="w-full border rounded-lg p-2" placeholder="Any notes about the delivery..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeSignatureModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Submit Delivery</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
-@push('scripts')
-<script>
-    // Update location button
-    function updateLocationNow() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                const data = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    speed: position.coords.speed || 0,
-                    heading: position.coords.heading || 0,
-                    altitude: position.coords.altitude || 0,
-                    request_id: {{ $specimenRequest->id }}
-                };
-                
-                fetch('{{ route("courier.location.update") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showAlert('Location updated successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                })
-                .catch(error => {
-                    showAlert('Failed to update location.', 'error');
-                });
-            });
-        }
-    }
+@push('styles')
+<style>
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
 
-    // Start location tracking for this request
-    @if(in_array($specimenRequest->status, ['accepted_by_courier', 'picked_up', 'in_transit']))
-        startLocationUpdates({{ $specimenRequest->id }});
-    @endif
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.modal-close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+</style>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+let signaturePad = null;
+
+// Pickup Modal Functions
+function showPickupModal() {
+    document.getElementById('pickupModal').classList.add('active');
+}
+
+function closePickupModal() {
+    document.getElementById('pickupModal').classList.remove('active');
+}
+
+// Signature Modal Functions
+function showSignatureModal() {
+    document.getElementById('signatureModal').classList.add('active');
+    setTimeout(() => {
+        if (!signaturePad) {
+            const canvas = document.getElementById('signaturePad');
+            signaturePad = new SignaturePad(canvas);
+        }
+    }, 100);
+}
+
+function closeSignatureModal() {
+    document.getElementById('signatureModal').classList.remove('active');
+}
+
+function clearSignature() {
+    if (signaturePad) {
+        signaturePad.clear();
+        document.getElementById('signatureInput').value = '';
+    }
+}
+
+// Update location button
+function updateLocationNow() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const data = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                speed: position.coords.speed || 0,
+                heading: position.coords.heading || 0,
+                altitude: position.coords.altitude || 0,
+                request_id: {{ $specimenRequest->id }}
+            };
+            
+            fetch('{{ route("courier.location.update") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert('Location updated successfully!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            })
+            .catch(error => {
+                showAlert('Failed to update location.', 'error');
+            });
+        });
+    }
+}
+
+// Handle form submissions
+document.addEventListener('DOMContentLoaded', function() {
+    // Pickup form submission
+    const pickupForm = document.getElementById('pickupProofForm');
+    if (pickupForm) {
+        pickupForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    showAlert('Failed to submit pickup proof.', 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Network error. Please try again.', 'error');
+            });
+        });
+    }
+    
+    // Signature form submission
+    const signatureForm = document.getElementById('signatureForm');
+    if (signatureForm) {
+        signatureForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (signaturePad && !signaturePad.isEmpty()) {
+                const signatureData = signaturePad.toDataURL();
+                document.getElementById('signatureInput').value = signatureData;
+            } else {
+                showAlert('Please provide a signature.', 'error');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    showAlert('Failed to submit delivery.', 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('Network error. Please try again.', 'error');
+            });
+        });
+    }
+});
+
+// Start location tracking for this request
+@if(in_array($specimenRequest->status, ['accepted_by_courier', 'picked_up', 'in_transit']))
+    startLocationUpdates({{ $specimenRequest->id }});
+@endif
+
+// Utility function for alerts
+function showAlert(message, type) {
+    // Create alert element
+    const alert = document.createElement('div');
+    alert.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`;
+    alert.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(alert);
+    
+    // Remove alert after 5 seconds
+    setTimeout(() => {
+        alert.remove();
+    }, 5000);
+}
 </script>
 @endpush

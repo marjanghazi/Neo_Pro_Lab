@@ -110,9 +110,6 @@ class CourierController extends Controller
     /**
      * Accept an assignment
      */
-    /**
-     * Accept an assignment
-     */
     public function acceptAssignment(Request $request, $requestId)
     {
         // Get the request by ID instead of using route model binding
@@ -122,18 +119,9 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Assignment not found.');
         }
 
-        // Debug: Log what we're getting
-        \Log::info('Accept Assignment Debug:', [
-            'courier_id' => Auth::id(),
-            'specimenRequest_id' => $specimenRequest->id,
-            'specimenRequest_assigned_to' => $specimenRequest->assigned_to,
-            'specimenRequest_status' => $specimenRequest->status,
-            'request_number' => $specimenRequest->request_number,
-        ]);
-
         // Verify this request is assigned to the current courier
         if ($specimenRequest->assigned_to != Auth::id()) {
-            return redirect()->back()->with('error', 'This assignment is not assigned to you. Your ID: ' . Auth::id() . ', Assigned to: ' . $specimenRequest->assigned_to . ', Request: ' . $specimenRequest->request_number);
+            return redirect()->back()->with('error', 'This assignment is not assigned to you.');
         }
 
         if ($specimenRequest->status != 'assigned') {
@@ -167,9 +155,9 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'accepted_assignment',
-            'model_type' => SpecimenRequest::class, // Add this
-            'model_id' => $specimenRequest->id,     // Add this
-            'changes' => json_encode([               // Use 'changes' instead of 'description'
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
                 'status' => 'assigned to accepted_by_courier',
                 'accepted_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
@@ -181,7 +169,7 @@ class CourierController extends Controller
         // Start automatic location tracking for this request
         $this->startLocationTracking($specimenRequest);
 
-        return redirect()->route('courier.requests.show', $specimenRequest)
+        return redirect()->route('courier.requests.show', $specimenRequest->id)
             ->with('success', 'Assignment accepted successfully! Location tracking has been enabled.');
     }
 
@@ -194,7 +182,7 @@ class CourierController extends Controller
         cache()->put("tracking_start_{$request->id}", now(), now()->addHours(24));
 
         // Set courier as online
-        cache()->put("courier_online_{$request->assigned_to}", true, now()->addHours(24)); // CHANGED: courier_id -> assigned_to
+        cache()->put("courier_online_{$request->assigned_to}", true, now()->addHours(24));
     }
 
     /**
@@ -309,8 +297,9 @@ class CourierController extends Controller
     {
         // Get the request by ID instead of using route model binding
         $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
         // Verify this request is assigned to the current courier
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        if ($specimenRequest->assigned_to != Auth::id()) {
             abort(403, 'You are not assigned to this request.');
         }
 
@@ -345,9 +334,12 @@ class CourierController extends Controller
     /**
      * Start pickup process
      */
-    public function startPickup(Request $request, SpecimenRequest $specimenRequest)
+    public function startPickup(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -373,7 +365,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'start_pickup',
-            'description' => "Started pickup for request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'accepted_by_courier to at_stop',
+                'pickup_started_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -384,9 +382,12 @@ class CourierController extends Controller
     /**
      * Submit pickup proof with photo
      */
-    public function submitPickupProof(Request $request, SpecimenRequest $specimenRequest)
+    public function submitPickupProof(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -405,16 +406,16 @@ class CourierController extends Controller
         $photoPath = $request->file('pickup_photo')->store('pickup-proofs', 'public');
 
         // Create pickup proof
-        $pickupProof = PickupProof::create([
+        PickupProof::create([
             'request_id' => $specimenRequest->id,
             'courier_id' => Auth::id(),
             'photo_path' => $photoPath,
             'notes' => $request->pickup_notes,
             'specimen_condition' => $request->specimen_condition,
             'temperature_check' => $request->temperature_check,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'accuracy' => $request->accuracy,
+            'latitude' => $request->latitude ?? null,
+            'longitude' => $request->longitude ?? null,
+            'accuracy' => $request->accuracy ?? null,
             'verified' => false,
         ]);
 
@@ -437,7 +438,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'submit_pickup_proof',
-            'description' => "Submitted pickup proof for request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'at_stop to picked_up',
+                'pickup_completed_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -448,9 +455,12 @@ class CourierController extends Controller
     /**
      * Start transit to delivery location
      */
-    public function startTransit(Request $request, SpecimenRequest $specimenRequest)
+    public function startTransit(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -476,7 +486,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'start_transit',
-            'description' => "Started transit for request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'picked_up to in_transit',
+                'transit_started_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -487,9 +503,12 @@ class CourierController extends Controller
     /**
      * Arrive at destination
      */
-    public function arriveAtDestination(Request $request, SpecimenRequest $specimenRequest)
+    public function arriveAtDestination(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -515,7 +534,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'arrive_destination',
-            'description' => "Arrived at destination for request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'in_transit to arrived_at_destination',
+                'arrived_at_destination_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -526,9 +551,12 @@ class CourierController extends Controller
     /**
      * Submit delivery with signature
      */
-    public function submitDelivery(Request $request, SpecimenRequest $specimenRequest)
+    public function submitDelivery(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -551,7 +579,7 @@ class CourierController extends Controller
         }
 
         // Create signature record
-        $signature = Signature::create([
+        Signature::create([
             'request_id' => $specimenRequest->id,
             'courier_id' => Auth::id(),
             'recipient_name' => $request->recipient_name,
@@ -559,9 +587,9 @@ class CourierController extends Controller
             'signature_data' => $request->signature,
             'photo_path' => $photoPath,
             'notes' => $request->delivery_notes,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'accuracy' => $request->accuracy,
+            'latitude' => $request->latitude ?? null,
+            'longitude' => $request->longitude ?? null,
+            'accuracy' => $request->accuracy ?? null,
             'signed_at' => now(),
         ]);
 
@@ -584,7 +612,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'submit_delivery',
-            'description' => "Submitted delivery for request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => $specimenRequest->status . ' to delivered',
+                'delivered_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -595,9 +629,12 @@ class CourierController extends Controller
     /**
      * Complete request
      */
-    public function completeRequest(Request $request, SpecimenRequest $specimenRequest)
+    public function completeRequest(Request $request, $requestId)
     {
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
@@ -626,7 +663,13 @@ class CourierController extends Controller
         AuditLog::create([
             'user_id' => Auth::id(),
             'action' => 'complete_request',
-            'description' => "Completed request #{$specimenRequest->request_number}",
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'delivered to completed',
+                'completed_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -665,10 +708,13 @@ class CourierController extends Controller
     /**
      * Get navigation data
      */
-    public function getNavigation(SpecimenRequest $specimenRequest)
+    public function getNavigation($requestId)
     {
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
         // Verify assignment
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return response()->json(['error' => 'Not authorized'], 403);
         }
 
@@ -702,10 +748,13 @@ class CourierController extends Controller
     /**
      * Get location history for a request
      */
-    public function getLocationHistory(SpecimenRequest $specimenRequest)
+    public function getLocationHistory($requestId)
     {
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        
         // Verify assignment
-        if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
+        if ($specimenRequest->assigned_to != Auth::id()) {
             return response()->json(['error' => 'Not authorized'], 403);
         }
 

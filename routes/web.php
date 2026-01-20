@@ -208,19 +208,19 @@ Route::prefix('courier')
         Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
         Route::get('/requests/{requestId}', [CourierController::class, 'viewRequest'])->name('requests.show');
 
-        // Delivery Workflow
-        Route::post('/requests/{request}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
-        Route::post('/requests/{request}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
-        Route::post('/requests/{request}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
-        Route::post('/requests/{request}/arrive-destination', [CourierController::class, 'arriveAtDestination'])->name('requests.arrive-destination');
-        Route::post('/requests/{request}/submit-delivery', [CourierController::class, 'submitDelivery'])->name('requests.submit-delivery');
-        Route::post('/requests/{request}/complete', [CourierController::class, 'completeRequest'])->name('requests.complete');
+        // Delivery Workflow - UPDATED to use requestId
+        Route::post('/requests/{requestId}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
+        Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
+        Route::post('/requests/{requestId}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
+        Route::post('/requests/{requestId}/arrive-destination', [CourierController::class, 'arriveAtDestination'])->name('requests.arrive-destination');
+        Route::post('/requests/{requestId}/submit-delivery', [CourierController::class, 'submitDelivery'])->name('requests.submit-delivery');
+        Route::post('/requests/{requestId}/complete', [CourierController::class, 'completeRequest'])->name('requests.complete');
 
         // Active Requests & Navigation
         Route::get('/active-request', [CourierController::class, 'getActiveRequest'])->name('active-request');
         Route::get('/active-pickups', [CourierController::class, 'activePickups'])->name('active-pickups');
         Route::get('/active-deliveries', [CourierController::class, 'activeDeliveries'])->name('active-deliveries');
-        Route::get('/requests/{request}/navigation', [CourierController::class, 'getNavigation'])->name('requests.navigation');
+        Route::get('/requests/{requestId}/navigation', [CourierController::class, 'getNavigation'])->name('requests.navigation');
 
         // History & Proofs
         Route::get('/history', [CourierController::class, 'history'])->name('history');
@@ -256,5 +256,5 @@ Route::prefix('courier')
             return response()->json(['success' => true]);
         });
 
-        Route::get('/api/location/history/{request}', [CourierController::class, 'getLocationHistory'])->name('api.location.history');
+        Route::get('/api/location/history/{requestId}', [CourierController::class, 'getLocationHistory'])->name('api.location.history');
     });
