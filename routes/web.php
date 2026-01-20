@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request; // Add this
+use Illuminate\Http\Request;
 
 // Controllers
 use App\Http\Controllers\Auth\AuthController;
@@ -14,7 +14,7 @@ use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
 use App\Http\Controllers\Client\ClientController;
-use App\Http\Controllers\Courier\CourierController; // ← Changed this line
+use App\Http\Controllers\Courier\CourierController;
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
@@ -74,8 +74,8 @@ Route::prefix('admin')
 
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-        // In your admin routes group in web.php
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
+
         // Profile
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
         Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
@@ -129,6 +129,10 @@ Route::prefix('admin')
         Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
         Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('admin.requests.assign');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
+
+        // Tracking
+        Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])->name('admin.requests.track');
+        Route::get('/api/courier/{courier}/location', [AdminRequestController::class, 'getCourierLocation'])->name('admin.courier.location');
     });
 
 /*
@@ -139,7 +143,7 @@ Route::prefix('admin')
 Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->group(function () {
 
     // Dashboard
-    Route::get('/app', [ClientController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
 
     // Profile
     Route::get('/profile', [ClientController::class, 'profile'])->name('profile');
@@ -171,6 +175,9 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     Route::get('/tracking', [ClientController::class, 'tracking'])->name('tracking');
     Route::get('/tracking/active', [ClientController::class, 'getActiveTracking'])->name('tracking.active');
 
+    // API for real-time tracking
+    Route::get('/api/tracking/{request}/courier-location', [ClientController::class, 'getCourierLocation'])->name('tracking.courier-location');
+
     // Reports
     Route::get('/reports', [ClientController::class, 'reports'])->name('reports');
     Route::post('/reports/download', [ClientController::class, 'downloadReport'])->name('reports.download');
@@ -181,44 +188,73 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
 | Courier Routes
 |--------------------------------------------------------------------------
 */
-// Courier Routes
 Route::prefix('courier')
     ->name('courier.')
     ->middleware(['auth', 'role:courier'])
     ->group(function () {
+        // Dashboard
         Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
+
+        // Assignments
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
         Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
+
+        // Location Tracking
         Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
-        
-        // New routes for delivery workflow
+        Route::get('/location/status', [CourierController::class, 'locationStatus'])->name('location.status');
+        Route::post('/location/toggle', [CourierController::class, 'toggleLocation'])->name('location.toggle');
+
+        // Requests Management
+        Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
+        Route::get('/requests/{request}', [CourierController::class, 'viewRequest'])->name('requests.show');
+
+        // Delivery Workflow
         Route::post('/requests/{request}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
         Route::post('/requests/{request}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{request}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
         Route::post('/requests/{request}/arrive-destination', [CourierController::class, 'arriveAtDestination'])->name('requests.arrive-destination');
         Route::post('/requests/{request}/submit-delivery', [CourierController::class, 'submitDelivery'])->name('requests.submit-delivery');
         Route::post('/requests/{request}/complete', [CourierController::class, 'completeRequest'])->name('requests.complete');
-        
-        Route::get('/requests/{request}', [CourierController::class, 'viewRequest'])->name('requests.show');
+
+        // Active Requests & Navigation
         Route::get('/active-request', [CourierController::class, 'getActiveRequest'])->name('active-request');
+        Route::get('/active-pickups', [CourierController::class, 'activePickups'])->name('active-pickups');
+        Route::get('/active-deliveries', [CourierController::class, 'activeDeliveries'])->name('active-deliveries');
         Route::get('/requests/{request}/navigation', [CourierController::class, 'getNavigation'])->name('requests.navigation');
+
+        // History & Proofs
+        Route::get('/history', [CourierController::class, 'history'])->name('history');
+        Route::get('/proofs', [CourierController::class, 'proofs'])->name('proofs.index');
+        Route::get('/proofs/{proof}', [CourierController::class, 'viewProof'])->name('proofs.show');
+
+        // Profile
+        Route::get('/profile', [CourierController::class, 'profile'])->name('profile');
+        Route::post('/profile', [CourierController::class, 'updateProfile'])->name('profile.update');
+
+        // Notifications
+        Route::get('/notifications', [CourierController::class, 'notifications'])->name('notifications');
+        Route::post('/notifications/{notification}/read', [CourierController::class, 'markNotificationAsRead'])->name('notifications.read');
+        Route::post('/notifications/mark-all-read', [CourierController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
+
+        // API Endpoints for real-time updates
+        Route::post('/api/cache-location', function (Request $request) {
+            $request->validate([
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
+                'accuracy' => 'nullable|numeric'
+            ]);
+
+            cache()->put('courier_location_' . auth()->id(), [
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'accuracy' => $request->accuracy ?? 0,
+                'timestamp' => now(),
+                'courier_id' => auth()->id(),
+                'courier_name' => auth()->user()->full_name
+            ], 35);
+
+            return response()->json(['success' => true]);
+        });
+
+        Route::get('/api/location/history/{request}', [CourierController::class, 'getLocationHistory'])->name('api.location.history');
     });
-    // In routes/api.php or web.php
-Route::middleware(['auth', 'role:courier'])->group(function () {
-    Route::post('/api/cache-location', function (Request $request) {
-        $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-        ]);
-        
-        // Cache location for 35 seconds (slightly longer than update interval)
-        cache()->put('courier_location_' . auth()->id(), [
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'accuracy' => $request->accuracy,
-            'timestamp' => now()
-        ], 35);
-        
-        return response()->json(['success' => true]);
-    });
-});

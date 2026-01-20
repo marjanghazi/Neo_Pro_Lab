@@ -333,4 +333,15 @@ class SpecimenRequest extends Model
 
         return $angle * $earthRadius;
     }
+
+
+    public function pickupProof()
+    {
+        return $this->hasOne(PickupProof::class, 'request_id');
+    }
+
+    public function signature()
+    {
+        return $this->hasOne(Signature::class, 'request_id');
+    }
 }
