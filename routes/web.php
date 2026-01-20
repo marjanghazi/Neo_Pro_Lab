@@ -198,7 +198,7 @@ Route::prefix('courier')
         // Assignments
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
         Route::post('/assignments/{requestId}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
-        
+
         // Location Tracking
         Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
         Route::get('/location/status', [CourierController::class, 'locationStatus'])->name('location.status');
@@ -206,7 +206,7 @@ Route::prefix('courier')
 
         // Requests Management
         Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
-        Route::get('/requests/{request}', [CourierController::class, 'viewRequest'])->name('requests.show');
+        Route::get('/requests/{requestId}', [CourierController::class, 'viewRequest'])->name('requests.show');
 
         // Delivery Workflow
         Route::post('/requests/{request}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');

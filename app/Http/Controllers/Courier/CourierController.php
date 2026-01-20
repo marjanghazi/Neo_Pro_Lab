@@ -305,8 +305,10 @@ class CourierController extends Controller
     /**
      * Show request details (HIPAA compliant view)
      */
-    public function viewRequest(SpecimenRequest $specimenRequest)
+    public function viewRequest($requestId)
     {
+        // Get the request by ID instead of using route model binding
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
         // Verify this request is assigned to the current courier
         if ($specimenRequest->assigned_to != Auth::id()) { // CHANGED: courier_id -> assigned_to
             abort(403, 'You are not assigned to this request.');
