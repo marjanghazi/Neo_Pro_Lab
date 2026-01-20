@@ -20,7 +20,7 @@
             <h2 class="text-lg font-bold">All Orders</h2>
             <p class="text-sm text-gray-600">Manage specimen pickup and delivery requests</p>
         </div>
-        
+
         <div class="flex items-center space-x-3">
             <a href="#" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-download mr-2"></i> Export
@@ -33,14 +33,14 @@
         <div class="md:col-span-2">
             <div class="relative">
                 <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" 
-                       name="search"
-                       value="{{ request('search') }}"
-                       placeholder="Search by order ID, recipient, or facility..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                <input type="text"
+                    name="search"
+                    value="{{ request('search') }}"
+                    placeholder="Search by order ID, recipient, or facility..."
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
             </div>
         </div>
-        
+
         <div>
             <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                 <option value="">All Status</option>
@@ -53,7 +53,7 @@
                 <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
             </select>
         </div>
-        
+
         <div>
             <button type="button" onclick="applyFilters()" class="w-full btn-primary">
                 <i class="fas fa-filter mr-2"></i> Apply Filters
@@ -64,25 +64,25 @@
     <!-- Status Tabs -->
     <div class="flex space-x-2 mb-6 overflow-x-auto">
         @php
-            $statusCounts = [
-                'total' => $requests->total(),
-                'pending_approval' => \App\Models\SpecimenRequest::where('status', 'pending_approval')->count(),
-                'assigned' => \App\Models\SpecimenRequest::where('status', 'assigned')->count(),
-                'in_transit' => \App\Models\SpecimenRequest::where('status', 'in_transit')->count(),
-                'delivered' => \App\Models\SpecimenRequest::where('status', 'delivered')->count(),
-                'completed' => \App\Models\SpecimenRequest::where('status', 'completed')->count(),
-            ];
+        $statusCounts = [
+        'total' => $requests->total(),
+        'pending_approval' => \App\Models\SpecimenRequest::where('status', 'pending_approval')->count(),
+        'assigned' => \App\Models\SpecimenRequest::where('status', 'assigned')->count(),
+        'in_transit' => \App\Models\SpecimenRequest::where('status', 'in_transit')->count(),
+        'delivered' => \App\Models\SpecimenRequest::where('status', 'delivered')->count(),
+        'completed' => \App\Models\SpecimenRequest::where('status', 'completed')->count(),
+        ];
         @endphp
-        
-        <a href="{{ route('admin.requests.index') }}" 
-           class="flex items-center px-4 py-2 rounded-lg {{ !request('status') ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
+
+        <a href="{{ route('admin.requests.index') }}"
+            class="flex items-center px-4 py-2 rounded-lg {{ !request('status') ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
             <span>All</span>
             <span class="ml-2 bg-white text-gray-700 text-xs rounded-full px-2 py-1">{{ $statusCounts['total'] }}</span>
         </a>
-        
+
         @foreach(['pending_approval', 'assigned', 'in_transit', 'delivered', 'completed'] as $status)
-        <a href="{{ route('admin.requests.index', ['status' => $status]) }}" 
-           class="flex items-center px-4 py-2 rounded-lg {{ request('status') == $status ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
+        <a href="{{ route('admin.requests.index', ['status' => $status]) }}"
+            class="flex items-center px-4 py-2 rounded-lg {{ request('status') == $status ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
             <span class="status-dot status-{{ $status }}"></span>
             <span>{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
             <span class="ml-2 bg-white text-gray-700 text-xs rounded-full px-2 py-1">{{ $statusCounts[$status] }}</span>
@@ -139,15 +139,15 @@
                     </td>
                     <td>
                         @php
-                            $statusColors = [
-                                'pending_approval' => 'warning',
-                                'approved' => 'info',
-                                'assigned' => 'primary',
-                                'in_transit' => 'info',
-                                'delivered' => 'success',
-                                'completed' => 'success',
-                                'cancelled' => 'danger'
-                            ];
+                        $statusColors = [
+                        'pending_approval' => 'warning',
+                        'approved' => 'info',
+                        'assigned' => 'primary',
+                        'in_transit' => 'info',
+                        'delivered' => 'success',
+                        'completed' => 'success',
+                        'cancelled' => 'danger'
+                        ];
                         @endphp
                         <span class="badge badge-{{ $statusColors[$request->status] ?? 'info' }}">
                             <span class="status-dot status-{{ $request->status }}"></span>
@@ -157,8 +157,8 @@
                     <td>
                         @if($request->courier)
                         <div class="flex items-center space-x-2">
-                            <img src="https://ui-avatars.com/api/?name={{ $request->courier->first_name }}+{{ $request->courier->last_name }}&background=0D8ABC&color=fff" 
-                                 alt="{{ $request->courier->full_name }}" class="w-6 h-6 rounded-full">
+                            <img src="https://ui-avatars.com/api/?name={{ $request->courier->first_name }}+{{ $request->courier->last_name }}&background=0D8ABC&color=fff"
+                                alt="{{ $request->courier->full_name }}" class="w-6 h-6 rounded-full">
                             <span>{{ $request->courier->first_name }}</span>
                         </div>
                         @else
@@ -168,23 +168,27 @@
                     <td class="text-sm text-gray-500">{{ $request->created_at->format('M d, Y') }}</td>
                     <td>
                         <div class="flex items-center space-x-2">
-                            <a href="{{ route('admin.requests.show', $request) }}" 
-                               class="text-blue-600 hover:text-blue-800 p-1"
-                               title="View Details">
+                            <a href="{{ route('admin.requests.show', $request) }}"
+                                class="text-blue-600 hover:text-blue-800 p-1"
+                                title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @if($request->status == 'pending_approval')
                             <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                                 @csrf
+                                @method('POST')
                                 <input type="hidden" name="status" value="approved">
-                                <button type="submit" class="text-green-600 hover:text-green-800 p-1" title="Approve">
+                                <button type="submit" class="text-green-600 hover:text-green-800 p-1" title="Approve"
+                                    onclick="return confirm('Are you sure you want to approve this request?')">
                                     <i class="fas fa-check"></i>
                                 </button>
                             </form>
                             <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                                 @csrf
+                                @method('POST')
                                 <input type="hidden" name="status" value="rejected">
-                                <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Reject">
+                                <button type="submit" class="text-red-600 hover:text-red-800 p-1" title="Reject"
+                                    onclick="return confirm('Are you sure you want to reject this request?')">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
@@ -205,18 +209,18 @@
 
 @push('scripts')
 <script>
-function applyFilters() {
-    const search = document.querySelector('input[name="search"]').value;
-    const status = document.querySelector('select[name="status"]').value;
-    
-    let url = new URL(window.location.href);
-    let params = new URLSearchParams();
-    
-    if (search) params.set('search', search);
-    if (status) params.set('status', status);
-    
-    window.location.href = url.pathname + '?' + params.toString();
-}
+    function applyFilters() {
+        const search = document.querySelector('input[name="search"]').value;
+        const status = document.querySelector('select[name="status"]').value;
+
+        let url = new URL(window.location.href);
+        let params = new URLSearchParams();
+
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+
+        window.location.href = url.pathname + '?' + params.toString();
+    }
 </script>
 @endpush
 @endsection
