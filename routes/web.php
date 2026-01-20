@@ -126,10 +126,8 @@ Route::prefix('admin')
         // Requests
         Route::get('/requests', [AdminRequestController::class, 'index'])->name('admin.requests.index');
         Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
-        Route::post('/requests/{request}/approve', [AdminRequestController::class, 'approve'])->name('admin.requests.approve');
-        Route::post('/requests/{request}/reject', [AdminRequestController::class, 'reject'])->name('admin.requests.reject');
-        // Change this line in web.php:
         Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('admin.requests.assign');
+        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
     });
 
 /*

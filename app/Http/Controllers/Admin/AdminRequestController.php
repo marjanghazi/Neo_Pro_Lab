@@ -7,9 +7,8 @@ use App\Models\SpecimenRequest;
 use App\Models\Facility;
 use App\Models\User;
 use Illuminate\Http\Request;
-use App\Models\Notification; // Add this import
-use Illuminate\Support\Facades\Auth; // Added import
-
+use App\Models\Notification;
+use Illuminate\Support\Facades\Auth;
 
 class AdminRequestController extends Controller
 {
@@ -37,21 +36,25 @@ class AdminRequestController extends Controller
 
     public function show(SpecimenRequest $request)
     {
+        // The parameter is named $request but it's a SpecimenRequest model
         $request->load(['client', 'facility', 'courier', 'stops', 'documents']);
         $couriers = User::whereHas('role', function ($q) {
             $q->where('slug', 'courier');
         })->where('is_active', true)->get();
 
-        return view('admin.requests.show', compact('request', 'couriers'));
+        return view('admin.requests.show', [
+            'request' => $request,
+            'couriers' => $couriers
+        ]);
     }
 
-    public function assignCourier(Request $request, SpecimenRequest $specimenRequest)
+    public function assignCourier(Request $httpRequest, SpecimenRequest $request)
     {
-        $validated = $request->validate([
+        $validated = $httpRequest->validate([
             'courier_id' => 'required|exists:users,id',
         ]);
 
-        $specimenRequest->update([
+        $request->update([
             'assigned_to' => $validated['courier_id'],
             'assigned_by' => auth()->id(),
             'assigned_at' => now(),
@@ -59,19 +62,30 @@ class AdminRequestController extends Controller
         ]);
 
         // Create notification for courier
-        // ...
+        Notification::create([
+            'user_id' => $validated['courier_id'],
+            'request_id' => $request->id,
+            'type' => 'request_assigned',
+            'title' => 'New Assignment',
+            'message' => "You have been assigned to request #{$request->request_number}",
+            'data' => json_encode([
+                'request_id' => $request->id,
+                'request_number' => $request->request_number
+            ]),
+        ]);
 
-        return back()->with('success', 'Courier assigned successfully.');
+        return redirect()->route('admin.requests.show', $request)
+            ->with('success', 'Courier assigned successfully.');
     }
 
-    public function updateStatus(Request $request, SpecimenRequest $specimenRequest)
+    public function updateStatus(Request $httpRequest, SpecimenRequest $request)
     {
-        $validated = $request->validate([
+        $validated = $httpRequest->validate([
             'status' => 'required|in:approved,rejected,cancelled'
         ]);
 
         // Update status based on the submitted value
-        $specimenRequest->update([
+        $request->update([
             'status' => $validated['status'],
             'approved_at' => $validated['status'] == 'approved' ? now() : null,
             'cancelled_at' => $validated['status'] == 'cancelled' ? now() : null,
@@ -81,21 +95,22 @@ class AdminRequestController extends Controller
         // Create notification - with null checks
         if (in_array($validated['status'], ['approved', 'rejected'])) {
             // Check if client_id exists
-            if ($specimenRequest->client_id) {
+            if ($request->client_id) {
                 Notification::create([
-                    'user_id' => $specimenRequest->client_id,
-                    'request_id' => $specimenRequest->id,
+                    'user_id' => $request->client_id,
+                    'request_id' => $request->id,
                     'type' => 'status_update',
                     'title' => 'Request ' . ucfirst($validated['status']),
-                    'message' => "Your request " . ($specimenRequest->request_number ?: '#' . $specimenRequest->id) . " has been {$validated['status']}.",
+                    'message' => "Your request " . ($request->request_number ?: '#' . $request->id) . " has been {$validated['status']}.",
                     'data' => json_encode([
-                        'request_id' => $specimenRequest->id,
+                        'request_id' => $request->id,
                         'status' => $validated['status']
                     ]),
                 ]);
             }
         }
 
-        return back()->with('success', "Request {$validated['status']} successfully!");
+        return redirect()->route('admin.requests.show', $request)
+            ->with('success', "Request {$validated['status']} successfully!");
     }
 }

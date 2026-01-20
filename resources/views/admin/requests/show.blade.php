@@ -24,6 +24,18 @@
     <div class="lg:col-span-2 space-y-6">
         <!-- Order Overview -->
         <div class="card p-6">
+            @if(session('success'))
+            <div class="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">
+                {{ session('success') }}
+            </div>
+            @endif
+            
+            @if(session('error'))
+            <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+                {{ session('error') }}
+            </div>
+            @endif
+            
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h2 class="text-lg font-bold">{{ $request->request_number }}</h2>
@@ -33,7 +45,6 @@
                     @if($request->status == 'pending_approval')
                     <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                         @csrf
-                        @method('POST')
                         <input type="hidden" name="status" value="approved">
                         <button type="submit" class="btn-primary"
                                 onclick="return confirm('Are you sure you want to approve this request?')">
@@ -42,7 +53,6 @@
                     </form>
                     <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                         @csrf
-                        @method('POST')
                         <input type="hidden" name="status" value="rejected">
                         <button type="submit" class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
                                 onclick="return confirm('Are you sure you want to reject this request?')">
@@ -58,9 +68,9 @@
                 <div>
                     <h3 class="font-medium text-gray-700 mb-2">Client Information</h3>
                     <div class="space-y-2">
-                        <p><strong>Name:</strong> {{ $request->client->full_name }}</p>
-                        <p><strong>Email:</strong> {{ $request->client->email }}</p>
-                        <p><strong>Phone:</strong> {{ $request->client->phone }}</p>
+                        <p><strong>Name:</strong> {{ $request->client->full_name ?? 'N/A' }}</p>
+                        <p><strong>Email:</strong> {{ $request->client->email ?? 'N/A' }}</p>
+                        <p><strong>Phone:</strong> {{ $request->client->phone ?? 'N/A' }}</p>
                     </div>
                 </div>
 
@@ -82,52 +92,51 @@
             <div class="mt-6">
                 <h3 class="font-medium text-gray-700 mb-4">Status Timeline</h3>
                 <div class="space-y-4">
-                    @foreach(['created', 'approved', 'assigned', 'picked_up', 'delivered', 'completed'] as $step)
+                    @php
+                    $steps = [
+                        'created' => ['icon' => 'plus', 'field' => 'created_at'],
+                        'approved' => ['icon' => 'check', 'field' => 'approved_at'],
+                        'assigned' => ['icon' => 'user-check', 'field' => 'assigned_at'],
+                        'picked_up' => ['icon' => 'box-open', 'field' => 'picked_up_at'],
+                        'delivered' => ['icon' => 'truck', 'field' => 'delivered_at'],
+                        'completed' => ['icon' => 'clipboard-check', 'field' => 'completed_at'],
+                    ];
+                    @endphp
+                    
+                    @foreach($steps as $step => $data)
                     @php
                     $completed = false;
-                    $current = false;
-                    $stepDate = null;
-
+                    $stepDate = $request->{$data['field']};
+                    
+                    // Determine if step is completed based on status progression
                     switch($step) {
                         case 'created':
                             $completed = true;
-                            $stepDate = $request->created_at;
                             break;
                         case 'approved':
                             $completed = in_array($request->status, ['approved', 'assigned', 'in_transit', 'picked_up', 'delivered', 'completed']);
-                            $stepDate = $request->approved_at;
                             break;
                         case 'assigned':
                             $completed = in_array($request->status, ['assigned', 'in_transit', 'picked_up', 'delivered', 'completed']);
-                            $stepDate = $request->assigned_at;
                             break;
                         case 'picked_up':
                             $completed = in_array($request->status, ['picked_up', 'in_delivery', 'delivered', 'completed']);
-                            $stepDate = $request->picked_up_at;
                             break;
                         case 'delivered':
                             $completed = in_array($request->status, ['delivered', 'completed']);
-                            $stepDate = $request->delivered_at;
                             break;
                         case 'completed':
                             $completed = $request->status == 'completed';
-                            $stepDate = $request->completed_at;
                             break;
                     }
-
+                    
                     $current = $request->status == $step;
                     @endphp
                     <div class="flex items-start space-x-3">
                         <div class="flex-shrink-0">
                             <div class="w-8 h-8 rounded-full flex items-center justify-center 
                                 {{ $completed ? 'bg-teal-100 text-teal-600' : ($current ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400') }}">
-                                <i class="fas fa-{{ 
-                                    $step == 'created' ? 'plus' : 
-                                    ($step == 'approved' ? 'check' : 
-                                    ($step == 'assigned' ? 'user-check' : 
-                                    ($step == 'picked_up' ? 'box-open' : 
-                                    ($step == 'delivered' ? 'truck' : 'clipboard-check')))) 
-                                }}"></i>
+                                <i class="fas fa-{{ $data['icon'] }}"></i>
                             </div>
                             @if(!$loop->last)
                             <div class="h-8 w-0.5 bg-gray-200 mx-auto"></div>
@@ -252,7 +261,6 @@
 
             <form action="{{ route('admin.requests.assign', $request) }}" method="POST">
                 @csrf
-                @method('POST')
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Select Courier</label>
