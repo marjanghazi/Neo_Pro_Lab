@@ -128,7 +128,8 @@ Route::prefix('admin')
         Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
         Route::post('/requests/{request}/approve', [AdminRequestController::class, 'approve'])->name('admin.requests.approve');
         Route::post('/requests/{request}/reject', [AdminRequestController::class, 'reject'])->name('admin.requests.reject');
-        Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assign'])->name('admin.requests.assign');
+        // Change this line in web.php:
+        Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('admin.requests.assign');
     });
 
 /*

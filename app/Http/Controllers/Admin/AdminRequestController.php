@@ -7,6 +7,9 @@ use App\Models\SpecimenRequest;
 use App\Models\Facility;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\Notification; // Add this import
+use Illuminate\Support\Facades\Auth; // Added import
+
 
 class AdminRequestController extends Controller
 {
@@ -75,16 +78,22 @@ class AdminRequestController extends Controller
             'cancelled_by' => $validated['status'] == 'cancelled' ? Auth::id() : null,
         ]);
 
-        // Create notification
+        // Create notification - with null checks
         if (in_array($validated['status'], ['approved', 'rejected'])) {
-            Notification::create([
-                'user_id' => $specimenRequest->client_id,
-                'request_id' => $specimenRequest->id,
-                'type' => 'status_update',
-                'title' => 'Request ' . ucfirst($validated['status']),
-                'message' => "Your request {$specimenRequest->request_number} has been {$validated['status']}.",
-                'data' => json_encode(['request_id' => $specimenRequest->id, 'status' => $validated['status']]),
-            ]);
+            // Check if client_id exists
+            if ($specimenRequest->client_id) {
+                Notification::create([
+                    'user_id' => $specimenRequest->client_id,
+                    'request_id' => $specimenRequest->id,
+                    'type' => 'status_update',
+                    'title' => 'Request ' . ucfirst($validated['status']),
+                    'message' => "Your request " . ($specimenRequest->request_number ?: '#' . $specimenRequest->id) . " has been {$validated['status']}.",
+                    'data' => json_encode([
+                        'request_id' => $specimenRequest->id,
+                        'status' => $validated['status']
+                    ]),
+                ]);
+            }
         }
 
         return back()->with('success', "Request {$validated['status']} successfully!");
