@@ -115,4 +115,40 @@ class User extends Authenticatable
     {
         return $this->hasOne(CourierLocation::class, 'courier_id')->latest();
     }
+    // In App\Models\User.php
+
+    // Add these to the relationships section
+    public function courierLocations(): HasMany
+    {
+        return $this->hasMany(CourierLocation::class, 'courier_id');
+    }
+
+    public function locationHistory(): HasMany
+    {
+        return $this->hasMany(LocationHistory::class, 'courier_id');
+    }
+
+    // Add a helper method to check if courier is online
+    public function isOnline(): bool
+    {
+        if (!$this->isCourier()) {
+            return false;
+        }
+
+        $lastLocation = $this->currentLocation;
+
+        if (!$lastLocation) {
+            return false;
+        }
+
+        // Consider online if location was updated in last 5 minutes
+        return $lastLocation->is_online &&
+            $lastLocation->created_at->diffInMinutes(now()) <= 5;
+    }
+
+    // Get courier's last known location
+    public function getLastLocationAttribute()
+    {
+        return $this->currentLocation;
+    }
 }

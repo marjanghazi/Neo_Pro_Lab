@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request; // Add this
 
 // Controllers
 use App\Http\Controllers\Auth\AuthController;
@@ -13,7 +14,7 @@ use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
 use App\Http\Controllers\Client\ClientController;
-use App\Http\Controllers\CourierController;
+use App\Http\Controllers\Courier\CourierController; // ← Changed this line
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
@@ -138,7 +139,7 @@ Route::prefix('admin')
 Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
+    Route::get('/app', [ClientController::class, 'dashboard'])->name('dashboard');
 
     // Profile
     Route::get('/profile', [ClientController::class, 'profile'])->name('profile');
@@ -180,12 +181,44 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
 | Courier Routes
 |--------------------------------------------------------------------------
 */
+// Courier Routes
 Route::prefix('courier')
     ->name('courier.')
-    ->middleware('role:courier')
+    ->middleware(['auth', 'role:courier'])
     ->group(function () {
         Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
         Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
         Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
+        
+        // New routes for delivery workflow
+        Route::post('/requests/{request}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
+        Route::post('/requests/{request}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
+        Route::post('/requests/{request}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
+        Route::post('/requests/{request}/arrive-destination', [CourierController::class, 'arriveAtDestination'])->name('requests.arrive-destination');
+        Route::post('/requests/{request}/submit-delivery', [CourierController::class, 'submitDelivery'])->name('requests.submit-delivery');
+        Route::post('/requests/{request}/complete', [CourierController::class, 'completeRequest'])->name('requests.complete');
+        
+        Route::get('/requests/{request}', [CourierController::class, 'viewRequest'])->name('requests.show');
+        Route::get('/active-request', [CourierController::class, 'getActiveRequest'])->name('active-request');
+        Route::get('/requests/{request}/navigation', [CourierController::class, 'getNavigation'])->name('requests.navigation');
     });
+    // In routes/api.php or web.php
+Route::middleware(['auth', 'role:courier'])->group(function () {
+    Route::post('/api/cache-location', function (Request $request) {
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+        
+        // Cache location for 35 seconds (slightly longer than update interval)
+        cache()->put('courier_location_' . auth()->id(), [
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'accuracy' => $request->accuracy,
+            'timestamp' => now()
+        ], 35);
+        
+        return response()->json(['success' => true]);
+    });
+});

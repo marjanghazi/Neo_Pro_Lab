@@ -99,7 +99,7 @@ class SpecimenRequest extends Model
                 $lastRequest = self::where('request_number', 'like', "SPR-{$datePart}-%")
                     ->orderBy('request_number', 'desc')
                     ->first();
-                
+
                 if ($lastRequest) {
                     // Extract the sequence number from request number format: SPR-YYYYMMDD-XXXX
                     $parts = explode('-', $lastRequest->request_number);
@@ -112,11 +112,10 @@ class SpecimenRequest extends Model
                 // If we have a collision, try a different sequence
                 $seq = mt_rand(1000, 9999);
             }
-            
+
             $requestNumber = sprintf('SPR-%s-%04d', $datePart, $seq);
             $exists = self::where('request_number', $requestNumber)->exists();
             $attempts++;
-            
         } while ($exists && $attempts < $maxAttempts);
 
         // If we still have a duplicate after max attempts, add a random suffix
@@ -280,7 +279,58 @@ class SpecimenRequest extends Model
     public function courierLocation(): HasOne
     {
         return $this->hasOne(CourierLocation::class, 'request_id')
-                    ->where('courier_id', $this->assigned_to)
-                    ->latest();
+            ->where('courier_id', $this->assigned_to)
+            ->latest();
+    }
+    // In App\Models\SpecimenRequest.php
+
+    public function courierLocations(): HasMany
+    {
+        return $this->hasMany(CourierLocation::class, 'request_id');
+    }
+
+    public function locationHistory(): HasMany
+    {
+        return $this->hasMany(LocationHistory::class, 'request_id');
+    }
+
+    /**
+     * Get the latest courier location for this request
+     */
+
+    /**
+     * Get all location history for this request
+     */
+    public function getRouteHistoryAttribute()
+    {
+        return $this->locationHistory()
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * Get distance between courier and pickup/delivery
+     */
+    public function getDistanceToPickup($courierLat, $courierLng): float
+    {
+        if (!$courierLat || !$courierLng) {
+            return 0;
+        }
+
+        // Using Haversine formula
+        $earthRadius = 6371; // kilometers
+
+        $latFrom = deg2rad($courierLat);
+        $lonFrom = deg2rad($courierLng);
+        $latTo = deg2rad($this->pickup_latitude);
+        $lonTo = deg2rad($this->pickup_longitude);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+
+        return $angle * $earthRadius;
     }
 }
