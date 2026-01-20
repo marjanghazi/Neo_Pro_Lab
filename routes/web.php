@@ -164,7 +164,7 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     Route::get('/requests/{request}/confirm', [ClientController::class, 'confirmDelivery'])->name('requests.confirm');
     Route::post('/requests/{request}/confirm', [ClientController::class, 'submitConfirmation'])->name('requests.confirm.submit');
 
-    // Request Documents
+    // Request Documentsco
     Route::get('/requests/{request}/documents', [ClientController::class, 'documents'])->name('requests.documents');
     Route::get('/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('documents.download');
 
@@ -197,8 +197,8 @@ Route::prefix('courier')
 
         // Assignments
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
-        Route::post('/assignments/{request}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
-
+        Route::post('/assignments/{requestId}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
+        
         // Location Tracking
         Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
         Route::get('/location/status', [CourierController::class, 'locationStatus'])->name('location.status');
