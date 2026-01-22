@@ -164,7 +164,7 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     Route::get('/requests/{request}/confirm', [ClientController::class, 'confirmDelivery'])->name('requests.confirm');
     Route::post('/requests/{request}/confirm', [ClientController::class, 'submitConfirmation'])->name('requests.confirm.submit');
 
-    // Request Documentsco
+    // Request Documents
     Route::get('/requests/{request}/documents', [ClientController::class, 'documents'])->name('requests.documents');
     Route::get('/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('documents.download');
 
@@ -175,8 +175,10 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     Route::get('/tracking', [ClientController::class, 'tracking'])->name('tracking');
     Route::get('/tracking/active', [ClientController::class, 'getActiveTracking'])->name('tracking.active');
 
-    // API for real-time tracking
+    // API for real-time tracking - UPDATED with new endpoints
     Route::get('/api/tracking/{request}/courier-location', [ClientController::class, 'getCourierLocation'])->name('tracking.courier-location');
+    Route::get('/api/tracking/{request}/details', [ClientController::class, 'getTrackingDetails'])->name('tracking.details');
+    Route::get('/api/courier/{courier}/location', [ClientController::class, 'getCourierLocationApi'])->name('courier.location.api');
 
     // Reports
     Route::get('/reports', [ClientController::class, 'reports'])->name('reports');
@@ -241,20 +243,75 @@ Route::prefix('courier')
             $request->validate([
                 'latitude' => 'required|numeric',
                 'longitude' => 'required|numeric',
-                'accuracy' => 'nullable|numeric'
+                'accuracy' => 'nullable|numeric',
+                'speed' => 'nullable|numeric',
+                'heading' => 'nullable|numeric',
+                'altitude' => 'nullable|numeric',
+                'request_id' => 'nullable|exists:specimen_requests,id'
             ]);
 
-            cache()->put('courier_location_' . auth()->id(), [
+            $locationData = [
                 'latitude' => $request->latitude,
                 'longitude' => $request->longitude,
                 'accuracy' => $request->accuracy ?? 0,
-                'timestamp' => now(),
+                'speed' => $request->speed ?? 0,
+                'heading' => $request->heading ?? 0,
+                'altitude' => $request->altitude ?? 0,
+                'timestamp' => now()->timestamp,
+                'last_update' => now(),
                 'courier_id' => auth()->id(),
-                'courier_name' => auth()->user()->full_name
-            ], 35);
+                'courier_name' => auth()->user()->full_name,
+                'is_online' => true,
+                'request_id' => $request->request_id
+            ];
 
-            return response()->json(['success' => true]);
+            cache()->put('courier_location_' . auth()->id(), $locationData, 35);
+
+            // Also store in database if CourierLocation model exists
+            if (class_exists('App\Models\CourierLocation')) {
+                try {
+                    \App\Models\CourierLocation::updateOrCreate(
+                        ['courier_id' => auth()->id()],
+                        [
+                            'latitude' => $request->latitude,
+                            'longitude' => $request->longitude,
+                            'accuracy' => $request->accuracy ?? 0,
+                            'speed' => $request->speed ?? 0,
+                            'heading' => $request->heading ?? 0,
+                            'altitude' => $request->altitude ?? 0,
+                            'is_online' => true,
+                            'last_update' => now(),
+                            'request_id' => $request->request_id
+                        ]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to save courier location to database: ' . $e->getMessage());
+                }
+            }
+
+            return response()->json(['success' => true, 'data' => $locationData]);
         });
 
         Route::get('/api/location/history/{requestId}', [CourierController::class, 'getLocationHistory'])->name('api.location.history');
+
+        // API to get courier location for specific request
+        Route::get('/api/requests/{requestId}/courier-location', [CourierController::class, 'getCourierLocationForRequest'])->name('api.requests.courier-location');
     });
+
+/*
+|--------------------------------------------------------------------------
+| API Routes (Public for some endpoints)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    // General API routes that require authentication
+});
+
+/*
+|--------------------------------------------------------------------------
+| Fallback Route
+|--------------------------------------------------------------------------
+*/
+Route::fallback(function () {
+    return view('errors.404');
+});

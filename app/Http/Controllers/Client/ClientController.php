@@ -1,10 +1,9 @@
 <?php
-// app/Http/Controllers/ClientController.php (Updated)
+// app/Http/Controllers/Client/ClientController.php
 
-namespace App\Http\Controllers\Client; // Note: Changed namespace
+namespace App\Http\Controllers\Client;
 
-use App\Http\Controllers\Controller; // This is the key line!
-
+use App\Http\Controllers\Controller;
 use App\Models\SpecimenRequest;
 use App\Models\Facility;
 use App\Models\Notification;
@@ -12,10 +11,14 @@ use App\Models\PickupProof;
 use App\Models\RequestDocument;
 use App\Models\Signature;
 use App\Models\SystemSetting;
+use App\Models\CourierLocation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class ClientController extends Controller
 {
@@ -185,13 +188,16 @@ class ClientController extends Controller
         return $times[$window] ?? '12:00:00';
     }
 
+    /**
+     * Track individual request - NEW METHOD
+     */
     public function trackRequest(SpecimenRequest $request)
     {
         if ($request->client_id !== Auth::id()) {
             abort(403);
         }
 
-        $request->load(['courier', 'stops', 'documents']);
+        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
 
         return view('client.requests.track', compact('request'));
     }
@@ -583,5 +589,367 @@ class ClientController extends Controller
         $proofs = $request->pickupProofs()->orderBy('created_at', 'desc')->get();
 
         return view('client.requests.proofs', compact('request', 'proofs'));
+    }
+
+    /**
+     * Reverse geocode coordinates to get address
+     */
+    private function reverseGeocode($latitude, $longitude)
+    {
+        // Return coordinates if invalid
+        if (!$latitude || !$longitude) {
+            return "Location not available";
+        }
+
+        // Try to get from cache first (cache for 1 hour)
+        $cacheKey = 'reverse_geocode_' . round($latitude, 6) . '_' . round($longitude, 6);
+        $cachedAddress = Cache::get($cacheKey);
+        
+        if ($cachedAddress) {
+            return $cachedAddress;
+        }
+
+        // Using OpenStreetMap Nominatim API (free, no API key required)
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => config('app.name') . '/1.0',
+                'Accept' => 'application/json',
+            ])->timeout(3)->get('https://nominatim.openstreetmap.org/reverse', [
+                'format' => 'json',
+                'lat' => $latitude,
+                'lon' => $longitude,
+                'zoom' => 18,
+                'addressdetails' => 1,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (isset($data['display_name'])) {
+                    $address = $data['display_name'];
+                    
+                    // Cache for 24 hours
+                    Cache::put($cacheKey, $address, 86400);
+                    
+                    return $address;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::info('Reverse geocoding failed, using fallback: ' . $e->getMessage());
+        }
+
+        // Fallback: Create a readable location from coordinates
+        return $this->getReadableLocation($latitude, $longitude);
+    }
+
+    /**
+     * Get readable location from coordinates (fallback method)
+     */
+    private function getReadableLocation($latitude, $longitude)
+    {
+        // Simple fallback - just format the coordinates nicely
+        $latDir = $latitude >= 0 ? 'N' : 'S';
+        $lngDir = $longitude >= 0 ? 'E' : 'W';
+        
+        $latAbs = abs($latitude);
+        $lngAbs = abs($longitude);
+        
+        return sprintf(
+            "Location: %.4f°%s, %.4f°%s",
+            $latAbs, $latDir,
+            $lngAbs, $lngDir
+        );
+    }
+
+    /**
+     * Get real-time courier location for a specific request
+     */
+    public function getCourierLocation(SpecimenRequest $request)
+    {
+        if ($request->client_id !== Auth::id()) {
+            abort(403);
+        }
+
+        // Check if request is assigned to a courier
+        if (!$request->courier) {
+            return response()->json([
+                'error' => 'No courier assigned to this request yet.',
+                'courier' => null,
+                'location' => null,
+            ]);
+        }
+
+        $courier = $request->courier;
+        
+        // Try to get location from cache first (real-time updates)
+        $cachedLocation = Cache::get('courier_location_' . $courier->id);
+        
+        // If not in cache, check database
+        if (!$cachedLocation && class_exists(CourierLocation::class)) {
+            $location = CourierLocation::where('courier_id', $courier->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($location) {
+                $cachedLocation = [
+                    'latitude' => $location->latitude,
+                    'longitude' => $location->longitude,
+                    'accuracy' => $location->accuracy,
+                    'speed' => $location->speed,
+                    'heading' => $location->heading,
+                    'altitude' => $location->altitude,
+                    'battery_level' => $location->battery_level,
+                    'is_online' => $location->is_online,
+                    'timestamp' => $location->created_at->timestamp,
+                    'last_update' => $location->last_update ?? $location->created_at,
+                    'courier_id' => $courier->id,
+                    'courier_name' => $courier->full_name,
+                ];
+            }
+        }
+
+        // If still no location, return empty
+        if (!$cachedLocation) {
+            return response()->json([
+                'courier' => [
+                    'id' => $courier->id,
+                    'name' => $courier->full_name,
+                    'phone' => $courier->phone,
+                    'vehicle_type' => $courier->vehicle_type,
+                    'profile_image' => $courier->profile_image,
+                ],
+                'location' => null,
+                'status' => 'offline',
+                'message' => 'Courier location not available yet.',
+            ]);
+        }
+
+        // Ensure the location data has proper structure
+        $locationData = is_array($cachedLocation) ? $cachedLocation : (array)$cachedLocation;
+
+        // Get formatted address from coordinates
+        $formattedAddress = $this->reverseGeocode(
+            $locationData['latitude'] ?? null,
+            $locationData['longitude'] ?? null
+        );
+
+        return response()->json([
+            'courier' => [
+                'id' => $courier->id,
+                'name' => $courier->full_name,
+                'phone' => $courier->phone,
+                'vehicle_type' => $courier->vehicle_type,
+                'profile_image' => $courier->profile_image,
+                'last_seen' => isset($locationData['last_update']) 
+                    ? Carbon::parse($locationData['last_update'])->diffForHumans()
+                    : 'Just now',
+            ],
+            'location' => [
+                'latitude' => $locationData['latitude'] ?? null,
+                'longitude' => $locationData['longitude'] ?? null,
+                'accuracy' => $locationData['accuracy'] ?? null,
+                'speed' => $locationData['speed'] ?? 0,
+                'heading' => $locationData['heading'] ?? 0,
+                'timestamp' => $locationData['timestamp'] ?? time(),
+                'formatted_time' => isset($locationData['timestamp']) 
+                    ? date('Y-m-d H:i:s', $locationData['timestamp'])
+                    : date('Y-m-d H:i:s'),
+                'is_online' => $locationData['is_online'] ?? false,
+                'formatted_address' => $formattedAddress,
+            ],
+            'status' => ($locationData['is_online'] ?? false) ? 'online' : 'offline',
+            'request_status' => $request->status,
+        ]);
+    }
+
+    /**
+     * Get detailed tracking information for a request
+     */
+    public function getTrackingDetails(SpecimenRequest $request)
+    {
+        if ($request->client_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->load(['courier', 'stops', 'pickupProofs', 'signatures']);
+
+        // Get courier location
+        $courierLocation = null;
+        $courier = $request->courier;
+        
+        if ($courier) {
+            $cachedLocation = Cache::get('courier_location_' . $courier->id);
+            if ($cachedLocation) {
+                $courierLocation = is_array($cachedLocation) ? $cachedLocation : (array)$cachedLocation;
+            } elseif (class_exists(CourierLocation::class)) {
+                $location = CourierLocation::where('courier_id', $courier->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if ($location) {
+                    $courierLocation = $location->toArray();
+                }
+            }
+        }
+
+        // Calculate progress based on status
+        $progress = $this->calculateDeliveryProgress($request);
+
+        return response()->json([
+            'request' => [
+                'id' => $request->id,
+                'request_number' => $request->request_number,
+                'status' => $request->status,
+                'status_display' => str_replace('_', ' ', $request->status),
+                'pickup_address' => $request->pickup_address,
+                'delivery_address' => $request->delivery_address,
+                'scheduled_pickup_time' => $request->scheduled_pickup_time?->format('Y-m-d H:i:s'),
+                'scheduled_delivery_time' => $request->scheduled_delivery_time?->format('Y-m-d H:i:s'),
+                'priority_level' => $request->priority_level,
+                'specimen_type' => $request->specimen_type,
+                'temperature_requirement' => $request->temperature_requirement,
+                'quantity' => $request->quantity,
+            ],
+            'courier' => $courier ? [
+                'id' => $courier->id,
+                'name' => $courier->full_name,
+                'phone' => $courier->phone,
+                'email' => $courier->email,
+                'vehicle_type' => $courier->vehicle_type,
+                'vehicle_number' => $courier->vehicle_number,
+                'profile_image' => $courier->profile_image,
+                'rating' => $courier->rating ?? 4.5,
+            ] : null,
+            'courier_location' => $courierLocation ? array_merge($courierLocation, [
+                'formatted_address' => $this->reverseGeocode(
+                    $courierLocation['latitude'] ?? null,
+                    $courierLocation['longitude'] ?? null
+                )
+            ]) : null,
+            'stops' => $request->stops->map(function($stop) {
+                return [
+                    'id' => $stop->id,
+                    'type' => $stop->stop_type,
+                    'address' => $stop->address,
+                    'contact_name' => $stop->contact_name,
+                    'instructions' => $stop->instructions,
+                    'completed' => $stop->completed,
+                    'completed_at' => $stop->completed_at?->format('Y-m-d H:i:s'),
+                ];
+            }),
+            'progress' => $progress,
+            'proofs' => [
+                'pickup_proofs' => $request->pickupProofs->count(),
+                'delivery_signatures' => $request->signatures->where('signature_type', 'delivery')->count(),
+            ],
+            'timestamps' => [
+                'created_at' => $request->created_at->format('Y-m-d H:i:s'),
+                'accepted_at' => $request->accepted_at?->format('Y-m-d H:i:s'),
+                'pickup_started_at' => $request->pickup_started_at?->format('Y-m-d H:i:s'),
+                'pickup_completed_at' => $request->pickup_completed_at?->format('Y-m-d H:i:s'),
+                'transit_started_at' => $request->transit_started_at?->format('Y-m-d H:i:s'),
+                'arrived_at_destination_at' => $request->arrived_at_destination_at?->format('Y-m-d H:i:s'),
+                'delivered_at' => $request->delivered_at?->format('Y-m-d H:i:s'),
+                'completed_at' => $request->completed_at?->format('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
+    /**
+     * Calculate delivery progress percentage
+     */
+    private function calculateDeliveryProgress($request)
+    {
+        $statusProgress = [
+            'pending_approval' => 10,
+            'approved' => 20,
+            'assigned' => 30,
+            'accepted_by_courier' => 40,
+            'at_stop' => 50,
+            'picked_up' => 60,
+            'in_transit' => 70,
+            'arrived_at_destination' => 80,
+            'delivered' => 90,
+            'completed' => 100,
+            'cancelled' => 0,
+        ];
+
+        $progress = $statusProgress[$request->status] ?? 0;
+        
+        // If courier is en route, calculate distance-based progress
+        if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier']) && $request->courier) {
+            $progress += 5; // Add small buffer for "en route"
+        }
+
+        return min(100, $progress);
+    }
+
+    /**
+     * Get courier location by ID (API endpoint)
+     */
+    public function getCourierLocationApi($courierId)
+    {
+        // Check if courier exists
+        $courier = \App\Models\User::where('id', $courierId)
+            ->whereHas('role', function($q) {
+                $q->where('slug', 'courier');
+            })->first();
+
+        if (!$courier) {
+            return response()->json(['error' => 'Courier not found'], 404);
+        }
+
+        // Get location from cache first
+        $cachedLocation = Cache::get('courier_location_' . $courierId);
+        
+        // If not in cache, check database
+        if (!$cachedLocation && class_exists(CourierLocation::class)) {
+            $location = CourierLocation::where('courier_id', $courierId)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($location) {
+                $cachedLocation = [
+                    'latitude' => $location->latitude,
+                    'longitude' => $location->longitude,
+                    'accuracy' => $location->accuracy,
+                    'speed' => $location->speed,
+                    'heading' => $location->heading,
+                    'altitude' => $location->altitude,
+                    'battery_level' => $location->battery_level,
+                    'is_online' => $location->is_online,
+                    'timestamp' => $location->created_at->timestamp,
+                    'last_update' => $location->last_update ?? $location->created_at,
+                ];
+            }
+        }
+
+        if (!$cachedLocation) {
+            return response()->json([
+                'courier' => [
+                    'id' => $courier->id,
+                    'name' => $courier->full_name,
+                ],
+                'location' => null,
+                'status' => 'offline',
+            ]);
+        }
+
+        // Get formatted address
+        $formattedAddress = $this->reverseGeocode(
+            $cachedLocation['latitude'] ?? null,
+            $cachedLocation['longitude'] ?? null
+        );
+
+        return response()->json([
+            'courier' => [
+                'id' => $courier->id,
+                'name' => $courier->full_name,
+                'phone' => $courier->phone,
+                'vehicle_type' => $courier->vehicle_type,
+                'profile_image' => $courier->profile_image,
+            ],
+            'location' => array_merge($cachedLocation, ['formatted_address' => $formattedAddress]),
+            'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
+        ]);
     }
 }

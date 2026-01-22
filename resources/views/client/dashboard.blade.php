@@ -90,6 +90,59 @@
     </div>
 </div>
 
+<!-- Active Tracking Section -->
+@if($recentRequests->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])->count() > 0)
+<div class="card p-6 mt-8">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-bold">Active Deliveries</h2>
+        <a href="{{ route('client.tracking') }}" class="text-sm text-teal-600 hover:underline">View All</a>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        @foreach($recentRequests->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery']) as $request)
+        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <a href="{{ route('client.requests.track', $request) }}" class="font-medium text-teal-600 hover:underline">
+                        {{ $request->request_number }}
+                    </a>
+                    <p class="text-xs text-gray-500">{{ $request->created_at->format('M d, Y') }}</p>
+                </div>
+                <span class="badge badge-info text-xs">
+                    {{ str_replace('_', ' ', $request->status) }}
+                </span>
+            </div>
+            
+            <div class="text-sm mb-3">
+                <p class="text-gray-600 truncate">
+                    <i class="fas fa-map-marker-alt text-red-500 mr-2"></i>
+                    {{ Str::limit($request->pickup_address, 30) }}
+                </p>
+                <p class="text-gray-600 truncate mt-1">
+                    <i class="fas fa-truck text-green-500 mr-2"></i>
+                    {{ Str::limit($request->delivery_address, 30) }}
+                </p>
+            </div>
+            
+            @if($request->courier)
+            <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+                <div class="flex items-center">
+                    <img src="{{ $request->courier->profile_image ? '/storage/' . $request->courier->profile_image : 'https://ui-avatars.com/api/?name=' . urlencode($request->courier->full_name) . '&background=0D8ABC&color=fff' }}" 
+                         alt="{{ $request->courier->full_name }}" 
+                         class="w-6 h-6 rounded-full mr-2 object-cover">
+                    <span class="text-sm">{{ $request->courier->first_name }}</span>
+                </div>
+                <a href="{{ route('client.requests.track', $request) }}" class="text-xs text-teal-600 hover:underline">
+                    Track Live <i class="fas fa-external-link-alt ml-1"></i>
+                </a>
+            </div>
+            @endif
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <!-- Recent Requests -->
     <div class="card p-6">
