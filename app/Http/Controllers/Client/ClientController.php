@@ -28,7 +28,6 @@ class ClientController extends Controller
         $this->middleware('role:client');
     }
 
-    // Existing methods...
     public function dashboard()
     {
         $user = Auth::user();
@@ -75,8 +74,6 @@ class ClientController extends Controller
         $user = Auth::user();
         $facility = $user->facilities()->first();
 
-        // Facility is optional, so we don't redirect if not found
-        // We'll just pass null to the view
         return view('client.requests.create', compact('facility'));
     }
 
@@ -107,13 +104,21 @@ class ClientController extends Controller
             'documents.*' => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
         ]);
 
-        // Create specimen request
+        // Geocode addresses to get coordinates
+        $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
+        $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
+
+        // Create specimen request with coordinates
         $specimenRequest = SpecimenRequest::create([
             'facility_id' => $facility ? $facility->id : null,
             'client_id' => $user->id,
             'recipient_name' => $validated['recipient_name'],
             'pickup_address' => $validated['pickup_address'],
+            'pickup_latitude' => $pickupCoords['latitude'] ?? null,
+            'pickup_longitude' => $pickupCoords['longitude'] ?? null,
             'delivery_address' => $validated['delivery_address'],
+            'delivery_latitude' => $deliveryCoords['latitude'] ?? null,
+            'delivery_longitude' => $deliveryCoords['longitude'] ?? null,
             'delivery_instructions' => $validated['delivery_instructions'],
             'specimen_type' => $validated['specimen_type'],
             'temperature_requirement' => $validated['temperature_requirement'],
@@ -124,16 +129,19 @@ class ClientController extends Controller
             'status' => 'pending_approval',
         ]);
 
-        // Add additional stops
+        // Add additional stops with geocoding
         if (!empty($validated['stops'])) {
             $stopOrder = 1;
             foreach ($validated['stops'] as $stop) {
+                $stopCoords = $this->geocodeAddress($stop['address']);
                 $specimenRequest->stops()->create([
                     'stop_type' => $stop['type'],
                     'stop_order' => $stopOrder++,
                     'contact_name' => $stop['contact_name'],
                     'address' => $stop['address'],
                     'instructions' => $stop['instructions'],
+                    'latitude' => $stopCoords['latitude'] ?? null,
+                    'longitude' => $stopCoords['longitude'] ?? null,
                 ]);
             }
         }
@@ -154,7 +162,7 @@ class ClientController extends Controller
             }
         }
 
-        // CREATE NOTIFICATION FOR ADMINS - ADD THIS CODE HERE
+        // CREATE NOTIFICATION FOR ADMINS
         $adminUsers = \App\Models\User::whereHas('role', function ($query) {
             $query->where('slug', 'admin');
         })->get();
@@ -174,6 +182,58 @@ class ClientController extends Controller
             ->with('success', 'Specimen request submitted successfully! It is now pending approval.');
     }
 
+    /**
+     * Geocode address to get coordinates
+     */
+    private function geocodeAddress($address)
+    {
+        if (empty($address)) {
+            return ['latitude' => null, 'longitude' => null];
+        }
+
+        // Cache geocoding results for 30 days
+        $cacheKey = 'geocode_' . md5($address);
+        $cachedResult = Cache::get($cacheKey);
+
+        if ($cachedResult) {
+            return $cachedResult;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'User-Agent' => config('app.name') . '/1.0',
+                'Accept' => 'application/json',
+            ])->timeout(5)->get('https://nominatim.openstreetmap.org/search', [
+                'format' => 'json',
+                'q' => $address,
+                'limit' => 1,
+                'addressdetails' => 1,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if (!empty($data) && isset($data[0]['lat']) && isset($data[0]['lon'])) {
+                    $result = [
+                        'latitude' => (float) $data[0]['lat'],
+                        'longitude' => (float) $data[0]['lon'],
+                        'display_name' => $data[0]['display_name'] ?? $address,
+                    ];
+
+                    // Cache for 30 days
+                    Cache::put($cacheKey, $result, 2592000);
+
+                    return $result;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Geocoding failed for address: ' . $address . ' - ' . $e->getMessage());
+        }
+
+        // Return null if geocoding fails
+        return ['latitude' => null, 'longitude' => null];
+    }
+
     private function getTimeFromWindow($window)
     {
         $times = [
@@ -189,7 +249,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Track individual request - NEW METHOD
+     * Track individual request
      */
     public function trackRequest(SpecimenRequest $request)
     {
@@ -465,8 +525,6 @@ class ClientController extends Controller
 
     private function generatePDF($requests, $params)
     {
-        // You'll need to install a PDF library like barryvdh/laravel-dompdf
-        // For now, return a placeholder response
         return response()->json([
             'message' => 'PDF generation requires additional setup. Please install dompdf package.',
             'data' => [
@@ -604,7 +662,7 @@ class ClientController extends Controller
         // Try to get from cache first (cache for 1 hour)
         $cacheKey = 'reverse_geocode_eng_' . round($latitude, 6) . '_' . round($longitude, 6);
         $cachedAddress = Cache::get($cacheKey);
-        
+
         if ($cachedAddress) {
             return $cachedAddress;
         }
@@ -614,25 +672,25 @@ class ClientController extends Controller
             $response = Http::withHeaders([
                 'User-Agent' => config('app.name') . '/1.0',
                 'Accept' => 'application/json',
-                'Accept-Language' => 'en', // Force English language
+                'Accept-Language' => 'en',
             ])->timeout(3)->get('https://nominatim.openstreetmap.org/reverse', [
                 'format' => 'json',
                 'lat' => $latitude,
                 'lon' => $longitude,
                 'zoom' => 18,
                 'addressdetails' => 1,
-                'accept-language' => 'en', // Force English in query params
+                'accept-language' => 'en',
             ]);
 
             if ($response->successful()) {
                 $data = $response->json();
-                
+
                 if (isset($data['display_name'])) {
                     $address = $data['display_name'];
-                    
+
                     // Cache for 24 hours
                     Cache::put($cacheKey, $address, 86400);
-                    
+
                     return $address;
                 }
             }
@@ -652,19 +710,21 @@ class ClientController extends Controller
         // Simple fallback - just format the coordinates nicely
         $latDir = $latitude >= 0 ? 'N' : 'S';
         $lngDir = $longitude >= 0 ? 'E' : 'W';
-        
+
         $latAbs = abs($latitude);
         $lngAbs = abs($longitude);
-        
+
         return sprintf(
             "Location: %.4f°%s, %.4f°%s",
-            $latAbs, $latDir,
-            $lngAbs, $lngDir
+            $latAbs,
+            $latDir,
+            $lngAbs,
+            $lngDir
         );
     }
 
     /**
-     * Get real-time courier location for a specific request
+     * Get real-time courier location for a specific request - UPDATED
      */
     public function getCourierLocation(SpecimenRequest $request)
     {
@@ -678,34 +738,33 @@ class ClientController extends Controller
                 'error' => 'No courier assigned to this request yet.',
                 'courier' => null,
                 'location' => null,
+                'status' => 'offline',
             ]);
         }
 
         $courier = $request->courier;
-        
-        // Try to get location from cache first (real-time updates)
+
+        // Get location from cache first (real-time updates)
         $cachedLocation = Cache::get('courier_location_' . $courier->id);
-        
+
         // If not in cache, check database
         if (!$cachedLocation && class_exists(CourierLocation::class)) {
             $location = CourierLocation::where('courier_id', $courier->id)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+
             if ($location) {
                 $cachedLocation = [
-                    'latitude' => $location->latitude,
-                    'longitude' => $location->longitude,
-                    'accuracy' => $location->accuracy,
-                    'speed' => $location->speed,
-                    'heading' => $location->heading,
-                    'altitude' => $location->altitude,
+                    'latitude' => (float) $location->latitude,
+                    'longitude' => (float) $location->longitude,
+                    'accuracy' => $location->accuracy ? (float) $location->accuracy : null,
+                    'speed' => $location->speed ? (float) $location->speed : null,
+                    'heading' => $location->heading ? (float) $location->heading : null,
+                    'altitude' => $location->altitude ? (float) $location->altitude : null,
                     'battery_level' => $location->battery_level,
-                    'is_online' => $location->is_online,
+                    'is_online' => (bool) $location->is_online,
                     'timestamp' => $location->created_at->timestamp,
                     'last_update' => $location->last_update ?? $location->created_at,
-                    'courier_id' => $courier->id,
-                    'courier_name' => $courier->full_name,
                 ];
             }
         }
@@ -718,7 +777,7 @@ class ClientController extends Controller
                     'name' => $courier->full_name,
                     'phone' => $courier->phone,
                     'vehicle_type' => $courier->vehicle_type,
-                    'profile_image' => $courier->profile_image,
+                    'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
                 ],
                 'location' => null,
                 'status' => 'offline',
@@ -726,14 +785,37 @@ class ClientController extends Controller
             ]);
         }
 
-        // Ensure the location data has proper structure
-        $locationData = is_array($cachedLocation) ? $cachedLocation : (array)$cachedLocation;
-
         // Get formatted address from coordinates IN ENGLISH
         $formattedAddress = $this->reverseGeocode(
-            $locationData['latitude'] ?? null,
-            $locationData['longitude'] ?? null
+            $cachedLocation['latitude'] ?? null,
+            $cachedLocation['longitude'] ?? null
         );
+
+        // Calculate distance to pickup and delivery if coordinates are available
+        $distanceToPickup = null;
+        $distanceToDelivery = null;
+        $etaToPickup = null;
+        $etaToDelivery = null;
+
+        if ($request->pickup_latitude && $request->pickup_longitude) {
+            $distanceToPickup = $this->calculateDistance(
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->pickup_latitude,
+                $request->pickup_longitude
+            );
+            $etaToPickup = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
+        }
+
+        if ($request->delivery_latitude && $request->delivery_longitude) {
+            $distanceToDelivery = $this->calculateDistance(
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->delivery_latitude,
+                $request->delivery_longitude
+            );
+            $etaToDelivery = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
+        }
 
         return response()->json([
             'courier' => [
@@ -741,31 +823,52 @@ class ClientController extends Controller
                 'name' => $courier->full_name,
                 'phone' => $courier->phone,
                 'vehicle_type' => $courier->vehicle_type,
-                'profile_image' => $courier->profile_image,
-                'last_seen' => isset($locationData['last_update']) 
-                    ? Carbon::parse($locationData['last_update'])->diffForHumans()
-                    : 'Just now',
+                'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
+                'last_seen' => isset($cachedLocation['last_update'])
+                    ? Carbon::parse($cachedLocation['last_update'])->diffForHumans()
+                    : (isset($cachedLocation['timestamp'])
+                        ? Carbon::createFromTimestamp($cachedLocation['timestamp'])->diffForHumans()
+                        : 'Just now'),
+                'rating' => $courier->rating ?? 4.5,
             ],
             'location' => [
-                'latitude' => $locationData['latitude'] ?? null,
-                'longitude' => $locationData['longitude'] ?? null,
-                'accuracy' => $locationData['accuracy'] ?? null,
-                'speed' => $locationData['speed'] ?? 0,
-                'heading' => $locationData['heading'] ?? 0,
-                'timestamp' => $locationData['timestamp'] ?? time(),
-                'formatted_time' => isset($locationData['timestamp']) 
-                    ? date('Y-m-d H:i:s', $locationData['timestamp'])
+                'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
+                'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
+                'accuracy' => isset($cachedLocation['accuracy']) ? (float) $cachedLocation['accuracy'] : null,
+                'speed' => isset($cachedLocation['speed']) ? (float) $cachedLocation['speed'] : 0,
+                'heading' => isset($cachedLocation['heading']) ? (float) $cachedLocation['heading'] : 0,
+                'altitude' => isset($cachedLocation['altitude']) ? (float) $cachedLocation['altitude'] : null,
+                'timestamp' => $cachedLocation['timestamp'] ?? time(),
+                'formatted_time' => isset($cachedLocation['timestamp'])
+                    ? date('Y-m-d H:i:s', $cachedLocation['timestamp'])
                     : date('Y-m-d H:i:s'),
-                'is_online' => $locationData['is_online'] ?? false,
+                'is_online' => (bool) ($cachedLocation['is_online'] ?? false),
                 'formatted_address' => $formattedAddress,
+                'battery_level' => $cachedLocation['battery_level'] ?? null,
+                'coordinates' => [
+                    'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
+                    'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
+                    'formatted' => sprintf(
+                        '%.6f, %.6f',
+                        (float) ($cachedLocation['latitude'] ?? 0),
+                        (float) ($cachedLocation['longitude'] ?? 0)
+                    ),
+                ],
             ],
-            'status' => ($locationData['is_online'] ?? false) ? 'online' : 'offline',
+            'distances' => [
+                'to_pickup_km' => $distanceToPickup ? round($distanceToPickup, 2) : null,
+                'to_delivery_km' => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
+                'eta_to_pickup_minutes' => $etaToPickup,
+                'eta_to_delivery_minutes' => $etaToDelivery,
+            ],
+            'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
             'request_status' => $request->status,
+            'last_updated' => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
         ]);
     }
 
     /**
-     * Get detailed tracking information for a request
+     * Get detailed tracking information for a request - UPDATED
      */
     public function getTrackingDetails(SpecimenRequest $request)
     {
@@ -778,23 +881,71 @@ class ClientController extends Controller
         // Get courier location
         $courierLocation = null;
         $courier = $request->courier;
-        
+
         if ($courier) {
             $cachedLocation = Cache::get('courier_location_' . $courier->id);
             if ($cachedLocation) {
-                $courierLocation = is_array($cachedLocation) ? $cachedLocation : (array)$cachedLocation;
-            } elseif (class_exists(CourierLocation::class)) {
+                $courierLocation = $cachedLocation;
+            } else {
                 $location = CourierLocation::where('courier_id', $courier->id)
                     ->orderBy('created_at', 'desc')
                     ->first();
                 if ($location) {
-                    $courierLocation = $location->toArray();
+                    $courierLocation = [
+                        'latitude' => (float) $location->latitude,
+                        'longitude' => (float) $location->longitude,
+                        'accuracy' => $location->accuracy ? (float) $location->accuracy : null,
+                        'speed' => $location->speed ? (float) $location->speed : null,
+                        'heading' => $location->heading ? (float) $location->heading : null,
+                        'altitude' => $location->altitude ? (float) $location->altitude : null,
+                        'battery_level' => $location->battery_level,
+                        'is_online' => (bool) $location->is_online,
+                        'timestamp' => $location->created_at->timestamp,
+                        'last_update' => $location->last_update ?? $location->created_at,
+                    ];
                 }
             }
         }
 
         // Calculate progress based on status
         $progress = $this->calculateDeliveryProgress($request);
+
+        // Prepare stops with coordinates
+        $stopsWithCoords = $request->stops->map(function ($stop) {
+            return [
+                'id' => $stop->id,
+                'type' => $stop->stop_type,
+                'address' => $stop->address,
+                'contact_name' => $stop->contact_name,
+                'instructions' => $stop->instructions,
+                'completed' => $stop->completed,
+                'completed_at' => $stop->completed_at?->format('Y-m-d H:i:s'),
+                'latitude' => $stop->latitude ? (float) $stop->latitude : null,
+                'longitude' => $stop->longitude ? (float) $stop->longitude : null,
+            ];
+        });
+
+        // Calculate distances if courier location is available
+        $distances = [];
+        if ($courierLocation && $courierLocation['latitude'] && $courierLocation['longitude']) {
+            if ($request->pickup_latitude && $request->pickup_longitude) {
+                $distances['to_pickup_km'] = round($this->calculateDistance(
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->pickup_latitude,
+                    $request->pickup_longitude
+                ), 2);
+            }
+
+            if ($request->delivery_latitude && $request->delivery_longitude) {
+                $distances['to_delivery_km'] = round($this->calculateDistance(
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->delivery_latitude,
+                    $request->delivery_longitude
+                ), 2);
+            }
+        }
 
         return response()->json([
             'request' => [
@@ -803,7 +954,11 @@ class ClientController extends Controller
                 'status' => $request->status,
                 'status_display' => str_replace('_', ' ', $request->status),
                 'pickup_address' => $request->pickup_address,
+                'pickup_latitude' => $request->pickup_latitude ? (float) $request->pickup_latitude : null,
+                'pickup_longitude' => $request->pickup_longitude ? (float) $request->pickup_longitude : null,
                 'delivery_address' => $request->delivery_address,
+                'delivery_latitude' => $request->delivery_latitude ? (float) $request->delivery_latitude : null,
+                'delivery_longitude' => $request->delivery_longitude ? (float) $request->delivery_longitude : null,
                 'scheduled_pickup_time' => $request->scheduled_pickup_time?->format('Y-m-d H:i:s'),
                 'scheduled_delivery_time' => $request->scheduled_delivery_time?->format('Y-m-d H:i:s'),
                 'priority_level' => $request->priority_level,
@@ -818,27 +973,25 @@ class ClientController extends Controller
                 'email' => $courier->email,
                 'vehicle_type' => $courier->vehicle_type,
                 'vehicle_number' => $courier->vehicle_number,
-                'profile_image' => $courier->profile_image,
+                'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
                 'rating' => $courier->rating ?? 4.5,
             ] : null,
             'courier_location' => $courierLocation ? array_merge($courierLocation, [
                 'formatted_address' => $this->reverseGeocode(
                     $courierLocation['latitude'] ?? null,
                     $courierLocation['longitude'] ?? null
-                )
+                ),
+                'coordinates' => [
+                    'latitude' => $courierLocation['latitude'] ?? null,
+                    'longitude' => $courierLocation['longitude'] ?? null,
+                    'formatted' => $courierLocation['latitude'] && $courierLocation['longitude']
+                        ? sprintf('%.6f, %.6f', $courierLocation['latitude'], $courierLocation['longitude'])
+                        : null,
+                ]
             ]) : null,
-            'stops' => $request->stops->map(function($stop) {
-                return [
-                    'id' => $stop->id,
-                    'type' => $stop->stop_type,
-                    'address' => $stop->address,
-                    'contact_name' => $stop->contact_name,
-                    'instructions' => $stop->instructions,
-                    'completed' => $stop->completed,
-                    'completed_at' => $stop->completed_at?->format('Y-m-d H:i:s'),
-                ];
-            }),
+            'stops' => $stopsWithCoords,
             'progress' => $progress,
+            'distances' => $distances,
             'proofs' => [
                 'pickup_proofs' => $request->pickupProofs->count(),
                 'delivery_signatures' => $request->signatures->where('signature_type', 'delivery')->count(),
@@ -876,7 +1029,7 @@ class ClientController extends Controller
         ];
 
         $progress = $statusProgress[$request->status] ?? 0;
-        
+
         // If courier is en route, calculate distance-based progress
         if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier']) && $request->courier) {
             $progress += 5; // Add small buffer for "en route"
@@ -892,7 +1045,7 @@ class ClientController extends Controller
     {
         // Check if courier exists
         $courier = \App\Models\User::where('id', $courierId)
-            ->whereHas('role', function($q) {
+            ->whereHas('role', function ($q) {
                 $q->where('slug', 'courier');
             })->first();
 
@@ -902,23 +1055,23 @@ class ClientController extends Controller
 
         // Get location from cache first
         $cachedLocation = Cache::get('courier_location_' . $courierId);
-        
+
         // If not in cache, check database
         if (!$cachedLocation && class_exists(CourierLocation::class)) {
             $location = CourierLocation::where('courier_id', $courierId)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+
             if ($location) {
                 $cachedLocation = [
-                    'latitude' => $location->latitude,
-                    'longitude' => $location->longitude,
-                    'accuracy' => $location->accuracy,
-                    'speed' => $location->speed,
-                    'heading' => $location->heading,
-                    'altitude' => $location->altitude,
+                    'latitude' => (float) $location->latitude,
+                    'longitude' => (float) $location->longitude,
+                    'accuracy' => $location->accuracy ? (float) $location->accuracy : null,
+                    'speed' => $location->speed ? (float) $location->speed : null,
+                    'heading' => $location->heading ? (float) $location->heading : null,
+                    'altitude' => $location->altitude ? (float) $location->altitude : null,
                     'battery_level' => $location->battery_level,
-                    'is_online' => $location->is_online,
+                    'is_online' => (bool) $location->is_online,
                     'timestamp' => $location->created_at->timestamp,
                     'last_update' => $location->last_update ?? $location->created_at,
                 ];
@@ -948,10 +1101,44 @@ class ClientController extends Controller
                 'name' => $courier->full_name,
                 'phone' => $courier->phone,
                 'vehicle_type' => $courier->vehicle_type,
-                'profile_image' => $courier->profile_image,
+                'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
             ],
             'location' => array_merge($cachedLocation, ['formatted_address' => $formattedAddress]),
             'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
         ]);
+    }
+
+    /**
+     * Calculate distance between two coordinates in kilometers
+     */
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // kilometers
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lon2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+
+        return $angle * $earthRadius;
+    }
+
+    /**
+     * Calculate estimated time of arrival in minutes
+     */
+    private function calculateETA($distanceKm, $speedKmh)
+    {
+        if ($speedKmh <= 0) {
+            $speedKmh = 30; // Default speed in city traffic
+        }
+
+        $timeHours = $distanceKm / $speedKmh;
+        return round($timeHours * 60); // Convert to minutes
     }
 }

@@ -175,7 +175,7 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     Route::get('/tracking', [ClientController::class, 'tracking'])->name('tracking');
     Route::get('/tracking/active', [ClientController::class, 'getActiveTracking'])->name('tracking.active');
 
-    // API for real-time tracking - UPDATED with new endpoints
+    // API for real-time tracking
     Route::get('/api/tracking/{request}/courier-location', [ClientController::class, 'getCourierLocation'])->name('tracking.courier-location');
     Route::get('/api/tracking/{request}/details', [ClientController::class, 'getTrackingDetails'])->name('tracking.details');
     Route::get('/api/courier/{courier}/location', [ClientController::class, 'getCourierLocationApi'])->name('courier.location.api');
@@ -210,7 +210,7 @@ Route::prefix('courier')
         Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
         Route::get('/requests/{requestId}', [CourierController::class, 'viewRequest'])->name('requests.show');
 
-        // Delivery Workflow - UPDATED to use requestId
+        // Delivery Workflow
         Route::post('/requests/{requestId}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
         Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{requestId}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
@@ -247,16 +247,18 @@ Route::prefix('courier')
                 'speed' => 'nullable|numeric',
                 'heading' => 'nullable|numeric',
                 'altitude' => 'nullable|numeric',
+                'battery_level' => 'nullable|numeric|min:0|max:100',
                 'request_id' => 'nullable|exists:specimen_requests,id'
             ]);
 
             $locationData = [
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
-                'accuracy' => $request->accuracy ?? 0,
-                'speed' => $request->speed ?? 0,
-                'heading' => $request->heading ?? 0,
-                'altitude' => $request->altitude ?? 0,
+                'latitude' => (float) $request->latitude,
+                'longitude' => (float) $request->longitude,
+                'accuracy' => $request->accuracy ? (float) $request->accuracy : 0,
+                'speed' => $request->speed ? (float) $request->speed : 0,
+                'heading' => $request->heading ? (float) $request->heading : 0,
+                'altitude' => $request->altitude ? (float) $request->altitude : 0,
+                'battery_level' => $request->battery_level,
                 'timestamp' => now()->timestamp,
                 'last_update' => now(),
                 'courier_id' => auth()->id(),
@@ -279,6 +281,7 @@ Route::prefix('courier')
                             'speed' => $request->speed ?? 0,
                             'heading' => $request->heading ?? 0,
                             'altitude' => $request->altitude ?? 0,
+                            'battery_level' => $request->battery_level,
                             'is_online' => true,
                             'last_update' => now(),
                             'request_id' => $request->request_id
@@ -290,7 +293,7 @@ Route::prefix('courier')
             }
 
             return response()->json(['success' => true, 'data' => $locationData]);
-        });
+        })->name('api.cache-location');
 
         Route::get('/api/location/history/{requestId}', [CourierController::class, 'getLocationHistory'])->name('api.location.history');
 

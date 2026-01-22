@@ -34,8 +34,179 @@
         </div>
     </div>
 
+    <!-- Live Location Box -->
+    <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold">Live Courier Location</h3>
+            <div class="flex items-center space-x-2">
+                <span class="text-sm text-gray-600" id="locationLastUpdate">
+                    <i class="fas fa-clock mr-1"></i>Updating...
+                </span>
+                <div id="locationStatus" class="flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                    <span class="text-sm">Offline</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Column: Location Details -->
+            <div>
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="flex items-start mb-3">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-map-marker-alt text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">Current Location</h4>
+                            <div id="currentLocationAddress" class="text-gray-600 text-sm mt-1">
+                                <div class="animate-pulse">
+                                    <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                                </div>
+                            </div>
+                            <div id="locationCoordinates" class="text-xs text-gray-500 mt-2 hidden">
+                                <i class="fas fa-globe-americas mr-1"></i>
+                                <span id="coordinatesText">Loading coordinates...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div class="bg-white p-3 rounded border location-metric">
+                            <div class="flex items-center">
+                                <i class="fas fa-tachometer-alt text-green-500 mr-2"></i>
+                                <span class="text-sm text-gray-600">Speed</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="locationSpeed" class="font-bold text-lg">0</span>
+                                <span class="text-sm text-gray-500">km/h</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-3 rounded border location-metric">
+                            <div class="flex items-center">
+                                <i class="fas fa-battery-three-quarters text-yellow-500 mr-2"></i>
+                                <span class="text-sm text-gray-600">Battery</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="locationBattery" class="font-bold text-lg">N/A</span>
+                                <span class="text-sm text-gray-500">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-3 rounded border location-metric">
+                            <div class="flex items-center">
+                                <i class="fas fa-crosshairs text-blue-500 mr-2"></i>
+                                <span class="text-sm text-gray-600">Accuracy</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="locationAccuracy" class="font-bold text-lg">0</span>
+                                <span class="text-sm text-gray-500">m</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-3 rounded border location-metric">
+                            <div class="flex items-center">
+                                <i class="fas fa-compass text-purple-500 mr-2"></i>
+                                <span class="text-sm text-gray-600">Heading</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="locationHeading" class="font-bold text-lg">0</span>
+                                <span class="text-sm text-gray-500">°</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Distance Information -->
+                <div id="distanceInfo" class="hidden">
+                    <h4 class="font-semibold text-gray-800 mb-3">Distance Information</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-blue-50 p-3 rounded border border-blue-100">
+                            <div class="flex items-center">
+                                <i class="fas fa-flag-checkered text-red-500 mr-2"></i>
+                                <span class="text-sm text-gray-700">To Pickup</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="distanceToPickup" class="font-bold text-lg">--</span>
+                                <span class="text-sm text-gray-500">km</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span id="etaToPickup">-- min</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-green-50 p-3 rounded border border-green-100">
+                            <div class="flex items-center">
+                                <i class="fas fa-home text-green-500 mr-2"></i>
+                                <span class="text-sm text-gray-700">To Delivery</span>
+                            </div>
+                            <div class="mt-1">
+                                <span id="distanceToDelivery" class="font-bold text-lg">--</span>
+                                <span class="text-sm text-gray-500">km</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span id="etaToDelivery">-- min</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: Mini Map -->
+            <div>
+                <div class="bg-gray-800 rounded-lg overflow-hidden h-64 relative">
+                    <div id="miniMap" class="h-full w-full"></div>
+                    <div class="absolute top-3 right-3 bg-white rounded-lg shadow-lg p-2">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            <span class="text-xs font-medium">Courier</span>
+                        </div>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <span class="text-xs font-medium">Pickup</span>
+                        </div>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span class="text-xs font-medium">Delivery</span>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-3 left-3 bg-white rounded-lg shadow-lg p-2">
+                        <button onclick="centerOnCourier()" class="flex items-center text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-crosshairs mr-2"></i>
+                            Center on Courier
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Location Actions -->
+                <div class="mt-4 flex space-x-3">
+                    <button onclick="refreshLocation()" class="btn-primary flex-1">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh Location
+                    </button>
+                    <button onclick="shareLocation()" class="btn-secondary flex-1">
+                        <i class="fas fa-share-alt mr-2"></i> Share Location
+                    </button>
+                </div>
+                
+                <!-- Location History Button -->
+                <div class="mt-3">
+                    <button onclick="showLocationHistory()" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <i class="fas fa-history mr-2"></i>
+                        View Location History
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column: Map and Courier Info -->
+        <!-- Left Column: Main Map and Courier Info -->
         <div class="lg:col-span-2 space-y-6">
             <!-- Map Container -->
             <div class="card p-6">
@@ -212,12 +383,30 @@
         </div>
     </div>
 </div>
+
+<!-- Location History Modal -->
+<div id="locationHistoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Location History</h3>
+            <button onclick="closeLocationHistory()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mt-2">
+            <div id="locationHistoryContent" class="h-96 overflow-y-auto">
+                <!-- Location history will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('styles')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 <style>
-#trackingMap {
+#trackingMap, #miniMap {
     z-index: 1;
 }
 .leaflet-container {
@@ -274,21 +463,54 @@
 .timeline-item.completed::before {
     background-color: #059669;
 }
+.mini-courier-marker {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+#miniMap .leaflet-container {
+    border-radius: 0.5rem;
+}
+.location-metric {
+    transition: all 0.3s ease;
+}
+.location-metric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+#locationHistoryContent {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+}
+#locationHistoryContent::-webkit-scrollbar {
+    width: 6px;
+}
+#locationHistoryContent::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 3px;
+}
+#locationHistoryContent::-webkit-scrollbar-thumb {
+    background-color: #cbd5e0;
+    border-radius: 3px;
+}
 </style>
 @endpush
 
 @push('scripts')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 <script>
 let map;
+let miniMap;
 let pickupMarker;
 let deliveryMarker;
 let courierMarker;
+let miniCourierMarker;
+let routeControl;
 let routePolyline;
 let updateInterval;
+let locationUpdateInterval;
 let lastCourierLocation = null;
 
-// Initialize map
+// Initialize main map
 function initMap() {
     map = L.map('trackingMap').setView([40.7128, -74.0060], 12);
     
@@ -296,23 +518,26 @@ function initMap() {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
     
-    // Add pickup marker (using actual pickup address)
-    addPickupMarker();
-    
-    // Add delivery marker (using actual delivery address)
-    addDeliveryMarker();
-    
     // Start tracking updates
     startTrackingUpdates();
 }
 
-// Add pickup marker
-function addPickupMarker() {
-    // Using New York as default for demo
-    const pickupLat = 40.7128 + (Math.random() - 0.5) * 0.1;
-    const pickupLng = -74.0060 + (Math.random() - 0.5) * 0.1;
+// Initialize mini map
+function initMiniMap() {
+    miniMap = L.map('miniMap').setView([40.7128, -74.0060], 13);
     
-    pickupMarker = L.marker([pickupLat, pickupLng], {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(miniMap);
+}
+
+// Add pickup marker with real coordinates
+function addPickupMarker(latitude, longitude, address) {
+    if (pickupMarker) {
+        map.removeLayer(pickupMarker);
+    }
+    
+    pickupMarker = L.marker([latitude, longitude], {
         icon: L.divIcon({
             html: `<div class="w-8 h-8 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
                      <i class="fas fa-map-marker-alt text-white"></i>
@@ -325,18 +550,29 @@ function addPickupMarker() {
     pickupMarker.bindPopup(`
         <div class="p-2">
             <h4 class="font-bold">Pickup Location</h4>
-            <p class="text-sm text-gray-600">{{ $request->pickup_address }}</p>
+            <p class="text-sm text-gray-600">${address}</p>
+            <p class="text-xs text-gray-500">Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
         </div>
     `);
+    
+    // Also add to mini map
+    L.marker([latitude, longitude], {
+        icon: L.divIcon({
+            html: `<div class="w-4 h-4 bg-red-500 rounded-full border border-white shadow"></div>`,
+            iconSize: [16, 16]
+        })
+    }).addTo(miniMap);
+    
+    return pickupMarker;
 }
 
-// Add delivery marker
-function addDeliveryMarker() {
-    // Using New York as default for demo
-    const deliveryLat = 40.7128 + (Math.random() - 0.5) * 0.1;
-    const deliveryLng = -74.0060 + (Math.random() - 0.5) * 0.1;
+// Add delivery marker with real coordinates
+function addDeliveryMarker(latitude, longitude, address) {
+    if (deliveryMarker) {
+        map.removeLayer(deliveryMarker);
+    }
     
-    deliveryMarker = L.marker([deliveryLat, deliveryLng], {
+    deliveryMarker = L.marker([latitude, longitude], {
         icon: L.divIcon({
             html: `<div class="w-8 h-8 bg-green-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
                      <i class="fas fa-truck text-white"></i>
@@ -349,15 +585,192 @@ function addDeliveryMarker() {
     deliveryMarker.bindPopup(`
         <div class="p-2">
             <h4 class="font-bold">Delivery Location</h4>
-            <p class="text-sm text-gray-600">{{ $request->delivery_address }}</p>
+            <p class="text-sm text-gray-600">${address}</p>
+            <p class="text-xs text-gray-500">Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
         </div>
     `);
     
-    // Draw route between pickup and delivery
-    if (pickupMarker && deliveryMarker) {
+    // Also add to mini map
+    L.marker([latitude, longitude], {
+        icon: L.divIcon({
+            html: `<div class="w-4 h-4 bg-green-500 rounded-full border border-white shadow"></div>`,
+            iconSize: [16, 16]
+        })
+    }).addTo(miniMap);
+    
+    return deliveryMarker;
+}
+
+// Add intermediate stop markers
+function addStopMarkers(stops) {
+    // Remove existing stop markers
+    if (window.stopMarkers) {
+        window.stopMarkers.forEach(marker => map.removeLayer(marker));
+    }
+    window.stopMarkers = [];
+    
+    stops.forEach((stop, index) => {
+        if (stop.latitude && stop.longitude) {
+            const marker = L.marker([stop.latitude, stop.longitude], {
+                icon: L.divIcon({
+                    html: `<div class="w-7 h-7 bg-yellow-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                             <span class="text-white text-xs font-bold">${index + 1}</span>
+                           </div>`,
+                    iconSize: [28, 28],
+                    className: 'stop-marker'
+                })
+            }).addTo(map);
+            
+            marker.bindPopup(`
+                <div class="p-2">
+                    <h4 class="font-bold">Stop ${index + 1}: ${stop.type}</h4>
+                    <p class="text-sm text-gray-600">${stop.address}</p>
+                    ${stop.contact_name ? `<p class="text-sm text-gray-600">Contact: ${stop.contact_name}</p>` : ''}
+                    <p class="text-xs text-gray-500">Status: ${stop.completed ? 'Completed' : 'Pending'}</p>
+                </div>
+            `);
+            
+            window.stopMarkers.push(marker);
+        }
+    });
+}
+
+// Update courier marker position with address
+function updateCourierMarker(latitude, longitude, address, speed, heading) {
+    if (!courierMarker) {
+        // Create new marker with direction arrow
+        const iconHtml = heading ? 
+            `<div class="w-10 h-10 bg-blue-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center" style="transform: rotate(${heading}deg);">
+                 <i class="fas fa-user text-white text-lg"></i>
+               </div>` :
+            `<div class="w-10 h-10 bg-blue-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center">
+                 <i class="fas fa-user text-white text-lg"></i>
+               </div>`;
+        
+        courierMarker = L.marker([latitude, longitude], {
+            icon: L.divIcon({
+                html: iconHtml,
+                iconSize: [40, 40],
+                className: 'courier-marker'
+            })
+        }).addTo(map);
+    } else {
+        // Update existing marker position and rotation
+        courierMarker.setLatLng([latitude, longitude]);
+        if (heading) {
+            const iconElement = courierMarker.getElement();
+            if (iconElement) {
+                iconElement.querySelector('.fa-user').parentElement.style.transform = `rotate(${heading}deg)`;
+            }
+        }
+    }
+    
+    // Update popup with address and speed
+    const speedInfo = speed ? `<p class="text-xs text-gray-500">Speed: ${Math.round(speed * 3.6)} km/h</p>` : '';
+    const popupContent = `
+        <div class="p-2">
+            <h4 class="font-bold">Courier Location</h4>
+            <p class="text-sm text-gray-600">${address || 'Location not available'}</p>
+            ${speedInfo}
+            <p class="text-xs text-gray-500 mt-1">Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+            <p class="text-xs text-gray-500">Last updated: ${new Date().toLocaleTimeString()}</p>
+        </div>
+    `;
+    
+    courierMarker.bindPopup(popupContent);
+    
+    return courierMarker;
+}
+
+// Update mini map with courier location
+function updateMiniMap(latitude, longitude, heading) {
+    if (!miniCourierMarker) {
+        // Create new marker with direction arrow
+        const iconHtml = heading ? 
+            `<div class="w-6 h-6 bg-blue-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center" style="transform: rotate(${heading}deg);">
+                 <i class="fas fa-user text-white text-xs"></i>
+               </div>` :
+            `<div class="w-6 h-6 bg-blue-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                 <i class="fas fa-user text-white text-xs"></i>
+               </div>`;
+        
+        miniCourierMarker = L.marker([latitude, longitude], {
+            icon: L.divIcon({
+                html: iconHtml,
+                iconSize: [24, 24],
+                className: 'mini-courier-marker'
+            })
+        }).addTo(miniMap);
+    } else {
+        // Update existing marker
+        miniCourierMarker.setLatLng([latitude, longitude]);
+        if (heading) {
+            const iconElement = miniCourierMarker.getElement();
+            if (iconElement) {
+                iconElement.querySelector('.fa-user').parentElement.style.transform = `rotate(${heading}deg)`;
+            }
+        }
+    }
+    
+    // Center mini map on courier
+    miniMap.setView([latitude, longitude], 15);
+}
+
+// Calculate route between points
+function calculateRoute(pickupLat, pickupLng, deliveryLat, deliveryLng, stops = []) {
+    // Remove existing route
+    if (routeControl) {
+        map.removeControl(routeControl);
+    }
+    if (routePolyline) {
+        map.removeLayer(routePolyline);
+    }
+    
+    try {
+        // Create waypoints array
+        const waypoints = [
+            L.latLng(pickupLat, pickupLng)
+        ];
+        
+        // Add stops as waypoints
+        stops.forEach(stop => {
+            if (stop.latitude && stop.longitude) {
+                waypoints.push(L.latLng(stop.latitude, stop.longitude));
+            }
+        });
+        
+        // Add delivery as final waypoint
+        waypoints.push(L.latLng(deliveryLat, deliveryLng));
+        
+        // Create routing control
+        routeControl = L.Routing.control({
+            waypoints: waypoints,
+            routeWhileDragging: false,
+            showAlternatives: false,
+            fitSelectedRoutes: false,
+            show: false, // Hide the routing instructions panel
+            lineOptions: {
+                styles: [{color: '#0d9488', weight: 4, opacity: 0.7}],
+                extendToWaypoints: true,
+                missingRouteTolerance: 10
+            },
+            createMarker: function() { return null; } // Don't create markers
+        }).addTo(map);
+        
+        // Get the route polyline for later updates
+        routeControl.on('routesfound', function(e) {
+            const routes = e.routes;
+            if (routes && routes.length > 0) {
+                routePolyline = routes[0].coordinates;
+            }
+        });
+        
+    } catch (error) {
+        console.error('Routing error:', error);
+        // Fallback to simple polyline
         routePolyline = L.polyline([
-            pickupMarker.getLatLng(),
-            deliveryMarker.getLatLng()
+            [pickupLat, pickupLng],
+            [deliveryLat, deliveryLng]
         ], {
             color: '#0d9488',
             weight: 3,
@@ -367,57 +780,24 @@ function addDeliveryMarker() {
     }
 }
 
-// Update courier marker position with address
-function updateCourierMarker(latitude, longitude, address) {
-    if (!courierMarker) {
-        // Create new marker
-        courierMarker = L.marker([latitude, longitude], {
-            icon: L.divIcon({
-                html: `<div class="w-10 h-10 bg-blue-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center">
-                         <i class="fas fa-user text-white text-lg"></i>
-                       </div>`,
-                iconSize: [40, 40],
-                className: 'courier-marker'
-            })
-        }).addTo(map);
-    } else {
-        // Update existing marker position
-        courierMarker.setLatLng([latitude, longitude]);
-    }
-    
-    // Update popup with address
-    const popupContent = `
-        <div class="p-2">
-            <h4 class="font-bold">Courier Location</h4>
-            <p class="text-sm text-gray-600">${address || 'Location not available'}</p>
-            <p class="text-xs text-gray-500 mt-1">Last updated: ${new Date().toLocaleTimeString()}</p>
-        </div>
-    `;
-    
-    courierMarker.bindPopup(popupContent);
-    
-    // Fit bounds to show all markers
-    const bounds = L.latLngBounds([
-        pickupMarker.getLatLng(),
-        deliveryMarker.getLatLng(),
-        [latitude, longitude]
-    ]);
-    map.fitBounds(bounds, { padding: [50, 50] });
-}
-
 // Start tracking updates
 function startTrackingUpdates() {
     // Initial load
     fetchTrackingData();
+    fetchCourierLocation();
     
-    // Set up interval for updates (every 10 seconds)
-    updateInterval = setInterval(fetchTrackingData, 10000);
+    // Set up interval for updates (every 5 seconds for real-time tracking)
+    updateInterval = setInterval(fetchTrackingData, 5000);
+    locationUpdateInterval = setInterval(fetchCourierLocation, 3000);
 }
 
 // Fetch tracking data from API
 async function fetchTrackingData() {
     try {
-        const response = await fetch('/client/api/tracking/{{ $request->id }}/details');
+        const response = await fetch('{{ route("client.tracking.details", $request->id) }}');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
         const data = await response.json();
         
         updateLastUpdateTime();
@@ -426,19 +806,195 @@ async function fetchTrackingData() {
         updateProgressSteps(data.request.status, data.stops);
         updateTimeline(data.timestamps);
         
-        // Update map if courier location is available
+        // Update map with real coordinates
+        if (data.request.pickup_latitude && data.request.pickup_longitude) {
+            addPickupMarker(
+                data.request.pickup_latitude,
+                data.request.pickup_longitude,
+                data.request.pickup_address
+            );
+        }
+        
+        if (data.request.delivery_latitude && data.request.delivery_longitude) {
+            addDeliveryMarker(
+                data.request.delivery_latitude,
+                data.request.delivery_longitude,
+                data.request.delivery_address
+            );
+        }
+        
+        // Add stop markers
+        if (data.stops && data.stops.length > 0) {
+            addStopMarkers(data.stops);
+        }
+        
+        // Calculate route if we have pickup and delivery coordinates
+        if (data.request.pickup_latitude && data.request.pickup_longitude && 
+            data.request.delivery_latitude && data.request.delivery_longitude) {
+            calculateRoute(
+                data.request.pickup_latitude,
+                data.request.pickup_longitude,
+                data.request.delivery_latitude,
+                data.request.delivery_longitude,
+                data.stops.filter(s => s.latitude && s.longitude)
+            );
+        }
+        
+        // Update courier marker if location is available
         if (data.courier_location && data.courier_location.latitude && data.courier_location.longitude) {
             updateCourierMarker(
                 data.courier_location.latitude, 
                 data.courier_location.longitude,
-                data.courier_location.formatted_address || 'Current Location'
+                data.courier_location.formatted_address || 'Current Location',
+                data.courier_location.speed || 0,
+                data.courier_location.heading || 0
             );
             lastCourierLocation = data.courier_location;
+            
+            // Fit bounds to show all markers
+            fitMapToMarkers(data);
         }
         
     } catch (error) {
         console.error('Error fetching tracking data:', error);
         showError('Unable to fetch tracking data. Please try again.');
+    }
+}
+
+// Fetch courier location specifically for the location box
+async function fetchCourierLocation() {
+    try {
+        const response = await fetch('{{ route("client.tracking.courier-location", $request->id) }}');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+        
+        // Update location box
+        updateLocationBox(data);
+        
+        // Update mini map
+        if (data.location && data.location.latitude && data.location.longitude) {
+            updateMiniMap(
+                data.location.latitude, 
+                data.location.longitude,
+                data.location.heading || 0
+            );
+        }
+        
+    } catch (error) {
+        console.error('Error fetching courier location:', error);
+        showError('Unable to fetch courier location');
+    }
+}
+
+// Update location box with real data
+function updateLocationBox(data) {
+    const locationStatus = document.getElementById('locationStatus');
+    const locationLastUpdate = document.getElementById('locationLastUpdate');
+    const currentLocationAddress = document.getElementById('currentLocationAddress');
+    const locationCoordinates = document.getElementById('locationCoordinates');
+    const coordinatesText = document.getElementById('coordinatesText');
+    const locationSpeed = document.getElementById('locationSpeed');
+    const locationBattery = document.getElementById('locationBattery');
+    const locationAccuracy = document.getElementById('locationAccuracy');
+    const locationHeading = document.getElementById('locationHeading');
+    const distanceInfo = document.getElementById('distanceInfo');
+    const distanceToPickup = document.getElementById('distanceToPickup');
+    const etaToPickup = document.getElementById('etaToPickup');
+    const distanceToDelivery = document.getElementById('distanceToDelivery');
+    const etaToDelivery = document.getElementById('etaToDelivery');
+    
+    // Update status
+    const isOnline = data.status === 'online';
+    locationStatus.innerHTML = `
+        <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'} mr-2"></span>
+        <span class="text-sm ${isOnline ? 'text-green-600' : 'text-red-600'}">${isOnline ? 'Online' : 'Offline'}</span>
+    `;
+    
+    // Update last update time
+    const now = new Date();
+    locationLastUpdate.innerHTML = `<i class="fas fa-clock mr-1"></i>Updated: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    
+    // Update location address
+    if (data.location && data.location.formatted_address) {
+        currentLocationAddress.innerHTML = `
+            <p class="text-gray-800 font-medium">${data.location.formatted_address}</p>
+            <p class="text-gray-500 text-xs mt-1">
+                <i class="fas fa-history mr-1"></i>
+                Last location update: ${data.courier.last_seen}
+            </p>
+        `;
+        
+        // Show coordinates
+        locationCoordinates.classList.remove('hidden');
+        if (data.location.coordinates && data.location.coordinates.formatted) {
+            coordinatesText.textContent = data.location.coordinates.formatted;
+        }
+    }
+    
+    // Update metrics
+    if (data.location) {
+        locationSpeed.textContent = Math.round(data.location.speed * 3.6) || '0';
+        locationBattery.textContent = data.location.battery_level || 'N/A';
+        locationAccuracy.textContent = data.location.accuracy ? Math.round(data.location.accuracy) : '0';
+        locationHeading.textContent = data.location.heading ? Math.round(data.location.heading) : '0';
+    }
+    
+    // Update distances
+    if (data.distances) {
+        distanceInfo.classList.remove('hidden');
+        if (data.distances.to_pickup_km) {
+            distanceToPickup.textContent = data.distances.to_pickup_km;
+            etaToPickup.textContent = data.distances.eta_to_pickup_minutes 
+                ? `${data.distances.eta_to_pickup_minutes} min` 
+                : 'Calculating...';
+        }
+        if (data.distances.to_delivery_km) {
+            distanceToDelivery.textContent = data.distances.to_delivery_km;
+            etaToDelivery.textContent = data.distances.eta_to_delivery_minutes 
+                ? `${data.distances.eta_to_delivery_minutes} min` 
+                : 'Calculating...';
+        }
+    }
+}
+
+// Fit map to show all relevant markers
+function fitMapToMarkers(data) {
+    const bounds = [];
+    
+    // Add pickup bounds
+    if (data.request.pickup_latitude && data.request.pickup_longitude) {
+        bounds.push([data.request.pickup_latitude, data.request.pickup_longitude]);
+    }
+    
+    // Add delivery bounds
+    if (data.request.delivery_latitude && data.request.delivery_longitude) {
+        bounds.push([data.request.delivery_latitude, data.request.delivery_longitude]);
+    }
+    
+    // Add courier bounds
+    if (data.courier_location && data.courier_location.latitude && data.courier_location.longitude) {
+        bounds.push([data.courier_location.latitude, data.courier_location.longitude]);
+    }
+    
+    // Add stop bounds
+    if (data.stops) {
+        data.stops.forEach(stop => {
+            if (stop.latitude && stop.longitude) {
+                bounds.push([stop.latitude, stop.longitude]);
+            }
+        });
+    }
+    
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, { 
+            padding: [50, 50],
+            maxZoom: 15
+        });
     }
 }
 
@@ -485,6 +1041,8 @@ function updateCourierInfo(courier, location) {
     if (location) {
         const lastUpdate = location.last_update ? new Date(location.last_update).toLocaleTimeString() : 'Just now';
         const address = location.formatted_address || 'Location not available';
+        const coordinates = location.latitude && location.longitude ? 
+            `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'Not available';
         
         locationInfo = `
             <div class="mt-4">
@@ -494,9 +1052,11 @@ function updateCourierInfo(courier, location) {
                         <i class="fas fa-map-marker-alt text-red-500 mr-2 mt-1 flex-shrink-0"></i>
                         <div>
                             <span class="text-sm">${address}</span>
-                            <p class="text-xs text-gray-500 mt-1">Last updated: ${lastUpdate}</p>
+                            <p class="text-xs text-gray-500 mt-1">Coordinates: ${coordinates}</p>
+                            <p class="text-xs text-gray-500">Last updated: ${lastUpdate}</p>
                             ${location.speed ? `<p class="text-xs text-gray-500">Speed: ${Math.round(location.speed * 3.6)} km/h</p>` : ''}
                             ${location.accuracy ? `<p class="text-xs text-gray-500">Accuracy: ±${Math.round(location.accuracy)} meters</p>` : ''}
+                            ${location.battery_level ? `<p class="text-xs text-gray-500">Battery: ${location.battery_level}%</p>` : ''}
                         </div>
                     </div>
                 </div>
@@ -504,12 +1064,13 @@ function updateCourierInfo(courier, location) {
         `;
     }
     
+    const profileImageUrl = courier.profile_image ? courier.profile_image : '';
     courierContent.innerHTML = `
         <div class="flex items-start space-x-4">
             <div class="flex-shrink-0">
-                <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                    ${courier.profile_image ? 
-                        `<img src="/storage/${courier.profile_image}" class="w-16 h-16 rounded-full object-cover">` : 
+                <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                    ${profileImageUrl ? 
+                        `<img src="${profileImageUrl}" class="w-full h-full object-cover" alt="${courier.name}">` : 
                         `<i class="fas fa-user text-gray-400 text-2xl"></i>`
                     }
                 </div>
@@ -648,7 +1209,8 @@ function getProgressSteps(status, stops) {
                 label: `Stop ${index + 1}: ${stop.address.substring(0, 20)}...`,
                 description: stop.instructions,
                 completed: stop.completed,
-                active: !stop.completed && index === 0
+                active: !stop.completed && status === 'at_stop',
+                time: stop.completed_at || null
             });
         }
     });
@@ -758,10 +1320,55 @@ function updateTimeline(timestamps) {
     container.innerHTML = html || '<p class="text-gray-500 text-center py-4">No timeline events yet</p>';
 }
 
+// Center main map on courier
+function centerOnCourier() {
+    if (lastCourierLocation && lastCourierLocation.latitude && lastCourierLocation.longitude) {
+        map.setView([lastCourierLocation.latitude, lastCourierLocation.longitude], 15);
+        showToast('Centered on courier location', 'success');
+    }
+}
+
+// Refresh location manually
+function refreshLocation() {
+    fetchCourierLocation();
+    showToast('Location refreshed', 'success');
+}
+
 // Refresh tracking manually
 function refreshTracking() {
     fetchTrackingData();
     showToast('Tracking data refreshed', 'success');
+}
+
+// Share location
+function shareLocation() {
+    if (lastCourierLocation && lastCourierLocation.formatted_address) {
+        const shareText = `Courier is currently at: ${lastCourierLocation.formatted_address}\nLast updated: ${new Date().toLocaleTimeString()}\n\nTrack live: ${window.location.href}`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: 'Courier Location',
+                text: shareText,
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(shareText).then(() => {
+                showToast('Location copied to clipboard', 'success');
+            });
+        }
+    }
+}
+
+// Show location history
+function showLocationHistory() {
+    // You would implement this to fetch location history from your API
+    document.getElementById('locationHistoryModal').classList.remove('hidden');
+    // Fetch and display location history here
+}
+
+// Close location history
+function closeLocationHistory() {
+    document.getElementById('locationHistoryModal').classList.add('hidden');
 }
 
 // Show error message
@@ -808,19 +1415,29 @@ function closeCancelModal() {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
+    initMiniMap();
     
-    // Close modal when clicking outside
+    // Close modals when clicking outside
     document.getElementById('cancelModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeCancelModal();
         }
     });
+    
+    document.getElementById('locationHistoryModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeLocationHistory();
+        }
+    });
 });
 
-// Clean up interval when page is unloaded
+// Clean up intervals when page is unloaded
 window.addEventListener('beforeunload', function() {
     if (updateInterval) {
         clearInterval(updateInterval);
+    }
+    if (locationUpdateInterval) {
+        clearInterval(locationUpdateInterval);
     }
 });
 </script>
