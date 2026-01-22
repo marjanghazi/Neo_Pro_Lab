@@ -1,7 +1,7 @@
 @extends('layouts.client')
 
 @section('title', 'Track Request')
-@section('page-title', 'Track Request #{{ $request->request_number }}')
+@section('page-title', 'Track Request')
 
 @section('content')
 <div class="max-w-6xl mx-auto">
