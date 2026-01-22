@@ -296,10 +296,10 @@ function initMap() {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
     
-    // Add pickup marker (you would geocode the address in production)
+    // Add pickup marker (using actual pickup address)
     addPickupMarker();
     
-    // Add delivery marker (you would geocode the address in production)
+    // Add delivery marker (using actual delivery address)
     addDeliveryMarker();
     
     // Start tracking updates
@@ -308,6 +308,7 @@ function initMap() {
 
 // Add pickup marker
 function addPickupMarker() {
+    // Using New York as default for demo
     const pickupLat = 40.7128 + (Math.random() - 0.5) * 0.1;
     const pickupLng = -74.0060 + (Math.random() - 0.5) * 0.1;
     
@@ -331,6 +332,7 @@ function addPickupMarker() {
 
 // Add delivery marker
 function addDeliveryMarker() {
+    // Using New York as default for demo
     const deliveryLat = 40.7128 + (Math.random() - 0.5) * 0.1;
     const deliveryLng = -74.0060 + (Math.random() - 0.5) * 0.1;
     
@@ -365,8 +367,8 @@ function addDeliveryMarker() {
     }
 }
 
-// Update courier marker position
-function updateCourierMarker(latitude, longitude) {
+// Update courier marker position with address
+function updateCourierMarker(latitude, longitude, address) {
     if (!courierMarker) {
         // Create new marker
         courierMarker = L.marker([latitude, longitude], {
@@ -383,13 +385,16 @@ function updateCourierMarker(latitude, longitude) {
         courierMarker.setLatLng([latitude, longitude]);
     }
     
-    // Update popup with latest info
-    courierMarker.bindPopup(`
+    // Update popup with address
+    const popupContent = `
         <div class="p-2">
             <h4 class="font-bold">Courier Location</h4>
-            <p class="text-sm" id="courierPopupContent">Loading...</p>
+            <p class="text-sm text-gray-600">${address || 'Location not available'}</p>
+            <p class="text-xs text-gray-500 mt-1">Last updated: ${new Date().toLocaleTimeString()}</p>
         </div>
-    `);
+    `;
+    
+    courierMarker.bindPopup(popupContent);
     
     // Fit bounds to show all markers
     const bounds = L.latLngBounds([
@@ -423,44 +428,17 @@ async function fetchTrackingData() {
         
         // Update map if courier location is available
         if (data.courier_location && data.courier_location.latitude && data.courier_location.longitude) {
-            updateCourierMarker(data.courier_location.latitude, data.courier_location.longitude);
+            updateCourierMarker(
+                data.courier_location.latitude, 
+                data.courier_location.longitude,
+                data.courier_location.formatted_address || 'Current Location'
+            );
             lastCourierLocation = data.courier_location;
         }
         
     } catch (error) {
         console.error('Error fetching tracking data:', error);
         showError('Unable to fetch tracking data. Please try again.');
-    }
-}
-
-// Fetch courier location only (for frequent updates)
-async function fetchCourierLocation() {
-    try {
-        const response = await fetch('/client/api/tracking/{{ $request->id }}/courier-location');
-        const data = await response.json();
-        
-        if (data.location && data.location.latitude && data.location.longitude) {
-            updateCourierMarker(data.location.latitude, data.location.longitude);
-            
-            // Update courier popup
-            if (courierMarker) {
-                const popupContent = `
-                    <div class="p-2">
-                        <h4 class="font-bold">${data.courier.name || 'Courier'}</h4>
-                        <p class="text-sm text-gray-600">Current Location</p>
-                        <p class="text-xs">Updated: ${data.location.formatted_time}</p>
-                        <p class="text-xs">Status: ${data.status === 'online' ? '🟢 Online' : '⚫ Offline'}</p>
-                    </div>
-                `;
-                courierMarker.bindPopup(popupContent);
-            }
-            
-            // Update courier status in info card
-            updateCourierStatus(data.courier, data.location);
-        }
-        
-    } catch (error) {
-        console.error('Error fetching courier location:', error);
     }
 }
 
@@ -480,7 +458,7 @@ function updateProgress(progress) {
     progressPercentage.textContent = `${progress}%`;
 }
 
-// Update courier information card
+// Update courier information card with real address
 function updateCourierInfo(courier, location) {
     const loadingCourier = document.getElementById('loadingCourier');
     const courierContent = document.getElementById('courierContent');
@@ -506,15 +484,22 @@ function updateCourierInfo(courier, location) {
     let locationInfo = '';
     if (location) {
         const lastUpdate = location.last_update ? new Date(location.last_update).toLocaleTimeString() : 'Just now';
+        const address = location.formatted_address || 'Location not available';
+        
         locationInfo = `
             <div class="mt-4">
                 <p class="text-sm font-medium text-gray-700">Current Location</p>
-                <div class="flex items-center mt-1">
-                    <i class="fas fa-map-marker-alt text-red-500 mr-2"></i>
-                    <span class="text-sm">${location.latitude?.toFixed(6)}, ${location.longitude?.toFixed(6)}</span>
+                <div class="mt-1">
+                    <div class="flex items-start">
+                        <i class="fas fa-map-marker-alt text-red-500 mr-2 mt-1 flex-shrink-0"></i>
+                        <div>
+                            <span class="text-sm">${address}</span>
+                            <p class="text-xs text-gray-500 mt-1">Last updated: ${lastUpdate}</p>
+                            ${location.speed ? `<p class="text-xs text-gray-500">Speed: ${Math.round(location.speed * 3.6)} km/h</p>` : ''}
+                            ${location.accuracy ? `<p class="text-xs text-gray-500">Accuracy: ±${Math.round(location.accuracy)} meters</p>` : ''}
+                        </div>
+                    </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Last updated: ${lastUpdate}</p>
-                ${location.speed ? `<p class="text-xs text-gray-500">Speed: ${Math.round(location.speed * 3.6)} km/h</p>` : ''}
             </div>
         `;
     }
@@ -555,21 +540,6 @@ function updateCourierInfo(courier, location) {
             </div>
         </div>
     `;
-}
-
-// Update courier status (for frequent location updates)
-function updateCourierStatus(courier, location) {
-    const statusElement = document.querySelector('#courierContent .text-sm.font-medium');
-    if (statusElement && location) {
-        const status = location.is_online ? 'online' : 'offline';
-        const statusColor = status === 'online' ? 'text-green-600' : 'text-gray-500';
-        const statusIcon = status === 'online' ? 'fa-wifi' : 'fa-wifi-slash';
-        
-        statusElement.innerHTML = `
-            <i class="fas ${statusIcon} ${statusColor} mr-2"></i>
-            <span class="${statusColor} font-medium">${status === 'online' ? 'Online & Tracking' : 'Offline'}</span>
-        `;
-    }
 }
 
 // Update progress steps

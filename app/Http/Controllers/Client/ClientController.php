@@ -592,7 +592,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Reverse geocode coordinates to get address
+     * Reverse geocode coordinates to get address IN ENGLISH
      */
     private function reverseGeocode($latitude, $longitude)
     {
@@ -602,24 +602,26 @@ class ClientController extends Controller
         }
 
         // Try to get from cache first (cache for 1 hour)
-        $cacheKey = 'reverse_geocode_' . round($latitude, 6) . '_' . round($longitude, 6);
+        $cacheKey = 'reverse_geocode_eng_' . round($latitude, 6) . '_' . round($longitude, 6);
         $cachedAddress = Cache::get($cacheKey);
         
         if ($cachedAddress) {
             return $cachedAddress;
         }
 
-        // Using OpenStreetMap Nominatim API (free, no API key required)
+        // Using OpenStreetMap Nominatim API - FORCE ENGLISH LANGUAGE
         try {
             $response = Http::withHeaders([
                 'User-Agent' => config('app.name') . '/1.0',
                 'Accept' => 'application/json',
+                'Accept-Language' => 'en', // Force English language
             ])->timeout(3)->get('https://nominatim.openstreetmap.org/reverse', [
                 'format' => 'json',
                 'lat' => $latitude,
                 'lon' => $longitude,
                 'zoom' => 18,
                 'addressdetails' => 1,
+                'accept-language' => 'en', // Force English in query params
             ]);
 
             if ($response->successful()) {
@@ -635,7 +637,7 @@ class ClientController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            \Log::info('Reverse geocoding failed, using fallback: ' . $e->getMessage());
+            \Log::info('Reverse geocoding failed: ' . $e->getMessage());
         }
 
         // Fallback: Create a readable location from coordinates
@@ -727,7 +729,7 @@ class ClientController extends Controller
         // Ensure the location data has proper structure
         $locationData = is_array($cachedLocation) ? $cachedLocation : (array)$cachedLocation;
 
-        // Get formatted address from coordinates
+        // Get formatted address from coordinates IN ENGLISH
         $formattedAddress = $this->reverseGeocode(
             $locationData['latitude'] ?? null,
             $locationData['longitude'] ?? null
@@ -934,7 +936,7 @@ class ClientController extends Controller
             ]);
         }
 
-        // Get formatted address
+        // Get formatted address IN ENGLISH
         $formattedAddress = $this->reverseGeocode(
             $cachedLocation['latitude'] ?? null,
             $cachedLocation['longitude'] ?? null
