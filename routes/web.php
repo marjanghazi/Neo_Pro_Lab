@@ -210,9 +210,16 @@ Route::prefix('courier')
         Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
         Route::get('/requests/{requestId}', [CourierController::class, 'viewRequest'])->name('requests.show');
 
+        // Proof Workflow Routes - ADDED MISSING ROUTES
+        Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
+        Route::post('/requests/{requestId}/transit-proof', [CourierController::class, 'submitTransitProof'])->name('requests.transit-proof');
+        Route::post('/requests/{requestId}/skip-proof', [CourierController::class, 'skipProofRequirement'])->name('requests.skip-proof');
+
+        // ADD THE MISSING ARRIVAL PROOF ROUTE
+        Route::post('/requests/{requestId}/arrival-proof', [CourierController::class, 'submitArrivalProof'])->name('requests.arrival-proof');
+
         // Delivery Workflow
         Route::post('/requests/{requestId}/start-pickup', [CourierController::class, 'startPickup'])->name('requests.start-pickup');
-        Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{requestId}/start-transit', [CourierController::class, 'startTransit'])->name('requests.start-transit');
         Route::post('/requests/{requestId}/arrive-destination', [CourierController::class, 'arriveAtDestination'])->name('requests.arrive-destination');
         Route::post('/requests/{requestId}/submit-delivery', [CourierController::class, 'submitDelivery'])->name('requests.submit-delivery');

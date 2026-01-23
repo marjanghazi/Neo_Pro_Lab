@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\RequestStop;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class CourierController extends Controller
@@ -39,11 +40,12 @@ class CourierController extends Controller
                 ->whereDate('scheduled_delivery_time', Carbon::today())
                 ->whereIn('status', ['picked_up', 'in_transit'])
                 ->count(),
+            'awaiting_proofs' => $user->assignedRequests()->where('requires_proof', true)->count(),
         ];
 
         // Active requests
         $activeRequests = $user->assignedRequests()
-            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit'])
+            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'awaiting_pickup_proof', 'awaiting_delivery_proof'])
             ->orderBy('priority_level', 'desc')
             ->orderBy('scheduled_delivery_time')
             ->limit(5)
@@ -76,7 +78,11 @@ class CourierController extends Controller
 
         // Filter by status
         if ($request->has('status') && $request->status != 'all') {
-            $query->where('status', $request->status);
+            if ($request->status == 'awaiting_proof') {
+                $query->where('requires_proof', true);
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         // Filter by priority
@@ -98,10 +104,13 @@ class CourierController extends Controller
             'total' => $user->assignedRequests()->count(),
             'assigned' => $user->assignedRequests()->where('status', 'assigned')->count(),
             'accepted_by_courier' => $user->assignedRequests()->where('status', 'accepted_by_courier')->count(),
+            'awaiting_pickup_proof' => $user->assignedRequests()->where('status', 'awaiting_pickup_proof')->count(),
             'picked_up' => $user->assignedRequests()->where('status', 'picked_up')->count(),
             'in_transit' => $user->assignedRequests()->where('status', 'in_transit')->count(),
+            'awaiting_delivery_proof' => $user->assignedRequests()->where('status', 'awaiting_delivery_proof')->count(),
             'delivered' => $user->assignedRequests()->where('status', 'delivered')->count(),
             'completed' => $user->assignedRequests()->where('status', 'completed')->count(),
+            'requires_proof' => $user->assignedRequests()->where('requires_proof', true)->count(),
         ];
 
         return view('courier.assignments.index', compact('assignments', 'statusCounts'));
@@ -132,6 +141,8 @@ class CourierController extends Controller
         $specimenRequest->update([
             'status' => 'accepted_by_courier',
             'accepted_at' => now(),
+            'requires_proof' => false,
+            'proof_uploaded' => false,
         ]);
 
         // Create notification for admin and client
@@ -186,7 +197,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Update courier location - SIMPLIFIED VERSION
+     * Update courier location - FIXED VERSION
      */
     public function updateLocation(Request $request)
     {
@@ -204,6 +215,14 @@ class CourierController extends Controller
 
             $user = Auth::user();
 
+            // Log the incoming data for debugging
+            \Log::info('Location update received', [
+                'courier_id' => $user->id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'request_id' => $validated['request_id'] ?? 'not provided'
+            ]);
+
             // Check if CourierLocation model exists
             if (!class_exists(CourierLocation::class)) {
                 // If model doesn't exist, just cache the location
@@ -215,11 +234,11 @@ class CourierController extends Controller
                     'heading' => $validated['heading'] ?? 0,
                     'altitude' => $validated['altitude'] ?? 0,
                     'timestamp' => now(),
-                    'last_update' => now(), // Add last_update for compatibility
+                    'last_update' => now(),
                     'courier_id' => $user->id,
                     'courier_name' => $user->full_name,
                 ];
-                
+
                 // Cache location for real-time tracking
                 cache()->put('courier_location_' . $user->id, $locationData, 35);
 
@@ -230,35 +249,57 @@ class CourierController extends Controller
                 ]);
             }
 
+            // Prepare location data for database
+            $locationData = [
+                'courier_id' => $user->id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'accuracy' => $validated['accuracy'] ?? 0,
+                'speed' => $validated['speed'] ?? 0,
+                'heading' => $validated['heading'] ?? 0,
+                'altitude' => $validated['altitude'] ?? 0,
+                'is_online' => true,
+                'last_update' => now(),
+                'battery_level' => $request->battery_level ?? null,
+            ];
+
+            // Add request_id if provided (handle nullable)
+            if (!empty($validated['request_id'])) {
+                $locationData['request_id'] = $validated['request_id'];
+            }
+
+            \Log::info('Attempting to save location to database', $locationData);
+
             // Update or create current location in database
             $location = CourierLocation::updateOrCreate(
                 ['courier_id' => $user->id],
-                [
-                    'latitude' => $validated['latitude'],
-                    'longitude' => $validated['longitude'],
-                    'accuracy' => $validated['accuracy'] ?? 0,
-                    'speed' => $validated['speed'] ?? 0,
-                    'heading' => $validated['heading'] ?? 0,
-                    'altitude' => $validated['altitude'] ?? 0,
-                    'is_online' => true,
-                    'last_update' => now(),
-                    'battery_level' => $request->battery_level ?? null,
-                ]
+                $locationData
             );
 
-            // Add to location history if request_id is provided
+            \Log::info('Location saved successfully', [
+                'location_id' => $location->id,
+                'courier_id' => $location->courier_id,
+                'request_id' => $location->request_id
+            ]);
+
+            // Add to location history if request_id is provided AND model exists
             if (!empty($validated['request_id']) && class_exists(LocationHistory::class)) {
-                LocationHistory::create([
-                    'courier_id' => $user->id,
-                    'request_id' => $validated['request_id'],
-                    'latitude' => $validated['latitude'],
-                    'longitude' => $validated['longitude'],
-                    'accuracy' => $validated['accuracy'] ?? 0,
-                    'speed' => $validated['speed'] ?? 0,
-                    'heading' => $validated['heading'] ?? 0,
-                    'altitude' => $validated['altitude'] ?? 0,
-                    'battery_level' => $request->battery_level ?? null,
-                ]);
+                try {
+                    LocationHistory::create([
+                        'courier_id' => $user->id,
+                        'request_id' => $validated['request_id'],
+                        'latitude' => $validated['latitude'],
+                        'longitude' => $validated['longitude'],
+                        'accuracy' => $validated['accuracy'] ?? 0,
+                        'speed' => $validated['speed'] ?? 0,
+                        'heading' => $validated['heading'] ?? 0,
+                        'altitude' => $validated['altitude'] ?? 0,
+                        'battery_level' => $request->battery_level ?? null,
+                    ]);
+                    \Log::info('Location history saved');
+                } catch (\Exception $historyError) {
+                    \Log::warning('Failed to save location history: ' . $historyError->getMessage());
+                }
             }
 
             // Cache location for real-time tracking
@@ -267,28 +308,51 @@ class CourierController extends Controller
                 'longitude' => $validated['longitude'],
                 'accuracy' => $validated['accuracy'] ?? 0,
                 'timestamp' => now(),
-                'last_update' => now(), // Add last_update for compatibility
+                'last_update' => now(),
                 'courier_id' => $user->id,
                 'courier_name' => $user->full_name,
                 'speed' => $validated['speed'] ?? 0,
                 'heading' => $validated['heading'] ?? 0,
                 'altitude' => $validated['altitude'] ?? 0,
+                'is_online' => true,
             ], 35);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Location updated',
                 'timestamp' => now()->toDateTimeString(),
+                'location_id' => $location->id,
+                'database_saved' => true,
             ]);
         } catch (\Exception $e) {
             \Log::error('Location update error: ' . $e->getMessage());
+            \Log::error('Error trace: ', ['trace' => $e->getTraceAsString()]);
 
-            // Return success anyway so the frontend doesn't show errors
+            // Fallback - cache the location even if database fails
+            if (isset($user) && isset($validated)) {
+                $locationData = [
+                    'latitude' => $validated['latitude'],
+                    'longitude' => $validated['longitude'],
+                    'accuracy' => $validated['accuracy'] ?? 0,
+                    'speed' => $validated['speed'] ?? 0,
+                    'heading' => $validated['heading'] ?? 0,
+                    'altitude' => $validated['altitude'] ?? 0,
+                    'timestamp' => now(),
+                    'last_update' => now(),
+                    'courier_id' => $user->id,
+                    'courier_name' => $user->full_name,
+                    'is_online' => true,
+                ];
+
+                cache()->put('courier_location_' . $user->id, $locationData, 35);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Location received',
                 'timestamp' => now()->toDateTimeString(),
-                'debug' => 'Database error occurred but location was cached'
+                'debug' => 'Database error occurred but location was cached',
+                'error' => $e->getMessage()
             ]);
         }
     }
@@ -326,15 +390,13 @@ class CourierController extends Controller
 
         if ($isActive) {
             cache()->put("courier_online_{$user->id}", true, now()->addHours(24));
-            
-            // Update location record if exists
+
             if (class_exists(CourierLocation::class)) {
                 CourierLocation::where('courier_id', $user->id)->update(['is_online' => true]);
             }
         } else {
             cache()->forget("courier_online_{$user->id}");
 
-            // Update location record if exists
             if (class_exists(CourierLocation::class)) {
                 CourierLocation::where('courier_id', $user->id)->update(['is_online' => false]);
             }
@@ -378,7 +440,7 @@ class CourierController extends Controller
 
         // Get current location from cache first, then database
         $currentLocation = cache()->get('courier_location_' . Auth::id());
-        
+
         // If not in cache, try database
         if (!$currentLocation && class_exists(CourierLocation::class)) {
             $dbLocation = CourierLocation::where('courier_id', Auth::id())->first();
@@ -388,7 +450,7 @@ class CourierController extends Controller
                     'longitude' => $dbLocation->longitude,
                     'accuracy' => $dbLocation->accuracy,
                     'timestamp' => $dbLocation->last_update,
-                    'last_update' => $dbLocation->last_update, // Ensure last_update is set
+                    'last_update' => $dbLocation->last_update,
                     'speed' => $dbLocation->speed,
                     'heading' => $dbLocation->heading,
                     'altitude' => $dbLocation->altitude,
@@ -414,7 +476,7 @@ class CourierController extends Controller
             if (is_array($currentLocation)) {
                 $currentLocation = (object) $currentLocation;
             }
-            
+
             // Ensure last_update is available as a Carbon instance
             if (isset($currentLocation->last_update)) {
                 try {
@@ -437,7 +499,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Start pickup process
+     * Start pickup process - NOW REQUIRES PROOF
      */
     public function startPickup(Request $request, $requestId)
     {
@@ -452,16 +514,20 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Cannot start pickup from current status.');
         }
 
+        // Mark that proof is required for pickup
         $specimenRequest->update([
-            'status' => 'at_stop',
+            'status' => 'awaiting_pickup_proof',
+            'requires_proof' => true,
+            'proof_uploaded' => false,
+            'proof_required_at_status' => 'picked_up',
             'pickup_started_at' => now(),
         ]);
 
         // Create notification
         Notification::create([
             'user_id' => $specimenRequest->client_id,
-            'title' => 'Pickup Started',
-            'message' => "Courier has arrived at pickup location for request #{$specimenRequest->request_number}",
+            'title' => 'Pickup Started - Proof Required',
+            'message' => "Courier is ready to pickup for request #{$specimenRequest->request_number}. Proof upload required.",
             'type' => 'pickup_started',
             'is_read' => false,
         ]);
@@ -469,11 +535,12 @@ class CourierController extends Controller
         // Log audit
         AuditLog::create([
             'user_id' => Auth::id(),
-            'action' => 'start_pickup',
+            'action' => 'start_pickup_requires_proof',
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'accepted_by_courier to at_stop',
+                'status' => 'accepted_by_courier to awaiting_pickup_proof',
+                'requires_proof' => true,
                 'pickup_started_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -481,11 +548,11 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Pickup process started. Please upload proof of pickup.');
+        return redirect()->back()->with('success', 'Please upload pickup proof to continue to next status.');
     }
 
     /**
-     * Submit pickup proof with photo
+     * Submit pickup proof with photo - REQUIRED BEFORE STATUS UPDATE
      */
     public function submitPickupProof(Request $request, $requestId)
     {
@@ -496,8 +563,9 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
-        if (!in_array($specimenRequest->status, ['at_stop', 'accepted_by_courier'])) {
-            return redirect()->back()->with('error', 'Cannot submit pickup proof from current status.');
+        // Check if proof is required
+        if (!$specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
+            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
         }
 
         $request->validate([
@@ -524,9 +592,14 @@ class CourierController extends Controller
             'verified' => false,
         ]);
 
-        // Update request status
+        // Now update to the actual status since proof is uploaded
+        $nextStatus = $specimenRequest->proof_required_at_status ?? 'picked_up';
+
         $specimenRequest->update([
-            'status' => 'picked_up',
+            'status' => $nextStatus,
+            'requires_proof' => false,
+            'proof_uploaded' => true,
+            'proof_required_at_status' => null,
             'pickup_completed_at' => now(),
         ]);
 
@@ -534,7 +607,7 @@ class CourierController extends Controller
         Notification::create([
             'user_id' => $specimenRequest->client_id,
             'title' => 'Pickup Completed',
-            'message' => "Specimen picked up for request #{$specimenRequest->request_number}. Proof uploaded.",
+            'message' => "Specimen picked up for request #{$specimenRequest->request_number}. Proof uploaded and status updated.",
             'type' => 'pickup_completed',
             'is_read' => false,
         ]);
@@ -546,7 +619,9 @@ class CourierController extends Controller
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'at_stop to picked_up',
+                'status' => 'awaiting_pickup_proof to ' . $nextStatus,
+                'requires_proof' => 'false',
+                'proof_uploaded' => 'true',
                 'pickup_completed_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -554,11 +629,11 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Pickup proof submitted successfully! You can now start delivery.');
+        return redirect()->back()->with('success', 'Pickup proof submitted successfully! Status updated to ' . str_replace('_', ' ', $nextStatus) . '.');
     }
 
     /**
-     * Start transit to delivery location
+     * Start transit to delivery location - NOW REQUIRES PROOF
      */
     public function startTransit(Request $request, $requestId)
     {
@@ -573,28 +648,33 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Cannot start transit from current status.');
         }
 
+        // Mark that proof is required for transit confirmation
         $specimenRequest->update([
-            'status' => 'in_transit',
+            'status' => 'awaiting_transit_proof',
+            'requires_proof' => true,
+            'proof_uploaded' => false,
+            'proof_required_at_status' => 'in_transit',
             'transit_started_at' => now(),
         ]);
 
         // Create notification
         Notification::create([
             'user_id' => $specimenRequest->client_id,
-            'title' => 'In Transit',
-            'message' => "Specimen #{$specimenRequest->request_number} is now in transit to delivery location.",
-            'type' => 'in_transit',
+            'title' => 'Transit Started - Proof Required',
+            'message' => "Transit started for request #{$specimenRequest->request_number}. Proof upload required.",
+            'type' => 'transit_started',
             'is_read' => false,
         ]);
 
         // Log audit
         AuditLog::create([
             'user_id' => Auth::id(),
-            'action' => 'start_transit',
+            'action' => 'start_transit_requires_proof',
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'picked_up to in_transit',
+                'status' => 'picked_up to awaiting_transit_proof',
+                'requires_proof' => true,
                 'transit_started_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -602,11 +682,91 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Transit started. Continue to delivery location.');
+        return redirect()->back()->with('success', 'Please upload transit proof to continue to next status.');
     }
 
     /**
-     * Arrive at destination
+     * Submit transit proof
+     */
+    public function submitTransitProof(Request $request, $requestId)
+    {
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        if ($specimenRequest->assigned_to != Auth::id()) {
+            return redirect()->back()->with('error', 'You are not assigned to this request.');
+        }
+
+        // Check if proof is required
+        if (!$specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
+            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
+        }
+
+        $request->validate([
+            'transit_photo' => 'required|image|max:5120',
+            'temperature_check' => 'required|in:within_range,out_of_range,not_checked',
+            'transit_notes' => 'nullable|string|max:500',
+        ]);
+
+        // Upload photo
+        $photoPath = $request->file('transit_photo')->store('transit-proofs', 'public');
+
+        // Create transit proof record (you might need to create this model)
+        // For now, using pickup_proofs table with a type column
+        PickupProof::create([
+            'request_id' => $specimenRequest->id,
+            'courier_id' => Auth::id(),
+            'photo_path' => $photoPath,
+            'notes' => $request->transit_notes,
+            'specimen_condition' => 'in_transit',
+            'temperature_check' => $request->temperature_check,
+            'latitude' => $request->latitude ?? null,
+            'longitude' => $request->longitude ?? null,
+            'accuracy' => $request->accuracy ?? null,
+            'verified' => false,
+            'proof_type' => 'transit',
+        ]);
+
+        // Now update to the actual status since proof is uploaded
+        $nextStatus = $specimenRequest->proof_required_at_status ?? 'in_transit';
+
+        $specimenRequest->update([
+            'status' => $nextStatus,
+            'requires_proof' => false,
+            'proof_uploaded' => true,
+            'proof_required_at_status' => null,
+        ]);
+
+        // Create notification
+        Notification::create([
+            'user_id' => $specimenRequest->client_id,
+            'title' => 'In Transit',
+            'message' => "Specimen #{$specimenRequest->request_number} is now in transit to delivery location. Proof uploaded.",
+            'type' => 'in_transit',
+            'is_read' => false,
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'submit_transit_proof',
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'awaiting_transit_proof to ' . $nextStatus,
+                'requires_proof' => 'false',
+                'proof_uploaded' => 'true',
+                'request_number' => $specimenRequest->request_number
+            ]),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->back()->with('success', 'Transit proof submitted successfully! Status updated to ' . str_replace('_', ' ', $nextStatus) . '.');
+    }
+
+    /**
+     * Arrive at destination - NOW REQUIRES PROOF
      */
     public function arriveAtDestination(Request $request, $requestId)
     {
@@ -621,16 +781,20 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Cannot mark arrival from current status.');
         }
 
+        // Mark that proof is required for arrival
         $specimenRequest->update([
-            'status' => 'arrived_at_destination',
+            'status' => 'awaiting_arrival_proof',
+            'requires_proof' => true,
+            'proof_uploaded' => false,
+            'proof_required_at_status' => 'arrived_at_destination',
             'arrived_at_destination_at' => now(),
         ]);
 
         // Create notification
         Notification::create([
             'user_id' => $specimenRequest->client_id,
-            'title' => 'Arrived at Destination',
-            'message' => "Courier has arrived at delivery location for request #{$specimenRequest->request_number}",
+            'title' => 'Arrived at Destination - Proof Required',
+            'message' => "Courier has arrived at delivery location for request #{$specimenRequest->request_number}. Proof upload required.",
             'type' => 'arrived_at_destination',
             'is_read' => false,
         ]);
@@ -638,11 +802,12 @@ class CourierController extends Controller
         // Log audit
         AuditLog::create([
             'user_id' => Auth::id(),
-            'action' => 'arrive_destination',
+            'action' => 'arrive_destination_requires_proof',
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'in_transit to arrived_at_destination',
+                'status' => 'in_transit to awaiting_arrival_proof',
+                'requires_proof' => true,
                 'arrived_at_destination_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -650,11 +815,11 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Arrival recorded. Please complete delivery with signature.');
+        return redirect()->back()->with('success', 'Arrival recorded. Please upload arrival proof to continue.');
     }
 
     /**
-     * Submit delivery with signature
+     * Submit delivery with signature - REQUIRED PROOF
      */
     public function submitDelivery(Request $request, $requestId)
     {
@@ -665,6 +830,42 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
+        // Check if proof is required (for arrival or direct delivery)
+        if ($specimenRequest->requires_proof && !$specimenRequest->proof_uploaded) {
+            // If still requiring proof, validate and upload
+            $request->validate([
+                'arrival_photo' => 'required|image|max:5120',
+                'arrival_notes' => 'nullable|string|max:500',
+            ]);
+
+            // Upload arrival photo
+            $photoPath = $request->file('arrival_photo')->store('arrival-proofs', 'public');
+
+            // Create arrival proof
+            PickupProof::create([
+                'request_id' => $specimenRequest->id,
+                'courier_id' => Auth::id(),
+                'photo_path' => $photoPath,
+                'notes' => $request->arrival_notes,
+                'specimen_condition' => 'arrived',
+                'temperature_check' => 'not_checked',
+                'latitude' => $request->latitude ?? null,
+                'longitude' => $request->longitude ?? null,
+                'accuracy' => $request->accuracy ?? null,
+                'verified' => false,
+                'proof_type' => 'arrival',
+            ]);
+
+            // Update proof status
+            $specimenRequest->update([
+                'requires_proof' => false,
+                'proof_uploaded' => true,
+                'status' => 'arrived_at_destination',
+                'proof_required_at_status' => null,
+            ]);
+        }
+
+        // Now handle delivery signature
         if (!in_array($specimenRequest->status, ['arrived_at_destination', 'in_transit'])) {
             return redirect()->back()->with('error', 'Cannot submit delivery from current status.');
         }
@@ -789,7 +990,7 @@ class CourierController extends Controller
     public function getActiveRequest()
     {
         $activeRequest = Auth::user()->assignedRequests()
-            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'arrived_at_destination'])
+            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'arrived_at_destination', 'awaiting_pickup_proof', 'awaiting_transit_proof', 'awaiting_arrival_proof'])
             ->with(['client', 'pickupProof', 'signature'])
             ->first();
 
@@ -803,6 +1004,7 @@ class CourierController extends Controller
                 'id' => $activeRequest->id,
                 'request_number' => $activeRequest->request_number,
                 'status' => $activeRequest->status,
+                'requires_proof' => $activeRequest->requires_proof,
                 'pickup_address' => $activeRequest->pickup_address,
                 'delivery_address' => $activeRequest->delivery_address,
                 'priority_level' => $activeRequest->priority_level,
@@ -817,7 +1019,7 @@ class CourierController extends Controller
     {
         // Get the request by ID
         $specimenRequest = SpecimenRequest::findOrFail($requestId);
-        
+
         // Verify assignment
         if ($specimenRequest->assigned_to != Auth::id()) {
             return response()->json(['error' => 'Not authorized'], 403);
@@ -825,7 +1027,7 @@ class CourierController extends Controller
 
         // Get current location from cache or database
         $currentLocation = cache()->get('courier_location_' . Auth::id());
-        
+
         if (!$currentLocation && class_exists(CourierLocation::class)) {
             $dbLocation = CourierLocation::where('courier_id', Auth::id())->first();
             if ($dbLocation) {
@@ -872,7 +1074,7 @@ class CourierController extends Controller
     {
         // Get the request by ID
         $specimenRequest = SpecimenRequest::findOrFail($requestId);
-        
+
         // Verify assignment
         if ($specimenRequest->assigned_to != Auth::id()) {
             return response()->json(['error' => 'Not authorized'], 403);
@@ -929,7 +1131,7 @@ class CourierController extends Controller
     public function activePickups()
     {
         $activePickups = Auth::user()->assignedRequests()
-            ->whereIn('status', ['accepted_by_courier', 'at_stop'])
+            ->whereIn('status', ['accepted_by_courier', 'awaiting_pickup_proof'])
             ->with(['client', 'pickupProof'])
             ->orderBy('priority_level', 'desc')
             ->orderBy('scheduled_pickup_time')
@@ -944,7 +1146,7 @@ class CourierController extends Controller
     public function activeDeliveries()
     {
         $activeDeliveries = Auth::user()->assignedRequests()
-            ->whereIn('status', ['picked_up', 'in_transit', 'arrived_at_destination'])
+            ->whereIn('status', ['picked_up', 'in_transit', 'arrived_at_destination', 'awaiting_transit_proof', 'awaiting_arrival_proof'])
             ->with(['client', 'pickupProof', 'signature'])
             ->orderBy('priority_level', 'desc')
             ->orderBy('scheduled_delivery_time')
@@ -1012,7 +1214,8 @@ class CourierController extends Controller
         $stats = [
             'total_deliveries' => $user->assignedRequests()->where('status', 'completed')->count(),
             'on_time_rate' => $this->calculateOnTimeRate($user),
-            'avg_rating' => 4.8, // This would come from a ratings table
+            'avg_rating' => 4.8,
+            'proofs_uploaded' => PickupProof::where('courier_id', Auth::id())->count() + Signature::where('courier_id', Auth::id())->count(),
         ];
 
         return view('courier.profile', compact('user', 'stats'));
@@ -1103,66 +1306,248 @@ class CourierController extends Controller
     }
 
     /**
- * Get courier location for API (used by client tracking)
- */
-public function getCourierLocationApi($courierId)
-{
-    // Check if courier exists
-    $courier = \App\Models\User::where('id', $courierId)
-        ->whereHas('role', function($q) {
-            $q->where('slug', 'courier');
-        })->first();
+     * Get courier location for API (used by client tracking)
+     */
+    public function getCourierLocationApi($courierId)
+    {
+        // Check if courier exists
+        $courier = \App\Models\User::where('id', $courierId)
+            ->whereHas('role', function ($q) {
+                $q->where('slug', 'courier');
+            })->first();
 
-    if (!$courier) {
-        return response()->json(['error' => 'Courier not found'], 404);
-    }
-
-    // Get location from cache first
-    $cachedLocation = Cache::get('courier_location_' . $courierId);
-    
-    // If not in cache, check database
-    if (!$cachedLocation && class_exists(CourierLocation::class)) {
-        $location = CourierLocation::where('courier_id', $courierId)
-            ->orderBy('created_at', 'desc')
-            ->first();
-        
-        if ($location) {
-            $cachedLocation = [
-                'latitude' => $location->latitude,
-                'longitude' => $location->longitude,
-                'accuracy' => $location->accuracy,
-                'speed' => $location->speed,
-                'heading' => $location->heading,
-                'altitude' => $location->altitude,
-                'battery_level' => $location->battery_level,
-                'is_online' => $location->is_online,
-                'timestamp' => $location->created_at->timestamp,
-                'last_update' => $location->last_update ?? $location->created_at,
-            ];
+        if (!$courier) {
+            return response()->json(['error' => 'Courier not found'], 404);
         }
-    }
 
-    if (!$cachedLocation) {
+        // Get location from cache first
+        $cachedLocation = Cache::get('courier_location_' . $courierId);
+
+        // If not in cache, check database
+        if (!$cachedLocation && class_exists(CourierLocation::class)) {
+            $location = CourierLocation::where('courier_id', $courierId)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($location) {
+                $cachedLocation = [
+                    'latitude' => $location->latitude,
+                    'longitude' => $location->longitude,
+                    'accuracy' => $location->accuracy,
+                    'speed' => $location->speed,
+                    'heading' => $location->heading,
+                    'altitude' => $location->altitude,
+                    'battery_level' => $location->battery_level,
+                    'is_online' => $location->is_online,
+                    'timestamp' => $location->created_at->timestamp,
+                    'last_update' => $location->last_update ?? $location->created_at,
+                ];
+            }
+        }
+
+        if (!$cachedLocation) {
+            return response()->json([
+                'courier' => [
+                    'id' => $courier->id,
+                    'name' => $courier->full_name,
+                ],
+                'location' => null,
+                'status' => 'offline',
+            ]);
+        }
+
         return response()->json([
             'courier' => [
                 'id' => $courier->id,
                 'name' => $courier->full_name,
+                'phone' => $courier->phone,
+                'vehicle_type' => $courier->vehicle_type,
+                'profile_image' => $courier->profile_image,
             ],
-            'location' => null,
-            'status' => 'offline',
+            'location' => $cachedLocation,
+            'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
         ]);
     }
 
-    return response()->json([
-        'courier' => [
-            'id' => $courier->id,
-            'name' => $courier->full_name,
-            'phone' => $courier->phone,
-            'vehicle_type' => $courier->vehicle_type,
-            'profile_image' => $courier->profile_image,
-        ],
-        'location' => $cachedLocation,
-        'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
-    ]);
-}
+    /**
+     * Emergency skip proof (admin/courier override)
+     */
+    public function skipProofRequirement(Request $request, $requestId)
+    {
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        if ($specimenRequest->assigned_to != Auth::id()) {
+            return redirect()->back()->with('error', 'You are not assigned to this request.');
+        }
+
+        if (!$specimenRequest->requires_proof) {
+            return redirect()->back()->with('error', 'No proof requirement to skip.');
+        }
+
+        // Get the target status
+        $targetStatus = $specimenRequest->proof_required_at_status;
+
+        if (!$targetStatus) {
+            // Determine target status based on current status
+            switch ($specimenRequest->status) {
+                case 'awaiting_pickup_proof':
+                    $targetStatus = 'picked_up';
+                    break;
+                case 'awaiting_transit_proof':
+                    $targetStatus = 'in_transit';
+                    break;
+                case 'awaiting_arrival_proof':
+                    $targetStatus = 'arrived_at_destination';
+                    break;
+                default:
+                    $targetStatus = $specimenRequest->status;
+            }
+        }
+
+        // Update without proof
+        $specimenRequest->update([
+            'status' => $targetStatus,
+            'requires_proof' => false,
+            'proof_uploaded' => false,
+            'proof_required_at_status' => null,
+        ]);
+
+        // Log audit for skipping proof
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'skip_proof_requirement',
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => $specimenRequest->status . ' to ' . $targetStatus . ' (proof skipped)',
+                'requires_proof' => 'false',
+                'request_number' => $specimenRequest->request_number
+            ]),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->back()->with('warning', 'Proof requirement skipped. Status updated to ' . str_replace('_', ' ', $targetStatus) . '. Please note this action has been logged.');
+    }
+
+    /**
+     * Submit arrival proof (new method to add to CourierController)
+     */
+    public function submitArrivalProof(Request $request, $requestId)
+    {
+        // Get the request by ID
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        if ($specimenRequest->assigned_to != Auth::id()) {
+            return redirect()->back()->with('error', 'You are not assigned to this request.');
+        }
+
+        // Check if proof is required
+        if (!$specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
+            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
+        }
+
+        $request->validate([
+            'arrival_photo' => 'required|image|max:5120',
+            'arrival_notes' => 'nullable|string|max:500',
+            'temperature_check' => 'required|in:within_range,out_of_range,not_checked',
+        ]);
+
+        // Upload photo
+        $photoPath = $request->file('arrival_photo')->store('arrival-proofs', 'public');
+
+        // Create arrival proof record
+        PickupProof::create([
+            'request_id' => $specimenRequest->id,
+            'courier_id' => Auth::id(),
+            'photo_path' => $photoPath,
+            'notes' => $request->arrival_notes,
+            'specimen_condition' => 'arrived',
+            'temperature_check' => $request->temperature_check,
+            'latitude' => $request->latitude ?? null,
+            'longitude' => $request->longitude ?? null,
+            'accuracy' => $request->accuracy ?? null,
+            'verified' => false,
+            'proof_type' => 'arrival',
+        ]);
+
+        // Now update to the actual status since proof is uploaded
+        $nextStatus = $specimenRequest->proof_required_at_status ?? 'arrived_at_destination';
+
+        $specimenRequest->update([
+            'status' => $nextStatus,
+            'requires_proof' => false,
+            'proof_uploaded' => true,
+            'proof_required_at_status' => null,
+            'arrived_at_destination_at' => now(),
+        ]);
+
+        // Create notification
+        Notification::create([
+            'user_id' => $specimenRequest->client_id,
+            'title' => 'Arrived at Destination',
+            'message' => "Courier has arrived at delivery location for request #{$specimenRequest->request_number}. Proof uploaded.",
+            'type' => 'arrived_at_destination',
+            'is_read' => false,
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'submit_arrival_proof',
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'awaiting_arrival_proof to ' . $nextStatus,
+                'requires_proof' => 'false',
+                'proof_uploaded' => 'true',
+                'arrived_at_destination_at' => now()->toDateTimeString(),
+                'request_number' => $specimenRequest->request_number
+            ]),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->back()->with('success', 'Arrival proof submitted successfully! Status updated to ' . str_replace('_', ' ', $nextStatus) . '.');
+    }
+
+    /**
+     * Test route for debugging location saving
+     */
+    public function testLocationSave(Request $request)
+    {
+        try {
+            \DB::enableQueryLog();
+
+            $user = Auth::user();
+            $location = CourierLocation::create([
+                'courier_id' => $user->id,
+                'request_id' => null, // Testing with null first
+                'latitude' => 40.7128,
+                'longitude' => -74.0060,
+                'accuracy' => 10,
+                'speed' => 0,
+                'heading' => 0,
+                'altitude' => 0,
+                'is_online' => true,
+                'last_update' => now(),
+                'battery_level' => 80,
+            ]);
+
+            $queries = \DB::getQueryLog();
+
+            return response()->json([
+                'success' => true,
+                'location_id' => $location->id,
+                'queries' => $queries,
+                'table_structure' => \DB::select("DESCRIBE courier_locations")
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'queries' => \DB::getQueryLog(),
+                'table_structure' => \DB::select("DESCRIBE courier_locations")
+            ]);
+        }
+    }
 }

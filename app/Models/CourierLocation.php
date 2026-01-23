@@ -21,6 +21,8 @@ class CourierLocation extends Model
         'altitude',
         'battery_level',
         'is_online',
+        'last_update', // Add this
+
     ];
 
     protected $casts = [
@@ -57,7 +59,7 @@ class CourierLocation extends Model
     public function scopeOnline($query)
     {
         return $query->where('is_online', true)
-                     ->where('created_at', '>=', now()->subMinutes(5));
+            ->where('created_at', '>=', now()->subMinutes(5));
     }
 
     /**
@@ -66,10 +68,10 @@ class CourierLocation extends Model
     public function scopeLatestPerCourier($query)
     {
         return $query->select('*')
-            ->whereIn('id', function($q) {
+            ->whereIn('id', function ($q) {
                 $q->selectRaw('MAX(id)')
-                  ->from('courier_locations')
-                  ->groupBy('courier_id');
+                    ->from('courier_locations')
+                    ->groupBy('courier_id');
             });
     }
 
