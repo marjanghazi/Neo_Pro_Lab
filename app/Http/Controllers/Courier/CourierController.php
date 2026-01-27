@@ -12,6 +12,7 @@ use App\Models\Signature;
 use App\Models\Notification;
 use App\Models\AuditLog;
 use App\Models\RequestStop;
+use App\Models\CourierQuote;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
@@ -30,11 +31,12 @@ class CourierController extends Controller
         $stats = [
             'total_assignments' => $user->assignedRequests()->count(),
             'pending' => $user->assignedRequests()->where('status', 'assigned')->count(),
+            'pending_acceptance' => $user->assignedRequests()->where('status', 'pending_courier_acceptance')->count(),
             'in_progress' => $user->assignedRequests()->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit'])->count(),
             'completed' => $user->assignedRequests()->where('status', 'completed')->count(),
             'today_pickups' => $user->assignedRequests()
                 ->whereDate('scheduled_pickup_time', Carbon::today())
-                ->whereIn('status', ['assigned', 'accepted_by_courier'])
+                ->whereIn('status', ['assigned', 'accepted_by_courier', 'pending_courier_acceptance'])
                 ->count(),
             'today_deliveries' => $user->assignedRequests()
                 ->whereDate('scheduled_delivery_time', Carbon::today())
@@ -45,7 +47,7 @@ class CourierController extends Controller
 
         // Active requests
         $activeRequests = $user->assignedRequests()
-            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'awaiting_pickup_proof', 'awaiting_delivery_proof'])
+            ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'awaiting_pickup_proof', 'awaiting_delivery_proof', 'pending_courier_acceptance'])
             ->orderBy('priority_level', 'desc')
             ->orderBy('scheduled_delivery_time')
             ->limit(5)
@@ -65,7 +67,16 @@ class CourierController extends Controller
             ->limit(5)
             ->get();
 
-        return view('courier.dashboard', compact('stats', 'activeRequests', 'todaysSchedule', 'recentCompletions'));
+        // Pending quotes to accept
+        $pendingQuotes = CourierQuote::where('courier_id', $user->id)
+            ->where('status', 'pending')
+            ->where('valid_until', '>', now())
+            ->with(['request'])
+            ->orderBy('valid_until')
+            ->limit(3)
+            ->get();
+
+        return view('courier.dashboard', compact('stats', 'activeRequests', 'todaysSchedule', 'recentCompletions', 'pendingQuotes'));
     }
 
     /**
@@ -80,6 +91,9 @@ class CourierController extends Controller
         if ($request->has('status') && $request->status != 'all') {
             if ($request->status == 'awaiting_proof') {
                 $query->where('requires_proof', true);
+            } elseif ($request->status == 'pending_acceptance') {
+                $query->where('status', 'pending_courier_acceptance')
+                    ->where('courier_can_accept', true);
             } else {
                 $query->where('status', $request->status);
             }
@@ -102,6 +116,7 @@ class CourierController extends Controller
         // Get status counts
         $statusCounts = [
             'total' => $user->assignedRequests()->count(),
+            'pending_acceptance' => $user->assignedRequests()->where('status', 'pending_courier_acceptance')->where('courier_can_accept', true)->count(),
             'assigned' => $user->assignedRequests()->where('status', 'assigned')->count(),
             'accepted_by_courier' => $user->assignedRequests()->where('status', 'accepted_by_courier')->count(),
             'awaiting_pickup_proof' => $user->assignedRequests()->where('status', 'awaiting_pickup_proof')->count(),
@@ -182,6 +197,188 @@ class CourierController extends Controller
 
         return redirect()->route('courier.requests.show', $specimenRequest->id)
             ->with('success', 'Assignment accepted successfully! Location tracking has been enabled.');
+    }
+
+    /**
+     * Accept price quote for assignment
+     */
+    public function acceptQuote(Request $httpRequest, $requestId)
+    {
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        // Check if courier can accept this request
+        if ($specimenRequest->assigned_to !== Auth::id()) {
+            return redirect()->back()->with('error', 'You are not assigned to this request.');
+        }
+
+        if (!$specimenRequest->courier_can_accept) {
+            return redirect()->back()->with('error', 'This request cannot be accepted.');
+        }
+
+        if ($specimenRequest->acceptance_deadline && now()->gt($specimenRequest->acceptance_deadline)) {
+            return redirect()->back()->with('error', 'The acceptance deadline has passed.');
+        }
+
+        // Get the quote
+        $quote = CourierQuote::where('request_id', $requestId)
+            ->where('courier_id', Auth::id())
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        if ($quote->isExpired()) {
+            return redirect()->back()->with('error', 'The quote has expired.');
+        }
+
+        // Accept the quote
+        $quote->accept();
+
+        // Update request
+        $specimenRequest->update([
+            'courier_accepted_at' => now(),
+            'courier_can_accept' => false,
+            'status' => 'assigned',
+        ]);
+
+        // Create notification for admin
+        Notification::create([
+            'user_id' => $specimenRequest->assigned_by,
+            'request_id' => $specimenRequest->id,
+            'type' => 'quote_accepted',
+            'title' => 'Quote Accepted',
+            'message' => "Courier {$specimenRequest->courier->full_name} accepted the quote for request #{$specimenRequest->request_number}",
+            'data' => json_encode([
+                'request_id' => $specimenRequest->id,
+                'request_number' => $specimenRequest->request_number,
+                'courier_id' => $specimenRequest->assigned_to,
+                'quote_id' => $quote->id,
+            ]),
+        ]);
+
+        // Also notify client
+        Notification::create([
+            'user_id' => $specimenRequest->client_id,
+            'request_id' => $specimenRequest->id,
+            'type' => 'quote_accepted',
+            'title' => 'Courier Accepted Assignment',
+            'message' => "Courier has accepted the assignment for your request #{$specimenRequest->request_number}",
+            'data' => json_encode([
+                'request_id' => $specimenRequest->id,
+                'request_number' => $specimenRequest->request_number,
+            ]),
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'accepted_quote',
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'pending_courier_acceptance to assigned',
+                'courier_accepted_at' => now()->toDateTimeString(),
+                'quote_id' => $quote->id,
+                'request_number' => $specimenRequest->request_number
+            ]),
+            'ip_address' => $httpRequest->ip(),
+            'user_agent' => $httpRequest->userAgent(),
+        ]);
+
+        return redirect()->back()->with('success', 'You have accepted the price quote and assignment.');
+    }
+
+    /**
+     * Decline price quote
+     */
+    public function declineQuote(Request $httpRequest, $requestId)
+    {
+        $validated = $httpRequest->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        // Check if courier can decline this request
+        if ($specimenRequest->assigned_to !== Auth::id()) {
+            return redirect()->back()->with('error', 'You are not assigned to this request.');
+        }
+
+        if (!$specimenRequest->courier_can_accept) {
+            return redirect()->back()->with('error', 'This request cannot be declined.');
+        }
+
+        // Get the quote
+        $quote = CourierQuote::where('request_id', $requestId)
+            ->where('courier_id', Auth::id())
+            ->where('status', 'pending')
+            ->firstOrFail();
+
+        // Decline the quote
+        $quote->decline($validated['reason']);
+
+        // Update request
+        $specimenRequest->update([
+            'courier_declined_at' => now(),
+            'courier_decline_reason' => $validated['reason'],
+            'courier_can_accept' => false,
+            'status' => 'approved', // Go back to approved status
+        ]);
+
+        // Create notification for admin
+        Notification::create([
+            'user_id' => $specimenRequest->assigned_by,
+            'request_id' => $specimenRequest->id,
+            'type' => 'quote_declined',
+            'title' => 'Quote Declined',
+            'message' => "Courier {$specimenRequest->courier->full_name} declined the quote for request #{$specimenRequest->request_number}",
+            'data' => json_encode([
+                'request_id' => $specimenRequest->id,
+                'request_number' => $specimenRequest->request_number,
+                'courier_id' => $specimenRequest->assigned_to,
+                'quote_id' => $quote->id,
+                'reason' => $validated['reason'],
+            ]),
+        ]);
+
+        // Log audit
+        AuditLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'declined_quote',
+            'model_type' => SpecimenRequest::class,
+            'model_id' => $specimenRequest->id,
+            'changes' => json_encode([
+                'status' => 'pending_courier_acceptance to approved',
+                'courier_declined_at' => now()->toDateTimeString(),
+                'decline_reason' => $validated['reason'],
+                'quote_id' => $quote->id,
+                'request_number' => $specimenRequest->request_number
+            ]),
+            'ip_address' => $httpRequest->ip(),
+            'user_agent' => $httpRequest->userAgent(),
+        ]);
+
+        return redirect()->route('courier.assignments.index')->with('success', 'You have declined the price quote and assignment.');
+    }
+
+    /**
+     * View quote details
+     */
+    public function viewQuote($requestId)
+    {
+        $specimenRequest = SpecimenRequest::with(['quote', 'client', 'facility'])->findOrFail($requestId);
+
+        // Check if courier can view this quote
+        if ($specimenRequest->assigned_to !== Auth::id()) {
+            abort(403, 'You are not assigned to this request.');
+        }
+
+        $quote = CourierQuote::where('request_id', $requestId)
+            ->where('courier_id', Auth::id())
+            ->firstOrFail();
+
+        return view('courier.quote-acceptance', [
+            'request' => $specimenRequest,
+            'quote' => $quote,
+        ]);
     }
 
     /**
@@ -427,6 +624,7 @@ class CourierController extends Controller
             'pickupProof',
             'signature',
             'stops',
+            'quote',
         ]);
 
         // Try to load location history if model exists
@@ -1216,6 +1414,9 @@ class CourierController extends Controller
             'on_time_rate' => $this->calculateOnTimeRate($user),
             'avg_rating' => 4.8,
             'proofs_uploaded' => PickupProof::where('courier_id', Auth::id())->count() + Signature::where('courier_id', Auth::id())->count(),
+            'total_earnings' => CourierQuote::where('courier_id', Auth::id())
+                ->where('status', 'accepted')
+                ->sum('courier_fee'),
         ];
 
         return view('courier.profile', compact('user', 'stats'));
@@ -1549,5 +1750,57 @@ class CourierController extends Controller
                 'table_structure' => \DB::select("DESCRIBE courier_locations")
             ]);
         }
+    }
+
+    /**
+     * Get courier location for specific request
+     */
+    public function getCourierLocationForRequest($requestId)
+    {
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        // Verify assignment
+        if ($specimenRequest->assigned_to != Auth::id()) {
+            return response()->json(['error' => 'Not authorized'], 403);
+        }
+
+        // Get location from cache first
+        $cachedLocation = cache()->get('courier_location_' . Auth::id());
+
+        // If not in cache, check database
+        if (!$cachedLocation && class_exists(CourierLocation::class)) {
+            $location = CourierLocation::where('courier_id', Auth::id())->first();
+            if ($location) {
+                $cachedLocation = [
+                    'latitude' => $location->latitude,
+                    'longitude' => $location->longitude,
+                    'accuracy' => $location->accuracy,
+                    'speed' => $location->speed,
+                    'heading' => $location->heading,
+                    'altitude' => $location->altitude,
+                    'timestamp' => $location->created_at->timestamp,
+                ];
+            }
+        }
+
+        if (!$cachedLocation) {
+            return response()->json([
+                'courier' => [
+                    'id' => Auth::id(),
+                    'name' => Auth::user()->full_name,
+                ],
+                'location' => null,
+                'status' => 'offline',
+            ]);
+        }
+
+        return response()->json([
+            'courier' => [
+                'id' => Auth::id(),
+                'name' => Auth::user()->full_name,
+            ],
+            'location' => $cachedLocation,
+            'status' => 'online',
+        ]);
     }
 }

@@ -50,6 +50,36 @@ class SpecimenRequest extends Model
         'total_distance',
         'estimated_duration',
         'actual_duration',
+
+        'base_price',
+        'distance_charge',
+        'stat_urgent_charge',
+        'night_hours_charge',
+        'weekend_charge',
+        'cold_chain_charge',
+        'additional_stop_charge',
+        'total_price',
+        'courier_fee',
+        'admin_fee',
+        'profit_margin',
+        'distance_miles',
+        'has_stat_urgent',
+        'has_night_service',
+        'has_weekend_service',
+        'has_cold_chain',
+        'additional_stops',
+        'is_price_quoted',
+        'courier_quote_id',
+        'quote_accepted_at',
+        'quote_declined_at',
+        'quote_decline_reason',
+        'quote_valid_until',
+        'courier_can_accept',
+        'courier_accepted_at',
+        'courier_declined_at',
+        'courier_decline_reason',
+        'acceptance_deadline',
+
     ];
 
     protected $casts = [
@@ -68,6 +98,32 @@ class SpecimenRequest extends Model
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'total_distance' => 'decimal:2',
+
+        'base_price' => 'decimal:2',
+        'distance_charge' => 'decimal:2',
+        'stat_urgent_charge' => 'decimal:2',
+        'night_hours_charge' => 'decimal:2',
+        'weekend_charge' => 'decimal:2',
+        'cold_chain_charge' => 'decimal:2',
+        'additional_stop_charge' => 'decimal:2',
+        'total_price' => 'decimal:2',
+        'courier_fee' => 'decimal:2',
+        'admin_fee' => 'decimal:2',
+        'profit_margin' => 'decimal:2',
+        'distance_miles' => 'decimal:2',
+        'has_stat_urgent' => 'boolean',
+        'has_night_service' => 'boolean',
+        'has_weekend_service' => 'boolean',
+        'has_cold_chain' => 'boolean',
+        'is_price_quoted' => 'boolean',
+        'courier_can_accept' => 'boolean',
+        'quote_accepted_at' => 'datetime',
+        'quote_declined_at' => 'datetime',
+        'quote_valid_until' => 'datetime',
+        'courier_accepted_at' => 'datetime',
+        'courier_declined_at' => 'datetime',
+        'acceptance_deadline' => 'datetime',
+
     ];
 
     /**
@@ -343,5 +399,14 @@ class SpecimenRequest extends Model
     public function signature()
     {
         return $this->hasOne(Signature::class, 'request_id');
+    }
+    public function quote()
+    {
+        return $this->belongsTo(CourierQuote::class, 'courier_quote_id');
+    }
+
+    public function quotes()
+    {
+        return $this->hasMany(CourierQuote::class, 'request_id');
     }
 }

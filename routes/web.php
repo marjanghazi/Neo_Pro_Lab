@@ -76,6 +76,10 @@ Route::prefix('admin')
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
 
+        // Admin pricing routes
+        Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('admin.requests.calculate-price');
+        Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('admin.requests.send-quote');
+        Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('admin.requests.assign-with-quote');
         // Profile
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
         Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
@@ -214,6 +218,11 @@ Route::prefix('courier')
         Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{requestId}/transit-proof', [CourierController::class, 'submitTransitProof'])->name('requests.transit-proof');
         Route::post('/requests/{requestId}/skip-proof', [CourierController::class, 'skipProofRequirement'])->name('requests.skip-proof');
+
+        // Courier quote acceptance routes
+        Route::post('/requests/{requestId}/accept-quote', [CourierController::class, 'acceptQuote'])->name('courier.requests.accept-quote');
+        Route::post('/requests/{requestId}/decline-quote', [CourierController::class, 'declineQuote'])->name('courier.requests.decline-quote');
+        Route::get('/requests/{requestId}/quote', [CourierController::class, 'viewQuote'])->name('courier.requests.quote');
 
         // ADD THE MISSING ARRIVAL PROOF ROUTE
         Route::post('/requests/{requestId}/arrival-proof', [CourierController::class, 'submitArrivalProof'])->name('requests.arrival-proof');
