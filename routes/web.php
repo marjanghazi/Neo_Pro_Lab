@@ -80,6 +80,7 @@ Route::prefix('admin')
         Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('admin.requests.calculate-price');
         Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('admin.requests.send-quote');
         Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('admin.requests.assign-with-quote');
+
         // Profile
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
         Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
@@ -161,6 +162,11 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     // Requests
     Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
     Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
+
+    // New Routes for Pricing & Preview
+    Route::post('/requests/preview', [ClientController::class, 'previewRequest'])->name('requests.preview');
+    Route::post('/requests/calculate-price', [ClientController::class, 'calculateRequestPrice'])->name('requests.calculate-price');
+
     Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
     Route::get('/requests/{request}', [ClientController::class, 'showRequest'])->name('requests.show');
     Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');

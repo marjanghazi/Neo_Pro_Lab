@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/Client/ClientController.php
+// app/Http\Controllers/Client/ClientController.php
 
 namespace App\Http\Controllers\Client;
 
@@ -78,11 +78,111 @@ class ClientController extends Controller
         return view('client.requests.create', compact('facility'));
     }
 
-    public function storeRequest(Request $request)
+    /**
+     * Calculate price estimate for client request
+     */
+    public function calculateRequestPrice(Request $httpRequest)
+    {
+        try {
+            $validated = $httpRequest->validate([
+                'pickup_address' => 'required|string',
+                'delivery_address' => 'required|string',
+                'pickup_date' => 'required|date',
+                'pickup_time' => 'required|string',
+                'priority_level' => 'required|string',
+                'specimen_type' => 'required|string',
+                'temperature_requirement' => 'required|string',
+                'stops' => 'nullable|array',
+                'stops.*.type' => 'nullable|string',
+                'stops.*.address' => 'nullable|string',
+            ]);
+
+            // Calculate distance (simplified version)
+            $distanceMiles = $this->calculateDistanceForEstimation($validated['pickup_address'], $validated['delivery_address']);
+
+            // Base price
+            $basePrice = 50.00;
+
+            // Distance charge
+            $distanceCharge = 0.00;
+            if ($distanceMiles > 15) {
+                $distanceCharge = ($distanceMiles - 15) * 2.00;
+            }
+
+            // Priority charge
+            $priorityCharge = 0.00;
+            if ($validated['priority_level'] == 'stat') {
+                $priorityCharge = 20.00;
+            }
+
+            // Night service
+            $pickupTime = Carbon::parse($validated['pickup_date'] . ' ' . $this->getTimeFromWindow($validated['pickup_time']));
+            $nightCharge = 0.00;
+            if ($pickupTime->hour >= 18) {
+                $nightCharge = 25.00;
+            }
+
+            // Weekend charge
+            $weekendCharge = 0.00;
+            if (in_array($pickupTime->dayOfWeek, [0, 6])) {
+                $weekendCharge = $basePrice * 0.35;
+            }
+
+            // Temperature requirement charge
+            $temperatureCharge = 0.00;
+            if (in_array($validated['temperature_requirement'], ['2-8c', '-20c', '-80c'])) {
+                $temperatureCharge = 7.00;
+            }
+
+            // Additional stops charge
+            $additionalStops = isset($validated['stops']) ? count($validated['stops']) : 0;
+            $additionalStopsCharge = $additionalStops * 10.00;
+
+            // Tax (example: 8.5%)
+            $taxRate = 0.085;
+            $subtotal = $basePrice + $distanceCharge + $priorityCharge + $nightCharge + $weekendCharge + $temperatureCharge + $additionalStopsCharge;
+            $taxAmount = $subtotal * $taxRate;
+            $totalPrice = $subtotal + $taxAmount;
+
+            // Breakdown for display
+            $priceBreakdown = [
+                'base_price' => $basePrice,
+                'distance_miles' => round($distanceMiles, 1),
+                'distance_charge' => $distanceCharge,
+                'priority_charge' => $priorityCharge,
+                'night_charge' => $nightCharge,
+                'weekend_charge' => $weekendCharge,
+                'temperature_charge' => $temperatureCharge,
+                'additional_stops' => $additionalStops,
+                'additional_stops_charge' => $additionalStopsCharge,
+                'subtotal' => $subtotal,
+                'tax_rate' => $taxRate * 100,
+                'tax_amount' => $taxAmount,
+                'total_price' => $totalPrice,
+                'estimated_total' => $totalPrice,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $priceBreakdown
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating price: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Preview request with pricing
+     */
+    public function previewRequest(Request $request)
     {
         $user = Auth::user();
         $facility = $user->facilities()->first();
 
+        // Validate the form data
         $validated = $request->validate([
             'recipient_name' => 'required|string|max:200',
             'contact_phone' => 'required|string|max:20',
@@ -97,13 +197,90 @@ class ClientController extends Controller
             'priority_level' => 'required|string',
             'special_instructions' => 'nullable|string',
             'stops' => 'nullable|array',
-            'stops.*.type' => 'required|string',
+            'stops.*.type' => 'nullable|string',
             'stops.*.contact_name' => 'nullable|string',
-            'stops.*.address' => 'required|string',
+            'stops.*.address' => 'nullable|string',
             'stops.*.instructions' => 'nullable|string',
-            'documents' => 'nullable|array',
-            'documents.*' => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
         ]);
+
+        // Calculate price
+        $priceResult = $this->calculateRequestPrice(new Request($validated));
+
+        if ($priceResult->getStatusCode() !== 200) {
+            return back()->withInput()->withErrors(['price_calculation' => 'Error calculating price. Please try again.']);
+        }
+
+        $priceData = json_decode($priceResult->getContent(), true);
+
+        if (!$priceData['success']) {
+            return back()->withInput()->withErrors(['price_calculation' => $priceData['message']]);
+        }
+
+        $priceBreakdown = $priceData['data'];
+
+        // Store form data in session for final submission
+        $request->session()->put('request_preview_data', [
+            'form_data' => $validated,
+            'price_data' => $priceBreakdown
+        ]);
+
+        return view('client.requests.preview', compact('validated', 'priceBreakdown', 'facility'));
+    }
+
+    /**
+     * Store the request after preview
+     */
+    public function storeRequest(Request $request)
+    {
+        // Get data from session if available (from preview)
+        $previewData = $request->session()->get('request_preview_data');
+
+        if ($previewData) {
+            $validated = $previewData['form_data'];
+            $priceData = $previewData['price_data'];
+
+            // Clear the session data
+            $request->session()->forget('request_preview_data');
+        } else {
+            // Original validation for direct submission (fallback)
+            $validated = $request->validate([
+                'recipient_name' => 'required|string|max:200',
+                'contact_phone' => 'required|string|max:20',
+                'pickup_address' => 'required|string',
+                'pickup_date' => 'required|date',
+                'pickup_time' => 'required|string',
+                'delivery_address' => 'required|string',
+                'delivery_instructions' => 'nullable|string',
+                'specimen_type' => 'required|string',
+                'temperature_requirement' => 'required|string',
+                'quantity' => 'required|integer|min:1',
+                'priority_level' => 'required|string',
+                'special_instructions' => 'nullable|string',
+                'stops' => 'nullable|array',
+                'stops.*.type' => 'required|string',
+                'stops.*.contact_name' => 'nullable|string',
+                'stops.*.address' => 'required|string',
+                'stops.*.instructions' => 'nullable|string',
+                'documents' => 'nullable|array',
+                'documents.*' => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
+            ]);
+
+            // Calculate price for direct submission
+            $priceResult = $this->calculateRequestPrice(new Request($validated));
+            if ($priceResult->getStatusCode() === 200) {
+                $priceData = json_decode($priceResult->getContent(), true);
+                if ($priceData['success']) {
+                    $priceData = $priceData['data'];
+                } else {
+                    $priceData = null;
+                }
+            } else {
+                $priceData = null;
+            }
+        }
+
+        $user = Auth::user();
+        $facility = $user->facilities()->first();
 
         // Geocode addresses to get coordinates
         $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
@@ -128,6 +305,11 @@ class ClientController extends Controller
             'special_instructions' => $validated['special_instructions'],
             'scheduled_pickup_time' => $validated['pickup_date'] . ' ' . $this->getTimeFromWindow($validated['pickup_time']),
             'status' => 'pending_approval',
+
+            // Store price data
+            'estimated_price' => $priceData ? $priceData['estimated_total'] : null,
+            'price_breakdown' => $priceData ? json_encode($priceData) : null,
+            'is_price_estimated' => $priceData ? true : false,
         ]);
 
         // Add additional stops with geocoding
@@ -184,6 +366,39 @@ class ClientController extends Controller
     }
 
     /**
+     * Helper methods for price calculation
+     */
+    private function calculateDistanceForEstimation($pickupAddress, $deliveryAddress)
+    {
+        // Simplified distance calculation
+        // In production, use Google Maps Distance Matrix API
+        return 10.00; // Default 10 miles for estimation
+    }
+
+    private function getTimeFromWindow($window)
+    {
+        $times = [
+            '8-10' => '09:00:00',
+            '10-12' => '11:00:00',
+            '12-14' => '13:00:00',
+            '14-16' => '15:00:00',
+            '16-18' => '17:00:00',
+            'stat' => date('H:i:s'),
+        ];
+
+        return $times[$window] ?? '12:00:00';
+    }
+
+    /**
+     * Original store method (kept for compatibility)
+     */
+    public function storeRequestOld(Request $request)
+    {
+        // This is kept for reference but not used directly
+        // The new storeRequest method handles both preview and direct submissions
+    }
+
+    /**
      * Geocode address to get coordinates
      */
     private function geocodeAddress($address)
@@ -233,20 +448,6 @@ class ClientController extends Controller
 
         // Return null if geocoding fails
         return ['latitude' => null, 'longitude' => null];
-    }
-
-    private function getTimeFromWindow($window)
-    {
-        $times = [
-            '8-10' => '09:00:00',
-            '10-12' => '11:00:00',
-            '12-14' => '13:00:00',
-            '14-16' => '15:00:00',
-            '16-18' => '17:00:00',
-            'stat' => date('H:i:s'),
-        ];
-
-        return $times[$window] ?? '12:00:00';
     }
 
     /**
