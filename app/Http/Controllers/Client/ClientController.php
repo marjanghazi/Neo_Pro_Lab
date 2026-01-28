@@ -1,5 +1,5 @@
 <?php
-// app/Http\Controllers/Client/ClientController.php
+// app/Http/Controllers/Client/ClientController.php
 
 namespace App\Http\Controllers\Client;
 
@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Models\Payment;
+use App\Services\PaymentService;
 
 class ClientController extends Controller
 {
@@ -79,7 +81,7 @@ class ClientController extends Controller
     }
 
     /**
-     * Calculate price estimate for client request
+     * Calculate price estimate for client request using Google Maps Distance Matrix API
      */
     public function calculateRequestPrice(Request $httpRequest)
     {
@@ -97,40 +99,48 @@ class ClientController extends Controller
                 'stops.*.address' => 'nullable|string',
             ]);
 
-            // Calculate distance (simplified version)
-            $distanceMiles = $this->calculateDistanceForEstimation($validated['pickup_address'], $validated['delivery_address']);
+            // Calculate distance using Google Maps Distance Matrix API
+            $distanceMiles = $this->calculateDistanceWithGoogleMaps(
+                $validated['pickup_address'],
+                $validated['delivery_address']
+            );
 
             // Base price
             $basePrice = 50.00;
 
-            // Distance charge
+            // Distance charge (beyond 15 miles)
             $distanceCharge = 0.00;
             if ($distanceMiles > 15) {
                 $distanceCharge = ($distanceMiles - 15) * 2.00;
             }
 
-            // Priority charge
+            // Priority charge (STAT/Urgent)
             $priorityCharge = 0.00;
-            if ($validated['priority_level'] == 'stat') {
+            if (strtolower($validated['priority_level']) == 'stat') {
                 $priorityCharge = 20.00;
             }
 
-            // Night service
-            $pickupTime = Carbon::parse($validated['pickup_date'] . ' ' . $this->getTimeFromWindow($validated['pickup_time']));
+            // Parse pickup time for date/time calculations
+            $pickupDateTime = $this->parsePickupDateTime(
+                $validated['pickup_date'],
+                $validated['pickup_time']
+            );
+
+            // Night service charge (after 6PM)
             $nightCharge = 0.00;
-            if ($pickupTime->hour >= 18) {
+            if ($pickupDateTime->hour >= 18) { // 6PM or later
                 $nightCharge = 25.00;
             }
 
-            // Weekend charge
+            // Weekend/Holiday charge
             $weekendCharge = 0.00;
-            if (in_array($pickupTime->dayOfWeek, [0, 6])) {
-                $weekendCharge = $basePrice * 0.35;
+            if ($this->isWeekendOrHoliday($pickupDateTime)) {
+                $weekendCharge = $basePrice * 0.35; // 35% of base rate
             }
 
-            // Temperature requirement charge
+            // Temperature requirement charge (Cold-Chain Handling)
             $temperatureCharge = 0.00;
-            if (in_array($validated['temperature_requirement'], ['2-8c', '-20c', '-80c'])) {
+            if (in_array(strtolower($validated['temperature_requirement']), ['2-8c', '-20c', '-80c', 'cold_chain', 'refrigerated'])) {
                 $temperatureCharge = 7.00;
             }
 
@@ -138,28 +148,37 @@ class ClientController extends Controller
             $additionalStops = isset($validated['stops']) ? count($validated['stops']) : 0;
             $additionalStopsCharge = $additionalStops * 10.00;
 
-            // Tax (example: 8.5%)
-            $taxRate = 0.085;
-            $subtotal = $basePrice + $distanceCharge + $priorityCharge + $nightCharge + $weekendCharge + $temperatureCharge + $additionalStopsCharge;
+            // Calculate subtotal and tax
+            $taxRate = 0.085; // 8.5% tax
+            $subtotal = $basePrice + $distanceCharge + $priorityCharge + $nightCharge +
+                $weekendCharge + $temperatureCharge + $additionalStopsCharge;
             $taxAmount = $subtotal * $taxRate;
             $totalPrice = $subtotal + $taxAmount;
 
-            // Breakdown for display
+            // Detailed breakdown for display
             $priceBreakdown = [
-                'base_price' => $basePrice,
+                'base_price' => number_format($basePrice, 2),
                 'distance_miles' => round($distanceMiles, 1),
-                'distance_charge' => $distanceCharge,
-                'priority_charge' => $priorityCharge,
-                'night_charge' => $nightCharge,
-                'weekend_charge' => $weekendCharge,
-                'temperature_charge' => $temperatureCharge,
+                'distance_charge' => number_format($distanceCharge, 2),
+                'distance_calculation_note' => 'One-way distance calculated via Google Maps',
+                'priority_charge' => number_format($priorityCharge, 2),
+                'priority_note' => $priorityCharge > 0 ? 'STAT / Urgent Delivery Surcharge' : 'Standard Priority',
+                'night_charge' => number_format($nightCharge, 2),
+                'night_note' => $nightCharge > 0 ? 'Night After-Hours Service (After 6PM)' : 'Daytime Service',
+                'weekend_charge' => number_format($weekendCharge, 2),
+                'weekend_note' => $weekendCharge > 0 ? 'Weekend/Holiday Surcharge (35% of base rate)' : 'Weekday Service',
+                'temperature_charge' => number_format($temperatureCharge, 2),
+                'temperature_note' => $temperatureCharge > 0 ? 'Cold-Chain Handling' : 'No Temperature Control Required',
                 'additional_stops' => $additionalStops,
-                'additional_stops_charge' => $additionalStopsCharge,
-                'subtotal' => $subtotal,
+                'additional_stops_charge' => number_format($additionalStopsCharge, 2),
+                'additional_stops_note' => $additionalStops > 0 ? "{$additionalStops} additional stop(s) @ $10.00 each" : 'No additional stops',
+                'subtotal' => number_format($subtotal, 2),
                 'tax_rate' => $taxRate * 100,
-                'tax_amount' => $taxAmount,
-                'total_price' => $totalPrice,
-                'estimated_total' => $totalPrice,
+                'tax_amount' => number_format($taxAmount, 2),
+                'total_price' => number_format($totalPrice, 2),
+                'estimated_total' => number_format($totalPrice, 2),
+                'currency' => 'USD',
+                'calculation_time' => now()->toDateTimeString(),
             ];
 
             return response()->json([
@@ -167,11 +186,207 @@ class ClientController extends Controller
                 'data' => $priceBreakdown
             ]);
         } catch (\Exception $e) {
+            Log::error('Price calculation error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error calculating price: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Calculate distance using Google Maps Distance Matrix API
+     */
+    private function calculateDistanceWithGoogleMaps($origin, $destination)
+    {
+        $cacheKey = 'distance_' . md5($origin . $destination);
+
+        // Check cache first (cache for 30 days since distances don't change often)
+        $cachedDistance = Cache::get($cacheKey);
+        if ($cachedDistance !== null) {
+            return $cachedDistance;
+        }
+
+        try {
+            $apiKey = config('services.google.maps_api_key');
+
+            if (empty($apiKey)) {
+                throw new \Exception('Google Maps API key not configured');
+            }
+
+            $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/distancematrix/json', [
+                'origins' => $origin,
+                'destinations' => $destination,
+                'key' => $apiKey,
+                'units' => 'imperial', // Get distance in miles
+                'mode' => 'driving', // One-way driving distance
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if (
+                    $data['status'] === 'OK' &&
+                    isset($data['rows'][0]['elements'][0]['distance']['value'])
+                ) {
+
+                    // Convert meters to miles
+                    $distanceMeters = $data['rows'][0]['elements'][0]['distance']['value'];
+                    $distanceMiles = $distanceMeters / 1609.344;
+
+                    // Cache the result for 30 days
+                    Cache::put($cacheKey, $distanceMiles, 2592000);
+
+                    return $distanceMiles;
+                } else {
+                    // Log the error response
+                    $errorMessage = $data['error_message'] ?? 'Unknown Google Maps API error';
+                    Log::warning('Google Maps Distance API error: ' . $errorMessage . ' - Status: ' . $data['status']);
+                }
+            } else {
+                Log::warning('Google Maps API request failed with status: ' . $response->status());
+            }
+        } catch (\Exception $e) {
+            Log::error('Google Maps API exception: ' . $e->getMessage());
+        }
+
+        // Fallback: Use simple estimation or geocoding-based calculation
+        return $this->calculateFallbackDistance($origin, $destination);
+    }
+
+    /**
+     * Fallback distance calculation when Google Maps API fails
+     */
+    private function calculateFallbackDistance($origin, $destination)
+    {
+        try {
+            // Try to get coordinates for both addresses
+            $originCoords = $this->geocodeAddress($origin);
+            $destCoords = $this->geocodeAddress($destination);
+
+            if (
+                $originCoords['latitude'] && $originCoords['longitude'] &&
+                $destCoords['latitude'] && $destCoords['longitude']
+            ) {
+
+                // Calculate straight-line distance (less accurate than road distance)
+                $distanceKm = $this->calculateHaversineDistance(
+                    $originCoords['latitude'],
+                    $originCoords['longitude'],
+                    $destCoords['latitude'],
+                    $destCoords['longitude']
+                );
+
+                // Convert km to miles
+                $distanceMiles = $distanceKm * 0.621371;
+
+                // Add 20% for road distance estimation
+                $estimatedRoadDistance = $distanceMiles * 1.2;
+
+                Log::info('Used fallback distance calculation: ' . $estimatedRoadDistance . ' miles');
+
+                return $estimatedRoadDistance;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Fallback distance calculation failed: ' . $e->getMessage());
+        }
+
+        // Ultimate fallback: return average distance of 10 miles
+        return 10.00;
+    }
+
+    /**
+     * Calculate distance using Haversine formula (straight line)
+     */
+    private function calculateHaversineDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // kilometers
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lon2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+
+        return $angle * $earthRadius;
+    }
+
+    /**
+     * Check if date is weekend or holiday
+     */
+    private function isWeekendOrHoliday(Carbon $date)
+    {
+        // Check for weekend (Saturday = 6, Sunday = 0)
+        if (in_array($date->dayOfWeek, [0, 6])) {
+            return true;
+        }
+
+        // Check for holidays (add your specific holidays here)
+        $holidays = $this->getHolidays($date->year);
+
+        $dateString = $date->format('Y-m-d');
+        return in_array($dateString, $holidays);
+    }
+
+    /**
+     * Get list of holidays for a given year
+     */
+    private function getHolidays($year)
+    {
+        $cacheKey = 'holidays_' . $year;
+
+        return Cache::remember($cacheKey, 86400, function () use ($year) {
+            $holidays = [];
+
+            // Fixed date holidays
+            $fixedHolidays = [
+                $year . '-01-01', // New Year's Day
+                $year . '-07-04', // Independence Day
+                $year . '-12-25', // Christmas Day
+            ];
+
+            // Floating holidays (examples - adjust as needed)
+            // Memorial Day (last Monday in May)
+            $memorialDay = new Carbon("last monday of May $year");
+            $holidays[] = $memorialDay->format('Y-m-d');
+
+            // Labor Day (first Monday in September)
+            $laborDay = new Carbon("first monday of September $year");
+            $holidays[] = $laborDay->format('Y-m-d');
+
+            // Thanksgiving (fourth Thursday in November)
+            $thanksgiving = new Carbon("fourth thursday of November $year");
+            $holidays[] = $thanksgiving->format('Y-m-d');
+
+            return array_merge($fixedHolidays, $holidays);
+        });
+    }
+
+    /**
+     * Parse pickup date and time into Carbon instance
+     */
+    private function parsePickupDateTime($date, $timeWindow)
+    {
+        $timeMap = [
+            '8-10' => '09:00:00',
+            '10-12' => '11:00:00',
+            '12-14' => '13:00:00',
+            '14-16' => '15:00:00',
+            '16-18' => '17:00:00',
+            '18-20' => '19:00:00',
+            '20-22' => '21:00:00',
+            'stat' => now()->format('H:i:s'),
+            'asap' => now()->addMinutes(30)->format('H:i:s'),
+        ];
+
+        $time = $timeMap[$timeWindow] ?? '12:00:00';
+
+        return Carbon::parse($date . ' ' . $time);
     }
 
     /**
@@ -286,6 +501,12 @@ class ClientController extends Controller
         $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
         $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
 
+        // Parse scheduled pickup time
+        $scheduledPickup = $this->parsePickupDateTime(
+            $validated['pickup_date'],
+            $validated['pickup_time']
+        );
+
         // Create specimen request with coordinates
         $specimenRequest = SpecimenRequest::create([
             'facility_id' => $facility ? $facility->id : null,
@@ -303,13 +524,15 @@ class ClientController extends Controller
             'quantity' => $validated['quantity'],
             'priority_level' => $validated['priority_level'],
             'special_instructions' => $validated['special_instructions'],
-            'scheduled_pickup_time' => $validated['pickup_date'] . ' ' . $this->getTimeFromWindow($validated['pickup_time']),
+            'scheduled_pickup_time' => $scheduledPickup,
             'status' => 'pending_approval',
-
-            // Store price data
+            'payment_status' => 'pending',
+            'payment_required' => true,
             'estimated_price' => $priceData ? $priceData['estimated_total'] : null,
             'price_breakdown' => $priceData ? json_encode($priceData) : null,
             'is_price_estimated' => $priceData ? true : false,
+            'distance_miles' => $priceData ? $priceData['distance_miles'] : null,
+            'additional_stops' => $priceData ? $priceData['additional_stops'] : 0,
         ]);
 
         // Add additional stops with geocoding
@@ -345,6 +568,12 @@ class ClientController extends Controller
             }
         }
 
+        // Create initial payment record
+        if ($specimenRequest->estimated_price > 0) {
+            $paymentService = new PaymentService();
+            $paymentService->createPayment($specimenRequest, $user);
+        }
+
         // CREATE NOTIFICATION FOR ADMINS
         $adminUsers = \App\Models\User::whereHas('role', function ($query) {
             $query->where('slug', 'admin');
@@ -361,41 +590,18 @@ class ClientController extends Controller
             ]);
         }
 
+        // Send notification to client about payment
+        Notification::create([
+            'user_id' => $user->id,
+            'request_id' => $specimenRequest->id,
+            'type' => 'payment_required',
+            'title' => 'Payment Required',
+            'message' => "Payment is required for your request #{$specimenRequest->request_number}. Please complete payment to schedule pickup.",
+            'data' => json_encode(['request_id' => $specimenRequest->id]),
+        ]);
+
         return redirect()->route('client.requests.index')
-            ->with('success', 'Specimen request submitted successfully! It is now pending approval.');
-    }
-
-    /**
-     * Helper methods for price calculation
-     */
-    private function calculateDistanceForEstimation($pickupAddress, $deliveryAddress)
-    {
-        // Simplified distance calculation
-        // In production, use Google Maps Distance Matrix API
-        return 10.00; // Default 10 miles for estimation
-    }
-
-    private function getTimeFromWindow($window)
-    {
-        $times = [
-            '8-10' => '09:00:00',
-            '10-12' => '11:00:00',
-            '12-14' => '13:00:00',
-            '14-16' => '15:00:00',
-            '16-18' => '17:00:00',
-            'stat' => date('H:i:s'),
-        ];
-
-        return $times[$window] ?? '12:00:00';
-    }
-
-    /**
-     * Original store method (kept for compatibility)
-     */
-    public function storeRequestOld(Request $request)
-    {
-        // This is kept for reference but not used directly
-        // The new storeRequest method handles both preview and direct submissions
+            ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
     }
 
     /**
@@ -416,6 +622,32 @@ class ClientController extends Controller
         }
 
         try {
+            // Try Google Geocoding API first
+            $apiKey = config('services.google.maps_api_key');
+            if (!empty($apiKey)) {
+                $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/geocode/json', [
+                    'address' => $address,
+                    'key' => $apiKey,
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+
+                    if ($data['status'] === 'OK' && isset($data['results'][0]['geometry']['location'])) {
+                        $location = $data['results'][0]['geometry']['location'];
+                        $result = [
+                            'latitude' => (float) $location['lat'],
+                            'longitude' => (float) $location['lng'],
+                            'display_name' => $data['results'][0]['formatted_address'] ?? $address,
+                        ];
+
+                        Cache::put($cacheKey, $result, 2592000);
+                        return $result;
+                    }
+                }
+            }
+
+            // Fallback to OpenStreetMap Nominatim
             $response = Http::withHeaders([
                 'User-Agent' => config('app.name') . '/1.0',
                 'Accept' => 'application/json',
@@ -436,17 +668,14 @@ class ClientController extends Controller
                         'display_name' => $data[0]['display_name'] ?? $address,
                     ];
 
-                    // Cache for 30 days
                     Cache::put($cacheKey, $result, 2592000);
-
                     return $result;
                 }
             }
         } catch (\Exception $e) {
-            \Log::warning('Geocoding failed for address: ' . $address . ' - ' . $e->getMessage());
+            Log::warning('Geocoding failed for address: ' . $address . ' - ' . $e->getMessage());
         }
 
-        // Return null if geocoding fails
         return ['latitude' => null, 'longitude' => null];
     }
 
@@ -459,7 +688,7 @@ class ClientController extends Controller
             abort(403);
         }
 
-        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
+        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures', 'payment']);
 
         return view('client.requests.track', compact('request'));
     }
@@ -470,7 +699,7 @@ class ClientController extends Controller
             abort(403);
         }
 
-        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
+        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures', 'payment']);
 
         return view('client.requests.show', compact('request'));
     }
@@ -489,6 +718,21 @@ class ClientController extends Controller
             'cancellation_reason' => 'required|string|min:10|max:500',
         ]);
 
+        // Check if payment was made and needs refund
+        if ($specimenRequest->payment && $specimenRequest->payment->isPaid()) {
+            // Initiate refund process
+            $paymentService = new PaymentService();
+            $refundResult = $paymentService->refundPayment(
+                $specimenRequest->payment,
+                null, // full refund
+                "Request cancelled: " . $validated['cancellation_reason']
+            );
+
+            if (!$refundResult['success']) {
+                return back()->with('error', 'Cancellation failed: Could not process refund. Please contact support.');
+            }
+        }
+
         $specimenRequest->update([
             'status' => 'cancelled',
             'cancelled_at' => now(),
@@ -506,7 +750,9 @@ class ClientController extends Controller
         ]);
 
         return redirect()->route('client.requests.index')
-            ->with('success', 'Request cancelled successfully.');
+            ->with('success', 'Request cancelled successfully. ' .
+                ($specimenRequest->payment && $specimenRequest->payment->isPaid() ?
+                    'Refund has been initiated.' : ''));
     }
 
     public function confirmDelivery(SpecimenRequest $request)
@@ -618,7 +864,7 @@ class ClientController extends Controller
 
         $requests = $user->createdRequests()
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->with(['courier', 'facility'])
+            ->with(['courier', 'facility', 'payment'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -629,6 +875,19 @@ class ClientController extends Controller
             'in_progress' => $requests->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])->count(),
             'cancelled' => $requests->where('status', 'cancelled')->count(),
             'pending' => $requests->where('status', 'pending_approval')->count(),
+        ];
+
+        // Payment statistics
+        $paymentStats = [
+            'total_paid' => $requests->filter(function ($request) {
+                return $request->payment && $request->payment->isPaid();
+            })->count(),
+            'total_pending' => $requests->filter(function ($request) {
+                return $request->needsPayment();
+            })->count(),
+            'total_revenue' => $requests->sum(function ($request) {
+                return $request->payment && $request->payment->isPaid() ? $request->payment->amount : 0;
+            }),
         ];
 
         // Group by specimen type
@@ -645,6 +904,7 @@ class ClientController extends Controller
         return view('client.reports.index', compact(
             'requests',
             'stats',
+            'paymentStats',
             'specimenTypes',
             'priorities',
             'monthlyTrend',
@@ -666,7 +926,7 @@ class ClientController extends Controller
 
         $requests = $user->createdRequests()
             ->whereBetween('created_at', [$validated['start_date'] . ' 00:00:00', $validated['end_date'] . ' 23:59:59'])
-            ->with(['courier', 'facility'])
+            ->with(['courier', 'facility', 'payment'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -696,8 +956,13 @@ class ClientController extends Controller
                 'Specimen Type',
                 'Priority',
                 'Status',
+                'Payment Status',
+                'Amount',
+                'Payment Method',
                 'Pickup Address',
                 'Delivery Address',
+                'Distance (miles)',
+                'Estimated Price',
                 'Courier',
                 'Created At',
                 'Completed At',
@@ -705,14 +970,31 @@ class ClientController extends Controller
 
             // Data
             foreach ($requests as $request) {
+                $priceBreakdown = $request->price_breakdown ? json_decode($request->price_breakdown, true) : null;
+
+                $paymentStatus = 'N/A';
+                $amount = 'N/A';
+                $paymentMethod = 'N/A';
+
+                if ($request->payment) {
+                    $paymentStatus = $request->payment->payment_status;
+                    $amount = $request->payment->isPaid() ? '$' . number_format($request->payment->amount, 2) : '$0.00';
+                    $paymentMethod = $request->payment->payment_method ?? 'N/A';
+                }
+
                 fputcsv($file, [
                     $request->request_number,
                     $request->created_at->format('Y-m-d'),
                     ucfirst($request->specimen_type),
                     ucfirst($request->priority_level),
                     str_replace('_', ' ', $request->status),
+                    $paymentStatus,
+                    $amount,
+                    $paymentMethod,
                     $request->pickup_address,
                     $request->delivery_address,
+                    $priceBreakdown['distance_miles'] ?? $request->distance_miles ?? 'N/A',
+                    $request->estimated_price ? '$' . number_format($request->estimated_price, 2) : 'N/A',
                     $request->courier ? $request->courier->full_name : 'Not Assigned',
                     $request->created_at->format('Y-m-d H:i:s'),
                     $request->completed_at ? $request->completed_at->format('Y-m-d H:i:s') : '',
@@ -897,7 +1179,7 @@ class ClientController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            \Log::info('Reverse geocoding failed: ' . $e->getMessage());
+            Log::info('Reverse geocoding failed: ' . $e->getMessage());
         }
 
         // Fallback: Create a readable location from coordinates
@@ -1065,6 +1347,7 @@ class ClientController extends Controller
             ],
             'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
             'request_status' => $request->status,
+            'payment_status' => $request->payment_status,
             'last_updated' => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
         ]);
     }
@@ -1078,7 +1361,7 @@ class ClientController extends Controller
             abort(403);
         }
 
-        $request->load(['courier', 'stops', 'pickupProofs', 'signatures']);
+        $request->load(['courier', 'stops', 'pickupProofs', 'signatures', 'payment']);
 
         // Get courier location
         $courierLocation = null;
@@ -1149,6 +1432,19 @@ class ClientController extends Controller
             }
         }
 
+        // Payment information
+        $paymentInfo = null;
+        if ($request->payment) {
+            $paymentInfo = [
+                'status' => $request->payment->payment_status,
+                'amount' => number_format($request->payment->amount, 2),
+                'method' => $request->payment->payment_method,
+                'paid_at' => $request->payment->paid_at?->format('Y-m-d H:i:s'),
+                'receipt_url' => $request->payment->receipt_url,
+                'is_paid' => $request->payment->isPaid(),
+            ];
+        }
+
         return response()->json([
             'request' => [
                 'id' => $request->id,
@@ -1167,6 +1463,13 @@ class ClientController extends Controller
                 'specimen_type' => $request->specimen_type,
                 'temperature_requirement' => $request->temperature_requirement,
                 'quantity' => $request->quantity,
+                'estimated_price' => $request->estimated_price,
+                'distance_miles' => $request->distance_miles,
+                'payment_status' => $request->payment_status,
+                'payment_required' => $request->payment_required,
+                'payment_due_at' => $request->payment_due_at?->format('Y-m-d H:i:s'),
+                'needs_payment' => $request->needsPayment(),
+                'is_payment_overdue' => $request->isPaymentOverdue(),
             ],
             'courier' => $courier ? [
                 'id' => $courier->id,
@@ -1194,6 +1497,7 @@ class ClientController extends Controller
             'stops' => $stopsWithCoords,
             'progress' => $progress,
             'distances' => $distances,
+            'payment' => $paymentInfo,
             'proofs' => [
                 'pickup_proofs' => $request->pickupProofs->count(),
                 'delivery_signatures' => $request->signatures->where('signature_type', 'delivery')->count(),
@@ -1315,20 +1619,7 @@ class ClientController extends Controller
      */
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
-        $earthRadius = 6371; // kilometers
-
-        $latFrom = deg2rad($lat1);
-        $lonFrom = deg2rad($lon1);
-        $latTo = deg2rad($lat2);
-        $lonTo = deg2rad($lon2);
-
-        $latDelta = $latTo - $latFrom;
-        $lonDelta = $lonTo - $lonFrom;
-
-        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
-
-        return $angle * $earthRadius;
+        return $this->calculateHaversineDistance($lat1, $lon1, $lat2, $lon2);
     }
 
     /**
@@ -1342,5 +1633,192 @@ class ClientController extends Controller
 
         $timeHours = $distanceKm / $speedKmh;
         return round($timeHours * 60); // Convert to minutes
+    }
+
+    /**
+     * Show payment page for a request
+     */
+    public function showPayment(SpecimenRequest $request)
+    {
+        if ($request->client_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if (!$request->needsPayment()) {
+            return redirect()->route('client.requests.show', $request)
+                ->with('info', 'No payment required or payment already completed.');
+        }
+
+        // Create payment if doesn't exist
+        if (!$request->payment) {
+            $paymentService = new PaymentService();
+            $payment = $paymentService->createPayment($request, Auth::user());
+        } else {
+            $payment = $request->payment;
+        }
+
+        $paymentService = new PaymentService();
+        $config = $paymentService->getConfig();
+
+        return view('client.payments.payment', compact('request', 'payment', 'config'));
+    }
+
+    /**
+     * Process payment
+     */
+    public function processPayment(Request $httpRequest, SpecimenRequest $request, PaymentService $paymentService)
+    {
+        if ($request->client_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $payment = $request->payment;
+        if (!$payment) {
+            return back()->with('error', 'Payment record not found.');
+        }
+
+        $validated = $httpRequest->validate([
+            'payment_method' => 'required|string|in:card,bank_transfer,cash,check',
+            'stripe_token' => 'required_if:payment_method,card',
+            'billing_name' => 'required|string|max:255',
+            'billing_email' => 'required|email',
+            'billing_phone' => 'required|string|max:20',
+            'billing_address' => 'required|string',
+            'terms' => 'required|accepted',
+        ]);
+
+        // Update billing information
+        $payment->update([
+            'billing_name' => $validated['billing_name'],
+            'billing_email' => $validated['billing_email'],
+            'billing_phone' => $validated['billing_phone'],
+            'billing_address' => $validated['billing_address'],
+        ]);
+
+        // Process payment based on method
+        if ($validated['payment_method'] === 'card') {
+            $result = $paymentService->processStripePayment($payment, $validated['stripe_token']);
+        } else {
+            $result = $paymentService->processOfflinePayment($payment, $validated);
+        }
+
+        if ($result['success']) {
+            // Update request payment status
+            $request->update([
+                'payment_status' => $validated['payment_method'] === 'card' ? 'paid' : 'pending',
+            ]);
+
+            // Create notification
+            Notification::create([
+                'user_id' => Auth::id(),
+                'request_id' => $request->id,
+                'type' => 'payment_completed',
+                'title' => 'Payment Completed',
+                'message' => "Payment of $" . number_format($payment->amount, 2) . " completed for request #{$request->request_number}",
+                'data' => json_encode(['request_id' => $request->id, 'payment_id' => $payment->id]),
+            ]);
+
+            // Notify admin
+            $adminUsers = \App\Models\User::whereHas('role', function ($query) {
+                $query->where('slug', 'admin');
+            })->get();
+
+            foreach ($adminUsers as $admin) {
+                Notification::create([
+                    'user_id' => $admin->id,
+                    'request_id' => $request->id,
+                    'type' => 'payment_received',
+                    'title' => 'Payment Received',
+                    'message' => "Payment received for request #{$request->request_number} from " . Auth::user()->full_name,
+                    'data' => json_encode(['request_id' => $request->id, 'payment_id' => $payment->id]),
+                ]);
+            }
+
+            return redirect()->route('client.payments.success', $payment->id)
+                ->with('success', $result['message'] ?? 'Payment processed successfully.');
+        }
+
+        return back()->with('error', $result['error'] ?? 'Payment processing failed.');
+    }
+
+    /**
+     * Payment success page
+     */
+    public function paymentSuccess(Payment $payment)
+    {
+        if ($payment->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $payment->load(['request']);
+
+        return view('client.payments.success', compact('payment'));
+    }
+
+    /**
+     * Payment callback (for Stripe redirect)
+     */
+    public function paymentCallback(Payment $payment)
+    {
+        if ($payment->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        // Check payment status
+        if ($payment->isPaid()) {
+            return redirect()->route('client.requests.show', $payment->request_id)
+                ->with('success', 'Payment completed successfully!');
+        }
+
+        return redirect()->route('client.payments.show', $payment->request_id)
+            ->with('error', 'Payment is still pending or failed.');
+    }
+
+    /**
+     * Download payment receipt
+     */
+    public function downloadReceipt(Payment $payment)
+    {
+        if ($payment->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if (!$payment->isPaid()) {
+            abort(404, 'Payment receipt not available.');
+        }
+
+        // Generate PDF receipt
+        $pdf = \PDF::loadView('client.payments.receipt', compact('payment'));
+
+        return $pdf->download("receipt-{$payment->id}.pdf");
+    }
+
+    /**
+     * View payment history
+     */
+    public function paymentHistory()
+    {
+        $user = Auth::user();
+
+        $payments = Payment::where('user_id', $user->id)
+            ->with(['request'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return view('client.payments.history', compact('payments'));
+    }
+
+    /**
+     * View payment details
+     */
+    public function viewPayment(Payment $payment)
+    {
+        if ($payment->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $payment->load(['request', 'request.courier']);
+
+        return view('client.payments.view', compact('payment'));
     }
 }

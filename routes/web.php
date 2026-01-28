@@ -91,6 +91,7 @@ Route::prefix('admin')
         Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('admin.settings.general');
         Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('admin.settings.notifications');
         Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('admin.settings.courier');
+        Route::get('/settings/payment', [AdminSettingsController::class, 'payment'])->name('admin.settings.payment');
         Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
 
         // Reports
@@ -98,6 +99,7 @@ Route::prefix('admin')
         Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('admin.reports.performance');
         Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('admin.reports.requests');
         Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('admin.reports.facilities');
+        Route::get('/reports/payments', [AdminReportsController::class, 'payments'])->name('admin.reports.payments');
         Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('admin.reports.export');
 
         // Facilities
@@ -134,6 +136,13 @@ Route::prefix('admin')
         Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
         Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('admin.requests.assign');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
+        Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('admin.requests.update-payment');
+
+        // Payments (Admin)
+        Route::get('/payments', [AdminRequestController::class, 'payments'])->name('admin.payments.index');
+        Route::get('/payments/{payment}', [AdminRequestController::class, 'viewPayment'])->name('admin.payments.show');
+        Route::post('/payments/{payment}/refund', [AdminRequestController::class, 'refundPayment'])->name('admin.payments.refund');
+        Route::post('/payments/{payment}/mark-paid', [AdminRequestController::class, 'markPaymentAsPaid'])->name('admin.payments.mark-paid');
 
         // Tracking
         Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])->name('admin.requests.track');
@@ -193,6 +202,15 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
     // Reports
     Route::get('/reports', [ClientController::class, 'reports'])->name('reports');
     Route::post('/reports/download', [ClientController::class, 'downloadReport'])->name('reports.download');
+
+    // Payment routes
+    Route::get('/requests/{request}/payment', [ClientController::class, 'showPayment'])->name('payments.show');
+    Route::post('/requests/{request}/payment/process', [ClientController::class, 'processPayment'])->name('payments.process');
+    Route::get('/payments/{payment}/success', [ClientController::class, 'paymentSuccess'])->name('payments.success');
+    Route::get('/payments/{payment}/callback', [ClientController::class, 'paymentCallback'])->name('payments.callback');
+    Route::get('/payments/{payment}/receipt', [ClientController::class, 'downloadReceipt'])->name('payments.receipt');
+    Route::get('/payments', [ClientController::class, 'paymentHistory'])->name('payments.history');
+    Route::get('/payments/{payment}', [ClientController::class, 'viewPayment'])->name('payments.view');
 });
 
 /*
