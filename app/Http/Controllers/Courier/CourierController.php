@@ -762,8 +762,12 @@ class CourierController extends Controller
         }
 
         // Check if proof is required
-        if (!$specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
-            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
+        if (!$specimenRequest->requires_proof) {
+            return redirect()->back()->with('error', 'Proof not required.');
+        }
+
+        if ($specimenRequest->proof_uploaded) {
+            return redirect()->back()->with('error', 'Proof already uploaded.');
         }
 
         $request->validate([
@@ -1644,8 +1648,12 @@ class CourierController extends Controller
         }
 
         // Check if proof is required
-        if (!$specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
-            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
+        if (!$specimenRequest->requires_proof) {
+            return redirect()->back()->with('error', 'Proof not required.');
+        }
+
+        if ($specimenRequest->proof_uploaded) {
+            return redirect()->back()->with('error', 'Proof already uploaded.');
         }
 
         $request->validate([

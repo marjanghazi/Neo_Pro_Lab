@@ -1,7 +1,9 @@
 @extends('layouts.courier')
 
+
 @section('title', 'Request Details')
 @section('page-title', 'Request Details')
+
 
 @section('breadcrumbs')
 <li>
@@ -19,6 +21,7 @@
     </div>
 </li>
 @endsection
+
 
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -51,6 +54,7 @@
                 </div>
             </div>
 
+
             <!-- Status Timeline -->
             <div class="mb-6">
                 <h3 class="font-semibold mb-4">Delivery Status</h3>
@@ -69,13 +73,15 @@
                     'completed' => 'Completed'
                     ];
 
+
                     $currentStatus = $specimenRequest->status;
                     $statusIndex = array_search($currentStatus, array_keys($statuses));
                     @endphp
 
+
                     @foreach($statuses as $status => $label)
                     <div class="timeline-item">
-                        <div class="timeline-dot 
+                        <div class="timeline-dot
                             @if(array_search($status, array_keys($statuses)) < $statusIndex) completed
                             @elseif($status == $currentStatus) active
                             @endif">
@@ -105,10 +111,12 @@
                 </div>
             </div>
 
+
             <!-- Action Buttons -->
             @if($specimenRequest->status != 'completed' && $specimenRequest->status != 'cancelled')
             <div class="border-t pt-6">
                 <h3 class="font-semibold mb-4">Actions</h3>
+
 
                 @if($specimenRequest->requires_proof)
                 <!-- PROOF REQUIRED SECTION -->
@@ -123,6 +131,7 @@
                         </div>
                     </div>
 
+
                     <div class="mt-4">
                         @php
                         $proofType = 'pickup';
@@ -135,6 +144,7 @@
                         <button type="button" onclick="showProofModal('{{ $proofType }}')" class="btn-primary">
                             <i class="fas fa-camera mr-2"></i>Upload Required Proof
                         </button>
+
 
                         @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('supervisor'))
                         <form action="{{ route('courier.requests.skip-proof', $specimenRequest->id) }}" method="POST" class="inline ml-2">
@@ -159,6 +169,7 @@
                     </form>
                     @break
 
+
                     @case('accepted_by_courier')
                     <form action="{{ route('courier.requests.start-pickup', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
@@ -167,6 +178,7 @@
                         </button>
                     </form>
                     @break
+
 
                     @case('picked_up')
                     <form action="{{ route('courier.requests.start-transit', $specimenRequest->id) }}" method="POST" class="inline">
@@ -177,6 +189,7 @@
                     </form>
                     @break
 
+
                     @case('in_transit')
                     <form action="{{ route('courier.requests.arrive-destination', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
@@ -186,11 +199,13 @@
                     </form>
                     @break
 
+
                     @case('arrived_at_destination')
                     <button type="button" onclick="showSignatureModal()" class="btn-primary">
                         <i class="fas fa-signature mr-2"></i>Complete Delivery
                     </button>
                     @break
+
 
                     @case('delivered')
                     <form action="{{ route('courier.requests.complete', $specimenRequest->id) }}" method="POST" class="inline">
@@ -202,11 +217,13 @@
                     @break
                     @endswitch
 
+
                     <!-- Always show directions buttons -->
                     <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->pickup_latitude }},{{ $specimenRequest->pickup_longitude }}"
                         target="_blank" class="btn-secondary">
                         <i class="fas fa-directions mr-2"></i>Get Directions
                     </a>
+
 
                     @if($specimenRequest->delivery_latitude && $specimenRequest->delivery_longitude)
                     <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}"
@@ -219,6 +236,7 @@
             </div>
             @endif
         </div>
+
 
         <!-- Location & Tracking -->
         <div class="card p-6">
@@ -249,6 +267,7 @@
                     @endif
                 </div>
 
+
                 <!-- Navigation -->
                 <div>
                     <h4 class="font-medium text-gray-700 mb-2">Navigation</h4>
@@ -266,6 +285,7 @@
                             </div>
                             <i class="fas fa-external-link-alt text-gray-400"></i>
                         </a>
+
 
                         @if($specimenRequest->delivery_latitude && $specimenRequest->delivery_longitude)
                         <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}"
@@ -285,6 +305,7 @@
                     </div>
                 </div>
             </div>
+
 
             <!-- Location History -->
             @if($specimenRequest->locationHistory && $specimenRequest->locationHistory->count() > 0)
@@ -321,9 +342,11 @@
             @endif
         </div>
 
+
         <!-- Proofs Section -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Proofs & Documentation</h3>
+
 
             <!-- Pickup Proof -->
             <div class="mb-6">
@@ -375,13 +398,14 @@
                     @php
                     $buttonProofType = 'pickup';
                     @endphp
-                    <button onclick="window.showProofModal('{{ $buttonProofType }}')" class="btn-primary">
+                    <button onclick="showProofModal('{{ $buttonProofType }}')" class="btn-primary">
                         <i class="fas fa-upload mr-2"></i>Upload Pickup Proof
                     </button>
                     @endif
                 </div>
                 @endif
             </div>
+
 
             <!-- Transit Proof -->
             @if($specimenRequest->status == 'in_transit' || $specimenRequest->status == 'awaiting_transit_proof')
@@ -422,7 +446,7 @@
                     <i class="fas fa-truck text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No transit proof uploaded yet</p>
                     @if($specimenRequest->status == 'awaiting_transit_proof')
-                    <button onclick="window.showProofModal('transit')" class="btn-secondary mt-3">
+                    <button onclick="showProofModal('transit')" class="btn-secondary mt-3">
                         <i class="fas fa-upload mr-2"></i>Upload Transit Proof
                     </button>
                     @endif
@@ -430,6 +454,7 @@
                 @endif
             </div>
             @endif
+
 
             <!-- Delivery Proof -->
             <div>
@@ -478,6 +503,7 @@
         </div>
     </div>
 
+
     <!-- Right Column - Information & Client Details -->
     <div class="space-y-6">
         <!-- Handling Instructions (HIPAA Compliant - No specimen details) -->
@@ -504,6 +530,7 @@
                 @endif
             </div>
         </div>
+
 
         <!-- Pickup Information -->
         <div class="card p-6">
@@ -538,6 +565,7 @@
             @endif
         </div>
 
+
         <!-- Delivery Information -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">
@@ -571,6 +599,7 @@
             @endif
         </div>
 
+
         <!-- Client Information (Limited for HIPAA) -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">
@@ -590,6 +619,7 @@
             </div>
         </div>
 
+
         <!-- Quick Actions -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Quick Actions</h3>
@@ -602,6 +632,7 @@
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </a>
 
+
                 <button onclick="updateLocationNow()"
                     class="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div class="flex items-center">
@@ -610,6 +641,7 @@
                     </div>
                     <i class="fas fa-sync-alt text-gray-400"></i>
                 </button>
+
 
                 <a href="tel:{{ $specimenRequest->client->phone ?? '' }}"
                     class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
@@ -624,6 +656,7 @@
     </div>
 </div>
 
+
 <!-- Universal Proof Modal -->
 <div id="proofModal" class="modal">
     <div class="modal-content">
@@ -632,10 +665,122 @@
             <button type="button" class="modal-close" onclick="closeProofModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="proofForm" method="POST" enctype="multipart/form-data">
+            <!-- Pickup Proof Form -->
+            <form id="pickupProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
                 @csrf
-                <div id="proofFormContent">
-                    <!-- Dynamic content will be loaded here -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Pickup Photo *</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer"
+                            onclick="document.getElementById('pickupPhotoInput').click()">
+                            <i class="fas fa-camera text-3xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
+                            <p class="text-xs text-gray-400">Take a clear photo of the specimen container</p>
+                            <input type="file" id="pickupPhotoInput" name="pickup_photo" accept="image/*" capture="environment"
+                                required class="hidden" onchange="showFileName(this, 'pickupFileName')">
+                            <p id="pickupFileName" class="text-sm text-green-600 mt-2 hidden"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Specimen Condition *</label>
+                        <select name="specimen_condition" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Condition</option>
+                            <option value="good">Good</option>
+                            <option value="acceptable">Acceptable</option>
+                            <option value="damaged">Damaged</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
+                        <select name="temperature_check" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Status</option>
+                            <option value="within_range">Within Range</option>
+                            <option value="out_of_range">Out of Range</option>
+                            <option value="not_checked">Not Checked</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Notes</label>
+                        <textarea name="pickup_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any additional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeProofModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-upload mr-2"></i>Submit Proof
+                    </button>
+                </div>
+            </form>
+
+
+            <!-- Transit Proof Form -->
+            <form id="transitProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Transit Photo *</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer"
+                            onclick="document.getElementById('transitPhotoInput').click()">
+                            <i class="fas fa-truck text-3xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
+                            <p class="text-xs text-gray-400">Photo showing specimen is securely in transit</p>
+                            <input type="file" id="transitPhotoInput" name="transit_photo" accept="image/*" capture="environment"
+                                required class="hidden" onchange="showFileName(this, 'transitFileName')">
+                            <p id="transitFileName" class="text-sm text-green-600 mt-2 hidden"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
+                        <select name="temperature_check" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Status</option>
+                            <option value="within_range">Within Range</option>
+                            <option value="out_of_range">Out of Range</option>
+                            <option value="not_checked">Not Checked</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Transit Notes</label>
+                        <textarea name="transit_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any transit notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeProofModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-upload mr-2"></i>Submit Proof
+                    </button>
+                </div>
+            </form>
+
+
+            <!-- Arrival Proof Form -->
+            <form id="arrivalProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
+                @csrf
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Arrival Photo *</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer"
+                            onclick="document.getElementById('arrivalProofInput').click()">
+                            <i class="fas fa-map-marker-alt text-3xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
+                            <p class="text-xs text-gray-400">Photo showing arrival at destination</p>
+                            <input type="file" id="arrivalProofInput" name="arrival_photo" accept="image/*" capture="environment"
+                                required class="hidden" onchange="showFileName(this, 'arrivalProofFileName')">
+                            <p id="arrivalProofFileName" class="text-sm text-green-600 mt-2 hidden"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
+                        <select name="temperature_check" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Status</option>
+                            <option value="within_range">Within Range</option>
+                            <option value="out_of_range">Out of Range</option>
+                            <option value="not_checked">Not Checked</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Arrival Notes</label>
+                        <textarea name="arrival_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any arrival notes..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" onclick="closeProofModal()">Cancel</button>
@@ -647,6 +792,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Signature Modal -->
 <div id="signatureModal" class="modal">
@@ -664,6 +810,7 @@
                     <div class="bg-yellow-50 p-4 rounded-lg mb-4">
                         <h4 class="font-bold text-yellow-800">Arrival Proof Required</h4>
                         <p class="text-yellow-700 text-sm">Please upload arrival proof first</p>
+
 
                         <div class="mt-3">
                             <label class="block text-sm font-medium mb-2">Arrival Photo *</label>
@@ -683,6 +830,7 @@
                         </div>
                     </div>
                     @endif
+
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Recipient Name *</label>
@@ -733,6 +881,7 @@
 </div>
 @endsection
 
+
 @push('styles')
 <style>
     .modal {
@@ -749,9 +898,11 @@
         overflow-y: auto;
     }
 
+
     .modal.active {
         display: flex;
     }
+
 
     .modal-content {
         background: white;
@@ -766,17 +917,20 @@
         z-index: 10000;
     }
 
+
     @keyframes modalSlideIn {
         from {
             opacity: 0;
             transform: translateY(-20px);
         }
 
+
         to {
             opacity: 1;
             transform: translateY(0);
         }
     }
+
 
     .modal-header {
         padding: 1.25rem 1.5rem;
@@ -791,10 +945,12 @@
         z-index: 10;
     }
 
+
     .modal-body {
         padding: 1.5rem;
         background: white;
     }
+
 
     .modal-footer {
         padding: 1.25rem 1.5rem;
@@ -808,6 +964,7 @@
         bottom: 0;
         z-index: 10;
     }
+
 
     .modal-close {
         font-size: 1.5rem;
@@ -824,10 +981,12 @@
         border-radius: 50%;
     }
 
+
     .modal-close:hover {
         color: #374151;
         background: #f3f4f6;
     }
+
 
     /* File upload styling */
     input[type="file"] {
@@ -835,15 +994,18 @@
         position: relative;
     }
 
+
     /* Ensure modal is above everything */
     .modal * {
         box-sizing: border-box;
     }
 
+
     /* Custom alert styling */
     .custom-alert {
         animation: slideInRight 0.3s ease-out;
     }
+
 
     @keyframes slideInRight {
         from {
@@ -851,11 +1013,13 @@
             opacity: 0;
         }
 
+
         to {
             transform: translateX(0);
             opacity: 1;
         }
     }
+
 
     /* Make sure buttons are clickable */
     .btn-primary,
@@ -865,10 +1029,12 @@
         cursor: pointer;
     }
 
+
     /* Fix for file input click area */
     .border-dashed {
         transition: all 0.2s;
     }
+
 
     .border-dashed:hover {
         border-color: #3b82f6;
@@ -876,169 +1042,70 @@
     }
 </style>
 @endpush
-
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
-    // ============================================
-    // GLOBAL FUNCTIONS - Available immediately
-    // ============================================
+    // Get request ID from Blade
+    const requestId = {
+        {
+            $specimenRequest - > id
+        }
+    };
+    const csrfToken = '{{ csrf_token() }}';
 
-    // Global variables
-    window.signaturePad = null;
-    window.currentProofType = '';
+    console.log('Request ID:', requestId);
 
-    // Show proof modal function
+    // All functions must be attached to window
     window.showProofModal = function(proofType) {
-        window.currentProofType = proofType;
+        console.log('showProofModal called for request:', requestId, 'type:', proofType);
+
         const modal = document.getElementById('proofModal');
-        const title = document.getElementById('proofModalTitle');
-        const form = document.getElementById('proofForm');
-        const content = document.getElementById('proofFormContent');
+        if (!modal) {
+            console.error('Proof modal not found!');
+            return;
+        }
 
-        // Clear previous content
-        if (content) content.innerHTML = '';
+        // Hide all forms first
+        document.getElementById('pickupProofForm').style.display = 'none';
+        document.getElementById('transitProofForm').style.display = 'none';
+        document.getElementById('arrivalProofForm').style.display = 'none';
 
-        // Set form action and title based on proof type
-        let formAction = '';
-        let formContent = '';
+        // Show the correct form and set action
+        let form = null;
+        let title = document.getElementById('proofModalTitle');
 
-        // Get request ID
-        const requestId = {
-            {
-                $specimenRequest - > id
-            }
-        };
-
-        if (proofType.includes('pickup') || proofType === 'pickup') {
+        if (proofType === 'pickup') {
+            form = document.getElementById('pickupProofForm');
             if (title) title.textContent = 'Upload Pickup Proof';
-            formAction = '/courier/requests/' + requestId + '/pickup-proof';
-
-            formContent = `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Pickup Photo *</label>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer" 
-                             onclick="window.showFileNameSelector('pickupPhotoInput', 'pickupFileName')">
-                            <i class="fas fa-camera text-3xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
-                            <p class="text-xs text-gray-400">Take a clear photo of the specimen container</p>
-                            <input type="file" id="pickupPhotoInput" name="pickup_photo" accept="image/*" capture="environment" 
-                                   required class="hidden">
-                            <p id="pickupFileName" class="text-sm text-green-600 mt-2 hidden"></p>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Specimen Condition *</label>
-                        <select name="specimen_condition" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select Condition</option>
-                            <option value="good">Good</option>
-                            <option value="acceptable">Acceptable</option>
-                            <option value="damaged">Damaged</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
-                        <select name="temperature_check" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select Status</option>
-                            <option value="within_range">Within Range</option>
-                            <option value="out_of_range">Out of Range</option>
-                            <option value="not_checked">Not Checked</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Notes</label>
-                        <textarea name="pickup_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any additional notes..."></textarea>
-                    </div>
-                </div>
-            `;
-        } else if (proofType.includes('transit') || proofType === 'transit') {
+        } else if (proofType === 'transit') {
+            form = document.getElementById('transitProofForm');
             if (title) title.textContent = 'Upload Transit Proof';
-            formAction = '/courier/requests/' + requestId + '/transit-proof';
-
-            formContent = `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Transit Photo *</label>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer" 
-                             onclick="window.showFileNameSelector('transitPhotoInput', 'transitFileName')">
-                            <i class="fas fa-truck text-3xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
-                            <p class="text-xs text-gray-400">Photo showing specimen is securely in transit</p>
-                            <input type="file" id="transitPhotoInput" name="transit_photo" accept="image/*" capture="environment" 
-                                   required class="hidden">
-                            <p id="transitFileName" class="text-sm text-green-600 mt-2 hidden"></p>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Temperature Check *</label>
-                        <select name="temperature_check" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select Status</option>
-                            <option value="within_range">Within Range</option>
-                            <option value="out_of_range">Out of Range</option>
-                            <option value="not_checked">Not Checked</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Transit Notes</label>
-                        <textarea name="transit_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any transit notes..."></textarea>
-                    </div>
-                </div>
-            `;
-        } else if (proofType.includes('arrival') || proofType === 'arrival') {
+        } else if (proofType === 'arrival') {
+            form = document.getElementById('arrivalProofForm');
             if (title) title.textContent = 'Upload Arrival Proof';
-            formAction = '/courier/requests/' + requestId + '/arrival-proof';
-
-            formContent = `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Arrival Photo *</label>
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 cursor-pointer" 
-                             onclick="window.showFileNameSelector('arrivalProofInput', 'arrivalProofFileName')">
-                            <i class="fas fa-map-marker-alt text-3xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-500 mb-2">Click to take or select photo</p>
-                            <p class="text-xs text-gray-400">Photo showing arrival at destination</p>
-                            <input type="file" id="arrivalProofInput" name="arrival_photo" accept="image/*" capture="environment" 
-                                   required class="hidden">
-                            <p id="arrivalProofFileName" class="text-sm text-green-600 mt-2 hidden"></p>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Arrival Notes</label>
-                        <textarea name="arrival_notes" rows="3" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any arrival notes..."></textarea>
-                    </div>
-                </div>
-            `;
-        } else {
-            if (title) title.textContent = 'Upload Proof';
-            formContent = '<p class="text-red-500 text-center py-4">Invalid proof type</p>';
         }
 
-        if (form) form.action = formAction;
-        if (content) content.innerHTML = formContent;
-
-        // Show modal
-        if (modal) {
-            modal.style.display = 'flex';
-            modal.classList.add('active');
+        if (form) {
+            form.style.display = 'block';
+            // Set the form action dynamically
+            form.action = `/courier/requests/${requestId}/${proofType}-proof`;
+            console.log('Form action set to:', form.action);
         }
 
-        // Prevent body scroll
+        modal.style.display = 'flex';
+        modal.classList.add('active');
         document.body.style.overflow = 'hidden';
     };
 
-    // Show file name selector helper
-    window.showFileNameSelector = function(inputId, fileNameElementId) {
-        const input = document.getElementById(inputId);
-        if (input) {
-            input.click();
-            input.onchange = function() {
-                window.showFileName(this, fileNameElementId);
-            };
+    window.closeProofModal = function() {
+        const modal = document.getElementById('proofModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
         }
     };
 
-    // Show file name function
     window.showFileName = function(input, elementId) {
         const fileNameElement = document.getElementById(elementId);
         if (input.files.length > 0) {
@@ -1047,25 +1114,85 @@
         }
     };
 
-    // Close proof modal
-    window.closeProofModal = function() {
-        const modal = document.getElementById('proofModal');
-        if (modal) {
-            modal.style.display = 'none';
-            modal.classList.remove('active');
-        }
-        document.body.style.overflow = 'auto';
-    };
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing proof forms...');
 
-    // Show signature modal
-    window.showSignatureModal = function() {
-        const modal = document.getElementById('signatureModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
+        // Handle ALL proof form submissions
+        const proofForms = [
+            document.getElementById('pickupProofForm'),
+            document.getElementById('transitProofForm'),
+            document.getElementById('arrivalProofForm')
+        ];
 
-            setTimeout(() => {
+        proofForms.forEach(form => {
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('Form submitting to:', this.action);
+
+                    // Show loading state
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+                    submitBtn.disabled = true;
+
+                    // Create FormData
+                    const formData = new FormData(this);
+
+                    // Submit via fetch
+                    fetch(this.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => {
+                            console.log('Response status:', response.status);
+                            if (response.redirected) {
+                                // If redirecting, follow it
+                                window.location.href = response.url;
+                                return;
+                            }
+                            return response.json().catch(() => {
+                                // If response is not JSON (might be HTML error page)
+                                throw new Error('Server returned non-JSON response');
+                            });
+                        })
+                        .then(data => {
+                            if (data) {
+                                if (data.success || data.message) {
+                                    // Success - reload page
+                                    window.location.reload();
+                                } else if (data.error) {
+                                    // Error from server
+                                    alert('Error: ' + data.error);
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.disabled = false;
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Fetch error:', error);
+                            alert('Error submitting proof. Please try again. Error: ' + error.message);
+                            submitBtn.innerHTML = originalText;
+                            submitBtn.disabled = false;
+                        });
+                });
+            }
+        });
+
+        // Handle signature modal
+        window.showSignatureModal = function() {
+            const modal = document.getElementById('signatureModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+
+                // Initialize signature pad if needed
                 if (!window.signaturePad) {
                     const canvas = document.getElementById('signaturePad');
                     if (canvas) {
@@ -1074,7 +1201,7 @@
                             penColor: 'rgb(0, 0, 0)'
                         });
 
-                        // Make signature pad responsive
+                        // Make responsive
                         function resizeCanvas() {
                             const ratio = Math.max(window.devicePixelRatio || 1, 1);
                             canvas.width = canvas.offsetWidth * ratio;
@@ -1089,155 +1216,35 @@
                         resizeCanvas();
                     }
                 }
-            }, 100);
-        }
-    };
-
-    // Close signature modal
-    window.closeSignatureModal = function() {
-        const modal = document.getElementById('signatureModal');
-        if (modal) {
-            modal.style.display = 'none';
-            modal.classList.remove('active');
-        }
-        document.body.style.overflow = 'auto';
-    };
-
-    // Clear signature
-    window.clearSignature = function() {
-        if (window.signaturePad) {
-            window.signaturePad.clear();
-            const signatureInput = document.getElementById('signatureInput');
-            if (signatureInput) {
-                signatureInput.value = '';
             }
-        }
-    };
+        };
 
-    // Update location function
-    window.updateLocationNow = function() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                const data = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    speed: position.coords.speed || 0,
-                    heading: position.coords.heading || 0,
-                    altitude: position.coords.altitude || 0,
-                    request_id: {
-                        {
-                            $specimenRequest - > id
-                        }
-                    }
-                };
-
-                fetch('{{ route("courier.location.update") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        window.showAlert('Location updated successfully!', 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    })
-                    .catch(error => {
-                        window.showAlert('Failed to update location.', 'error');
-                    });
-            });
-        }
-    };
-
-    // Show alert function
-    window.showAlert = function(message, type) {
-        // Remove existing alerts
-        const existingAlerts = document.querySelectorAll('.custom-alert');
-        existingAlerts.forEach(alert => alert.remove());
-
-        // Create alert element
-        const alert = document.createElement('div');
-        alert.className = `custom-alert fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`;
-        alert.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-
-        document.body.appendChild(alert);
-
-        // Remove alert after 5 seconds
-        setTimeout(() => {
-            if (alert.parentElement) {
-                alert.remove();
+        window.closeSignatureModal = function() {
+            const modal = document.getElementById('signatureModal');
+            if (modal) {
+                modal.style.display = 'none';
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
             }
-        }, 5000);
-    };
+        };
 
-    // ============================================
-    // DOMContentLoaded Event Listener
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        // Proof form submission
-        const proofForm = document.getElementById('proofForm');
-        if (proofForm) {
-            proofForm.addEventListener('submit', function(e) {
-                e.preventDefault();
+        window.clearSignature = function() {
+            if (window.signaturePad) {
+                window.signaturePad.clear();
+                const signatureInput = document.getElementById('signatureInput');
+                if (signatureInput) {
+                    signatureInput.value = '';
+                }
+            }
+        };
 
-                // Show loading state
-                const submitBtn = this.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
-                submitBtn.disabled = true;
-
-                const formData = new FormData(this);
-
-                fetch(this.action, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            return response.json().catch(() => ({}));
-                        } else {
-                            return response.json().then(data => {
-                                throw new Error(data.message || 'Failed to submit proof');
-                            });
-                        }
-                    })
-                    .then(data => {
-                        window.showAlert('Proof uploaded successfully!', 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
-                    })
-                    .catch(error => {
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
-                        window.showAlert(error.message || 'Failed to submit proof. Please try again.', 'error');
-                    });
-            });
-        }
-
-        // Signature form submission
+        // Handle signature form submission
         const signatureForm = document.getElementById('signatureForm');
         if (signatureForm) {
             signatureForm.addEventListener('submit', function(e) {
                 e.preventDefault();
 
-                // Check signature
+                // Get signature data
                 if (window.signaturePad && !window.signaturePad.isEmpty()) {
                     const signatureData = window.signaturePad.toDataURL();
                     const signatureInput = document.getElementById('signatureInput');
@@ -1245,104 +1252,75 @@
                         signatureInput.value = signatureData;
                     }
                 } else {
-                    window.showAlert('Please provide a signature.', 'error');
+                    alert('Please provide a signature.');
                     return;
                 }
 
-                // Show loading state
+                // Show loading
                 const submitBtn = this.querySelector('button[type="submit"]');
                 const originalText = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
                 submitBtn.disabled = true;
 
+                // Submit form
                 const formData = new FormData(this);
 
                 fetch(this.action, {
                         method: 'POST',
                         body: formData,
                         headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
                         }
                     })
                     .then(response => {
-                        if (response.ok) {
-                            return response.json().catch(() => ({}));
-                        } else {
-                            return response.json().then(data => {
-                                throw new Error(data.message || 'Failed to submit delivery');
-                            });
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                            return;
                         }
+                        return response.json();
                     })
                     .then(data => {
-                        window.showAlert('Delivery submitted successfully!', 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
+                        if (data) {
+                            if (data.success) {
+                                window.location.reload();
+                            } else if (data.error) {
+                                alert('Error: ' + data.error);
+                                submitBtn.innerHTML = originalText;
+                                submitBtn.disabled = false;
+                            }
+                        }
                     })
                     .catch(error => {
+                        console.error('Signature submission error:', error);
+                        alert('Error submitting delivery. Please try again.');
                         submitBtn.innerHTML = originalText;
                         submitBtn.disabled = false;
-                        window.showAlert(error.message || 'Failed to submit delivery. Please try again.', 'error');
                     });
             });
         }
 
-        // Close modal when clicking outside
+        // Close modals when clicking outside
         document.addEventListener('click', function(event) {
             const proofModal = document.getElementById('proofModal');
             const signatureModal = document.getElementById('signatureModal');
 
-            if (proofModal && proofModal.classList.contains('active') &&
-                event.target === proofModal) {
-                window.closeProofModal();
+            if (proofModal && proofModal.classList.contains('active') && event.target === proofModal) {
+                closeProofModal();
             }
 
-            if (signatureModal && signatureModal.classList.contains('active') &&
-                event.target === signatureModal) {
-                window.closeSignatureModal();
+            if (signatureModal && signatureModal.classList.contains('active') && event.target === signatureModal) {
+                closeSignatureModal();
             }
         });
 
-        // Close modal with Escape key
+        // Close with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                window.closeProofModal();
-                window.closeSignatureModal();
+                closeProofModal();
+                closeSignatureModal();
             }
         });
-
-        // Initialize file inputs for signature modal
-        const arrivalPhotoInput = document.getElementById('arrivalPhotoInput');
-        const deliveryPhotoInput = document.getElementById('deliveryPhotoInput');
-
-        if (arrivalPhotoInput) {
-            arrivalPhotoInput.onchange = function() {
-                window.showFileName(this, 'arrivalFileName');
-            };
-        }
-
-        if (deliveryPhotoInput) {
-            deliveryPhotoInput.onchange = function() {
-                window.showFileName(this, 'deliveryFileName');
-            };
-        }
-    });
-
-    // ============================================
-    // Window Load Event - Final initialization
-    // ============================================
-    window.addEventListener('load', function() {
-        // Ensure all global functions are properly attached
-        console.log('Proof system initialized');
-
-        // Test that functions are available
-        if (typeof window.showProofModal === 'function') {
-            console.log('showProofModal function is available');
-        }
-
-        if (typeof window.showSignatureModal === 'function') {
-            console.log('showSignatureModal function is available');
-        }
     });
 </script>
 @endpush
