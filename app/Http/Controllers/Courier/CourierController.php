@@ -21,13 +21,14 @@ use Carbon\Carbon;
 class CourierController extends Controller
 {
     /**
-     * Show courier dashboard
+     * Show courier dashboard - Main dashboard view for couriers
+     * Route: GET /courier/dashboard
      */
     public function dashboard()
     {
         $user = Auth::user();
 
-        // Statistics
+        // Statistics for dashboard cards
         $stats = [
             'total_assignments' => $user->assignedRequests()->count(),
             'pending' => $user->assignedRequests()->where('status', 'assigned')->count(),
@@ -45,7 +46,7 @@ class CourierController extends Controller
             'awaiting_proofs' => $user->assignedRequests()->where('requires_proof', true)->count(),
         ];
 
-        // Active requests
+        // Active requests - currently in progress assignments
         $activeRequests = $user->assignedRequests()
             ->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit', 'awaiting_pickup_proof', 'awaiting_delivery_proof', 'pending_courier_acceptance'])
             ->orderBy('priority_level', 'desc')
@@ -53,21 +54,21 @@ class CourierController extends Controller
             ->limit(5)
             ->get();
 
-        // Today's schedule
+        // Today's schedule - pickups and deliveries scheduled for today
         $todaysSchedule = $user->assignedRequests()
             ->whereDate('scheduled_pickup_time', Carbon::today())
             ->orWhereDate('scheduled_delivery_time', Carbon::today())
             ->orderBy('scheduled_pickup_time')
             ->get();
 
-        // Recent completions
+        // Recent completions - last 5 completed requests
         $recentCompletions = $user->assignedRequests()
             ->where('status', 'completed')
             ->orderBy('updated_at', 'desc')
             ->limit(5)
             ->get();
 
-        // Pending quotes to accept
+        // Pending quotes to accept - quotes waiting for courier acceptance
         $pendingQuotes = CourierQuote::where('courier_id', $user->id)
             ->where('status', 'pending')
             ->where('valid_until', '>', now())
@@ -80,7 +81,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Show assignments list
+     * Show assignments list - Main assignments page with filtering
+     * Route: GET /courier/assignments
+     * Linked from: "Back to Assignments" button in request details view
      */
     public function assignments(Request $request)
     {
@@ -113,7 +116,7 @@ class CourierController extends Controller
             ->orderBy('scheduled_pickup_time')
             ->paginate(10);
 
-        // Get status counts
+        // Get status counts for filter tabs
         $statusCounts = [
             'total' => $user->assignedRequests()->count(),
             'pending_acceptance' => $user->assignedRequests()->where('status', 'pending_courier_acceptance')->where('courier_can_accept', true)->count(),
@@ -132,7 +135,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Accept an assignment
+     * Accept an assignment - Changes status from 'assigned' to 'accepted_by_courier'
+     * Route: POST /courier/assignments/{request}/accept
+     * Linked from: "Accept Assignment" button in request details view when status is 'assigned'
      */
     public function acceptAssignment(Request $request, $requestId)
     {
@@ -200,7 +205,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Accept price quote for assignment
+     * Accept price quote for assignment - Accepts quoted price for assignment
+     * Route: POST /courier/assignments/{request}/accept-quote
      */
     public function acceptQuote(Request $httpRequest, $requestId)
     {
@@ -287,7 +293,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Decline price quote
+     * Decline price quote - Declines quoted price with reason
+     * Route: POST /courier/assignments/{request}/decline-quote
      */
     public function declineQuote(Request $httpRequest, $requestId)
     {
@@ -360,7 +367,8 @@ class CourierController extends Controller
     }
 
     /**
-     * View quote details
+     * View quote details - Shows quote acceptance page
+     * Route: GET /courier/assignments/{request}/quote
      */
     public function viewQuote($requestId)
     {
@@ -382,7 +390,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Start location tracking for a request
+     * Start location tracking for a request - Internal method called after accepting assignment
      */
     private function startLocationTracking(SpecimenRequest $request)
     {
@@ -394,7 +402,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Update courier location - FIXED VERSION
+     * Update courier location - FIXED VERSION - Called by JavaScript location tracking
+     * Route: POST /courier/location/update
+     * Linked from: "Update Location Now" button and automatic tracking
      */
     public function updateLocation(Request $request)
     {
@@ -555,7 +565,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get location status
+     * Get location status - Checks if courier is online/offline
+     * Route: GET /courier/location/status
      */
     public function locationStatus()
     {
@@ -578,7 +589,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Toggle location tracking
+     * Toggle location tracking - Enable/disable location tracking
+     * Route: POST /courier/location/toggle
      */
     public function toggleLocation(Request $request)
     {
@@ -606,7 +618,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Show request details (HIPAA compliant view)
+     * Show request details (HIPAA compliant view) - Main request details page
+     * Route: GET /courier/requests/{request}
+     * Linked from: Assignment list, notifications, dashboard
      */
     public function viewRequest($requestId)
     {
@@ -697,7 +711,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Start pickup process - NOW REQUIRES PROOF
+     * Start pickup process - NOW REQUIRES PROOF - First step after accepting assignment
+     * Route: POST /courier/requests/{request}/start-pickup
+     * Linked from: "Start Pickup" button when status is 'accepted_by_courier'
      */
     public function startPickup(Request $request, $requestId)
     {
@@ -751,6 +767,8 @@ class CourierController extends Controller
 
     /**
      * Submit pickup proof with photo - REQUIRED BEFORE STATUS UPDATE
+     * Route: POST /courier/requests/{request}/pickup-proof
+     * Linked from: Pickup Proof Modal form (when proofType = 'pickup')
      */
     public function submitPickupProof(Request $request, $requestId)
     {
@@ -835,7 +853,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Start transit to delivery location - NOW REQUIRES PROOF
+     * Start transit to delivery location - NOW REQUIRES PROOF - After pickup is complete
+     * Route: POST /courier/requests/{request}/start-transit
+     * Linked from: "Start Transit" button when status is 'picked_up'
      */
     public function startTransit(Request $request, $requestId)
     {
@@ -888,7 +908,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Submit transit proof
+     * Submit transit proof - Photo proof that specimen is in transit
+     * Route: POST /courier/requests/{request}/transit-proof
+     * Linked from: Transit Proof Modal form (when proofType = 'transit')
      */
     public function submitTransitProof(Request $request, $requestId)
     {
@@ -968,7 +990,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Arrive at destination - NOW REQUIRES PROOF
+     * Arrive at destination - NOW REQUIRES PROOF - When courier reaches delivery location
+     * Route: POST /courier/requests/{request}/arrive-destination
+     * Linked from: "Mark Arrival" button when status is 'in_transit'
      */
     public function arriveAtDestination(Request $request, $requestId)
     {
@@ -1021,7 +1045,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Submit delivery with signature - REQUIRED PROOF
+     * Submit delivery with signature - REQUIRED PROOF - Final delivery with recipient signature
+     * Route: POST /courier/requests/{request}/submit-delivery
+     * Linked from: Signature Modal form (delivery completion)
      */
     public function submitDelivery(Request $request, $requestId)
     {
@@ -1135,7 +1161,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Complete request
+     * Complete request - Final step to mark request as completed
+     * Route: POST /courier/requests/{request}/complete
+     * Linked from: "Mark as Completed" button when status is 'delivered'
      */
     public function completeRequest(Request $request, $requestId)
     {
@@ -1187,7 +1215,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get active request for API
+     * Get active request for API - Used by JavaScript for real-time updates
+     * Route: GET /courier/active-request
      */
     public function getActiveRequest()
     {
@@ -1215,7 +1244,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get navigation data
+     * Get navigation data - Provides coordinates for Google Maps navigation
+     * Route: GET /courier/requests/{request}/navigation
      */
     public function getNavigation($requestId)
     {
@@ -1270,7 +1300,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get location history for a request
+     * Get location history for a request - GPS tracking history
+     * Route: GET /courier/requests/{request}/location-history
      */
     public function getLocationHistory($requestId)
     {
@@ -1296,7 +1327,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Calculate distance between two coordinates in kilometers
+     * Calculate distance between two coordinates in kilometers - Utility function
      */
     private function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
@@ -1317,7 +1348,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Calculate estimated travel time in minutes
+     * Calculate estimated travel time in minutes - Utility function
      */
     private function calculateEstimatedTime($distanceKm)
     {
@@ -1328,7 +1359,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show active pickups
+     * Show active pickups - List of pickups in progress
+     * Route: GET /courier/active-pickups
      */
     public function activePickups()
     {
@@ -1343,7 +1375,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show active deliveries
+     * Show active deliveries - List of deliveries in transit
+     * Route: GET /courier/active-deliveries
      */
     public function activeDeliveries()
     {
@@ -1358,7 +1391,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show delivery history
+     * Show delivery history - Completed deliveries
+     * Route: GET /courier/history
      */
     public function history()
     {
@@ -1372,7 +1406,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show proofs
+     * Show proofs - All uploaded proofs gallery
+     * Route: GET /courier/proofs
      */
     public function proofs()
     {
@@ -1390,7 +1425,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show specific proof
+     * Show specific proof - Detailed view of a single proof
+     * Route: GET /courier/proofs/{id}/{type}
      */
     public function viewProof($id, $type)
     {
@@ -1408,7 +1444,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show courier profile
+     * Show courier profile - Personal profile page
+     * Route: GET /courier/profile
      */
     public function profile()
     {
@@ -1427,7 +1464,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Update courier profile
+     * Update courier profile - Save profile changes
+     * Route: POST /courier/profile/update
      */
     public function updateProfile(Request $request)
     {
@@ -1450,7 +1488,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Show notifications
+     * Show notifications - Courier notification center
+     * Route: GET /courier/notifications
      */
     public function notifications()
     {
@@ -1462,7 +1501,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Mark notification as read
+     * Mark notification as read - Single notification read
+     * Route: POST /courier/notifications/{notification}/read
      */
     public function markNotificationAsRead(Notification $notification)
     {
@@ -1476,7 +1516,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Mark all notifications as read
+     * Mark all notifications as read - Bulk mark as read
+     * Route: POST /courier/notifications/mark-all-read
      */
     public function markAllNotificationsAsRead()
     {
@@ -1486,7 +1527,7 @@ class CourierController extends Controller
     }
 
     /**
-     * Calculate on-time delivery rate
+     * Calculate on-time delivery rate - Statistics utility
      */
     private function calculateOnTimeRate($user)
     {
@@ -1511,7 +1552,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get courier location for API (used by client tracking)
+     * Get courier location for API (used by client tracking) - Public API for clients
+     * Route: GET /api/courier/{courierId}/location
      */
     public function getCourierLocationApi($courierId)
     {
@@ -1575,7 +1617,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Emergency skip proof (admin/courier override)
+     * Emergency skip proof (admin/courier override) - Bypass proof requirement
+     * Route: POST /courier/requests/{request}/skip-proof
+     * Linked from: "Skip Proof" button (admin/supervisor only)
      */
     public function skipProofRequirement(Request $request, $requestId)
     {
@@ -1636,7 +1680,9 @@ class CourierController extends Controller
     }
 
     /**
-     * Submit arrival proof (new method to add to CourierController)
+     * Submit arrival proof - Photo proof of arrival at destination
+     * Route: POST /courier/requests/{request}/arrival-proof
+     * Linked from: Arrival Proof Modal form (when proofType = 'arrival')
      */
     public function submitArrivalProof(Request $request, $requestId)
     {
@@ -1721,7 +1767,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Test route for debugging location saving
+     * Test route for debugging location saving - Development/testing only
+     * Route: GET /courier/test-location-save
      */
     public function testLocationSave(Request $request)
     {
@@ -1761,7 +1808,8 @@ class CourierController extends Controller
     }
 
     /**
-     * Get courier location for specific request
+     * Get courier location for specific request - API for specific request tracking
+     * Route: GET /courier/requests/{request}/location
      */
     public function getCourierLocationForRequest($requestId)
     {

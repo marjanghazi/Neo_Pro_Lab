@@ -15,15 +15,21 @@ class PickupProof extends Model
         'courier_id',
         'proof_type',
         'stop_id',
-        'image_path',
+        'photo_path',  // CHANGED FROM image_path to photo_path
         'notes',
+        'specimen_condition',  // ADD THIS
+        'temperature_check',   // ADD THIS
         'latitude',
         'longitude',
+        'accuracy',           // ADD THIS
+        'verified',           // ADD THIS
     ];
 
     protected $casts = [
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
+        'accuracy' => 'decimal:2',
+        'verified' => 'boolean',
     ];
 
     public function request(): BelongsTo

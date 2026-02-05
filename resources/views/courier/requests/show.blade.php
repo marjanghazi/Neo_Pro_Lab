@@ -1,9 +1,7 @@
 @extends('layouts.courier')
 
-
 @section('title', 'Request Details')
 @section('page-title', 'Request Details')
-
 
 @section('breadcrumbs')
 <li>
@@ -21,7 +19,6 @@
     </div>
 </li>
 @endsection
-
 
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -54,8 +51,7 @@
                 </div>
             </div>
 
-
-            <!-- Status Timeline -->
+            <!-- Status Timeline - Shows all possible statuses with current status highlighted -->
             <div class="mb-6">
                 <h3 class="font-semibold mb-4">Delivery Status</h3>
                 <div class="timeline">
@@ -73,11 +69,9 @@
                     'completed' => 'Completed'
                     ];
 
-
                     $currentStatus = $specimenRequest->status;
                     $statusIndex = array_search($currentStatus, array_keys($statuses));
                     @endphp
-
 
                     @foreach($statuses as $status => $label)
                     <div class="timeline-item">
@@ -111,15 +105,13 @@
                 </div>
             </div>
 
-
-            <!-- Action Buttons -->
+            <!-- Action Buttons - Dynamically shows workflow buttons based on current status -->
             @if($specimenRequest->status != 'completed' && $specimenRequest->status != 'cancelled')
             <div class="border-t pt-6">
                 <h3 class="font-semibold mb-4">Actions</h3>
 
-
                 @if($specimenRequest->requires_proof)
-                <!-- PROOF REQUIRED SECTION -->
+                <!-- PROOF REQUIRED SECTION - Shows when proof upload is mandatory -->
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                     <div class="flex items-center">
                         <i class="fas fa-exclamation-circle text-yellow-600 text-xl mr-3"></i>
@@ -131,9 +123,9 @@
                         </div>
                     </div>
 
-
                     <div class="mt-4">
                         @php
+                        // Determine which proof type to show based on current status
                         $proofType = 'pickup';
                         if (str_contains($specimenRequest->status, 'transit')) {
                         $proofType = 'transit';
@@ -141,11 +133,12 @@
                         $proofType = 'arrival';
                         }
                         @endphp
+                        <!-- Button triggers showProofModal() function to upload proof -->
                         <button type="button" onclick="showProofModal('{{ $proofType }}')" class="btn-primary">
                             <i class="fas fa-camera mr-2"></i>Upload Required Proof
                         </button>
 
-
+                        <!-- Admin/Moderator option to skip proof requirement -->
                         @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('supervisor'))
                         <form action="{{ route('courier.requests.skip-proof', $specimenRequest->id) }}" method="POST" class="inline ml-2">
                             @csrf
@@ -157,10 +150,11 @@
                     </div>
                 </div>
                 @else
-                <!-- NORMAL WORKFLOW BUTTONS -->
+                <!-- NORMAL WORKFLOW BUTTONS - Shows standard action buttons for current status -->
                 <div class="flex flex-wrap gap-3">
                     @switch($specimenRequest->status)
                     @case('assigned')
+                    <!-- Accept Assignment button - submits to CourierController@acceptAssignment -->
                     <form action="{{ route('courier.assignments.accept', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="btn-primary">
@@ -169,8 +163,8 @@
                     </form>
                     @break
 
-
                     @case('accepted_by_courier')
+                    <!-- Start Pickup button - submits to CourierController@startPickup -->
                     <form action="{{ route('courier.requests.start-pickup', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="btn-primary">
@@ -179,8 +173,8 @@
                     </form>
                     @break
 
-
                     @case('picked_up')
+                    <!-- Start Transit button - submits to CourierController@startTransit -->
                     <form action="{{ route('courier.requests.start-transit', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="btn-primary">
@@ -189,8 +183,8 @@
                     </form>
                     @break
 
-
                     @case('in_transit')
+                    <!-- Mark Arrival button - submits to CourierController@arriveAtDestination -->
                     <form action="{{ route('courier.requests.arrive-destination', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="btn-primary">
@@ -199,15 +193,15 @@
                     </form>
                     @break
 
-
                     @case('arrived_at_destination')
+                    <!-- Complete Delivery button - triggers signature modal for delivery completion -->
                     <button type="button" onclick="showSignatureModal()" class="btn-primary">
                         <i class="fas fa-signature mr-2"></i>Complete Delivery
                     </button>
                     @break
 
-
                     @case('delivered')
+                    <!-- Mark as Completed button - submits to CourierController@completeRequest -->
                     <form action="{{ route('courier.requests.complete', $specimenRequest->id) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="btn-primary">
@@ -217,13 +211,11 @@
                     @break
                     @endswitch
 
-
-                    <!-- Always show directions buttons -->
+                    <!-- Always show directions buttons - external Google Maps links -->
                     <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->pickup_latitude }},{{ $specimenRequest->pickup_longitude }}"
                         target="_blank" class="btn-secondary">
                         <i class="fas fa-directions mr-2"></i>Get Directions
                     </a>
-
 
                     @if($specimenRequest->delivery_latitude && $specimenRequest->delivery_longitude)
                     <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}"
@@ -237,12 +229,11 @@
             @endif
         </div>
 
-
-        <!-- Location & Tracking -->
+        <!-- Location & Tracking Section - Shows courier's current location and navigation -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Tracking & Location</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Current Location -->
+                <!-- Current Location - Displays courier's GPS coordinates and distance to pickup -->
                 <div>
                     <h4 class="font-medium text-gray-700 mb-2">Your Current Location</h4>
                     @if($currentLocation)
@@ -267,8 +258,7 @@
                     @endif
                 </div>
 
-
-                <!-- Navigation -->
+                <!-- Navigation - Google Maps links for navigation -->
                 <div>
                     <h4 class="font-medium text-gray-700 mb-2">Navigation</h4>
                     <div class="space-y-3">
@@ -285,7 +275,6 @@
                             </div>
                             <i class="fas fa-external-link-alt text-gray-400"></i>
                         </a>
-
 
                         @if($specimenRequest->delivery_latitude && $specimenRequest->delivery_longitude)
                         <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}"
@@ -306,8 +295,7 @@
                 </div>
             </div>
 
-
-            <!-- Location History -->
+            <!-- Location History - Shows recent GPS tracking points -->
             @if($specimenRequest->locationHistory && $specimenRequest->locationHistory->count() > 0)
             <div class="mt-6">
                 <h4 class="font-medium text-gray-700 mb-2">Route History</h4>
@@ -342,16 +330,15 @@
             @endif
         </div>
 
-
-        <!-- Proofs Section -->
+        <!-- Proofs Section - Displays all uploaded proofs for pickup, transit, and delivery -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Proofs & Documentation</h3>
 
-
-            <!-- Pickup Proof -->
+            <!-- Pickup Proof Section -->
             <div class="mb-6">
                 <h4 class="font-medium text-gray-700 mb-3">Pickup Proof</h4>
                 @if($specimenRequest->pickupProof)
+                <!-- Display existing pickup proof -->
                 <div class="border rounded-lg p-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                         <div class="flex items-center space-x-4">
@@ -391,6 +378,7 @@
                     </div>
                 </div>
                 @else
+                <!-- Empty state for pickup proof with upload button -->
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <i class="fas fa-camera text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No pickup proof uploaded yet</p>
@@ -398,6 +386,7 @@
                     @php
                     $buttonProofType = 'pickup';
                     @endphp
+                    <!-- Button to upload pickup proof - triggers showProofModal() -->
                     <button onclick="showProofModal('{{ $buttonProofType }}')" class="btn-primary">
                         <i class="fas fa-upload mr-2"></i>Upload Pickup Proof
                     </button>
@@ -406,8 +395,7 @@
                 @endif
             </div>
 
-
-            <!-- Transit Proof -->
+            <!-- Transit Proof Section (only shown when in transit) -->
             @if($specimenRequest->status == 'in_transit' || $specimenRequest->status == 'awaiting_transit_proof')
             <div class="mb-6">
                 <h4 class="font-medium text-gray-700 mb-3">Transit Proof</h4>
@@ -415,6 +403,7 @@
                 $transitProof = $specimenRequest->pickupProofs()->where('proof_type', 'transit')->first();
                 @endphp
                 @if($transitProof)
+                <!-- Display existing transit proof -->
                 <div class="border rounded-lg p-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                         <div class="flex items-center space-x-4">
@@ -442,10 +431,12 @@
                     </div>
                 </div>
                 @else
+                <!-- Empty state for transit proof with upload button -->
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <i class="fas fa-truck text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No transit proof uploaded yet</p>
                     @if($specimenRequest->status == 'awaiting_transit_proof')
+                    <!-- Button to upload transit proof - triggers showProofModal() -->
                     <button onclick="showProofModal('transit')" class="btn-secondary mt-3">
                         <i class="fas fa-upload mr-2"></i>Upload Transit Proof
                     </button>
@@ -455,11 +446,11 @@
             </div>
             @endif
 
-
-            <!-- Delivery Proof -->
+            <!-- Delivery Proof Section -->
             <div>
                 <h4 class="font-medium text-gray-700 mb-3">Delivery Proof</h4>
                 @if($specimenRequest->signature)
+                <!-- Display existing delivery proof with signature -->
                 <div class="border rounded-lg p-4">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                         <div class="flex items-center space-x-4">
@@ -489,10 +480,12 @@
                     </div>
                 </div>
                 @else
+                <!-- Empty state for delivery proof with complete delivery button -->
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <i class="fas fa-signature text-3xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No delivery proof uploaded yet</p>
                     @if(in_array($specimenRequest->status, ['arrived_at_destination', 'awaiting_arrival_proof']))
+                    <!-- Button to complete delivery - triggers showSignatureModal() -->
                     <button onclick="showSignatureModal()" class="btn-secondary mt-3">
                         <i class="fas fa-signature mr-2"></i>Complete Delivery
                     </button>
@@ -503,10 +496,9 @@
         </div>
     </div>
 
-
-    <!-- Right Column - Information & Client Details -->
+    <!-- Right Column - Information & Client Details (HIPAA Compliant) -->
     <div class="space-y-6">
-        <!-- Handling Instructions (HIPAA Compliant - No specimen details) -->
+        <!-- Handling Instructions - No specimen details for HIPAA compliance -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Handling Instructions</h3>
             <div class="space-y-4">
@@ -530,7 +522,6 @@
                 @endif
             </div>
         </div>
-
 
         <!-- Pickup Information -->
         <div class="card p-6">
@@ -565,7 +556,6 @@
             @endif
         </div>
 
-
         <!-- Delivery Information -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">
@@ -599,8 +589,7 @@
             @endif
         </div>
 
-
-        <!-- Client Information (Limited for HIPAA) -->
+        <!-- Client Information (Limited for HIPAA) - Shows only necessary contact info -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">
                 <i class="fas fa-hospital text-teal-500 mr-2"></i>Client Information
@@ -619,8 +608,7 @@
             </div>
         </div>
 
-
-        <!-- Quick Actions -->
+        <!-- Quick Actions - Fast access to common operations -->
         <div class="card p-6">
             <h3 class="font-semibold mb-4">Quick Actions</h3>
             <div class="space-y-3">
@@ -632,7 +620,7 @@
                     <i class="fas fa-chevron-right text-gray-400"></i>
                 </a>
 
-
+                <!-- Button to trigger manual location update -->
                 <button onclick="updateLocationNow()"
                     class="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                     <div class="flex items-center">
@@ -641,7 +629,6 @@
                     </div>
                     <i class="fas fa-sync-alt text-gray-400"></i>
                 </button>
-
 
                 <a href="tel:{{ $specimenRequest->client->phone ?? '' }}"
                     class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
@@ -656,8 +643,7 @@
     </div>
 </div>
 
-
-<!-- Universal Proof Modal -->
+<!-- Universal Proof Modal - Dynamic modal for uploading pickup/transit/arrival proofs -->
 <div id="proofModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -665,7 +651,7 @@
             <button type="button" class="modal-close" onclick="closeProofModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Pickup Proof Form -->
+            <!-- Pickup Proof Form - Submits to CourierController@submitPickupProof -->
             <form id="pickupProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
                 @csrf
                 <div class="space-y-4">
@@ -712,8 +698,7 @@
                 </div>
             </form>
 
-
-            <!-- Transit Proof Form -->
+            <!-- Transit Proof Form - Submits to CourierController@submitTransitProof -->
             <form id="transitProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
                 @csrf
                 <div class="space-y-4">
@@ -751,8 +736,7 @@
                 </div>
             </form>
 
-
-            <!-- Arrival Proof Form -->
+            <!-- Arrival Proof Form - Submits to CourierController@submitArrivalProof -->
             <form id="arrivalProofForm" method="POST" enctype="multipart/form-data" style="display: none;">
                 @csrf
                 <div class="space-y-4">
@@ -793,8 +777,7 @@
     </div>
 </div>
 
-
-<!-- Signature Modal -->
+<!-- Signature Modal - For delivery completion with recipient signature -->
 <div id="signatureModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -802,15 +785,15 @@
             <button type="button" class="modal-close" onclick="closeSignatureModal()">&times;</button>
         </div>
         <div class="modal-body">
+            <!-- Delivery Form - Submits to CourierController@submitDelivery -->
             <form id="signatureForm" action="{{ route('courier.requests.submit-delivery', $specimenRequest->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="space-y-4">
-                    <!-- Check if arrival proof is required -->
+                    <!-- Check if arrival proof is required before delivery -->
                     @if($specimenRequest->status == 'awaiting_arrival_proof')
                     <div class="bg-yellow-50 p-4 rounded-lg mb-4">
                         <h4 class="font-bold text-yellow-800">Arrival Proof Required</h4>
                         <p class="text-yellow-700 text-sm">Please upload arrival proof first</p>
-
 
                         <div class="mt-3">
                             <label class="block text-sm font-medium mb-2">Arrival Photo *</label>
@@ -830,7 +813,6 @@
                         </div>
                     </div>
                     @endif
-
 
                     <div>
                         <label class="block text-sm font-medium mb-2">Recipient Name *</label>
@@ -881,7 +863,6 @@
 </div>
 @endsection
 
-
 @push('styles')
 <style>
     .modal {
@@ -898,11 +879,9 @@
         overflow-y: auto;
     }
 
-
     .modal.active {
         display: flex;
     }
-
 
     .modal-content {
         background: white;
@@ -917,20 +896,17 @@
         z-index: 10000;
     }
 
-
     @keyframes modalSlideIn {
         from {
             opacity: 0;
             transform: translateY(-20px);
         }
 
-
         to {
             opacity: 1;
             transform: translateY(0);
         }
     }
-
 
     .modal-header {
         padding: 1.25rem 1.5rem;
@@ -945,12 +921,10 @@
         z-index: 10;
     }
 
-
     .modal-body {
         padding: 1.5rem;
         background: white;
     }
-
 
     .modal-footer {
         padding: 1.25rem 1.5rem;
@@ -964,7 +938,6 @@
         bottom: 0;
         z-index: 10;
     }
-
 
     .modal-close {
         font-size: 1.5rem;
@@ -981,12 +954,10 @@
         border-radius: 50%;
     }
 
-
     .modal-close:hover {
         color: #374151;
         background: #f3f4f6;
     }
-
 
     /* File upload styling */
     input[type="file"] {
@@ -994,18 +965,15 @@
         position: relative;
     }
 
-
     /* Ensure modal is above everything */
     .modal * {
         box-sizing: border-box;
     }
 
-
     /* Custom alert styling */
     .custom-alert {
         animation: slideInRight 0.3s ease-out;
     }
-
 
     @keyframes slideInRight {
         from {
@@ -1013,13 +981,11 @@
             opacity: 0;
         }
 
-
         to {
             transform: translateX(0);
             opacity: 1;
         }
     }
-
 
     /* Make sure buttons are clickable */
     .btn-primary,
@@ -1029,12 +995,10 @@
         cursor: pointer;
     }
 
-
     /* Fix for file input click area */
     .border-dashed {
         transition: all 0.2s;
     }
-
 
     .border-dashed:hover {
         border-color: #3b82f6;
@@ -1042,18 +1006,16 @@
     }
 </style>
 @endpush
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
     // Get request ID from Blade
-    const requestId = {
-        {
-            $specimenRequest - > id
-        }
-    };
+    const requestId = {{ $specimenRequest->id }};
     const csrfToken = '{{ csrf_token() }}';
 
     console.log('Request ID:', requestId);
+    console.log('CSRF Token available:', csrfToken ? 'Yes' : 'No');
 
     // All functions must be attached to window
     window.showProofModal = function(proofType) {
@@ -1090,6 +1052,7 @@
             // Set the form action dynamically
             form.action = `/courier/requests/${requestId}/${proofType}-proof`;
             console.log('Form action set to:', form.action);
+            console.log('Form method:', form.method);
         }
 
         modal.style.display = 'flex';
@@ -1117,75 +1080,229 @@
     // Initialize when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM loaded, initializing proof forms...');
+        console.log('Current URL:', window.location.href);
 
-        // Handle ALL proof form submissions
+        // Handle ALL proof form submissions with detailed debugging
         const proofForms = [
             document.getElementById('pickupProofForm'),
             document.getElementById('transitProofForm'),
             document.getElementById('arrivalProofForm')
         ];
 
-        proofForms.forEach(form => {
+        proofForms.forEach((form, index) => {
             if (form) {
+                console.log(`Found form #${index + 1}:`, form.id);
+                
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    console.log('Form submitting to:', this.action);
+                    console.log('=== FORM SUBMISSION STARTED ===');
+                    console.log('Form ID:', this.id);
+                    console.log('Form action:', this.action);
+                    console.log('Form method:', this.method);
+                    
+                    // Check if all required fields are filled
+                    const requiredFields = this.querySelectorAll('[required]');
+                    let missingFields = [];
+                    requiredFields.forEach(field => {
+                        if (!field.value && !(field.type === 'file' && field.files.length > 0)) {
+                            missingFields.push(field.name || field.id);
+                        }
+                    });
+                    
+                    if (missingFields.length > 0) {
+                        console.error('Missing required fields:', missingFields);
+                        alert('Please fill in all required fields: ' + missingFields.join(', '));
+                        return;
+                    }
 
                     // Show loading state
                     const submitBtn = this.querySelector('button[type="submit"]');
                     const originalText = submitBtn.innerHTML;
+                    const originalDisabled = submitBtn.disabled;
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
                     submitBtn.disabled = true;
 
-                    // Create FormData
+                    // Create FormData and log all data
                     const formData = new FormData(this);
+                    console.log('FormData created. Entries:');
+                    
+                    // Log all form data for debugging
+                    for (let [key, value] of formData.entries()) {
+                        if (value instanceof File) {
+                            console.log(`${key}: File - ${value.name} (${value.type}, ${value.size} bytes)`);
+                        } else {
+                            console.log(`${key}: ${value}`);
+                        }
+                    }
 
-                    // Submit via fetch
+                    console.log('Sending fetch request to:', this.action);
+                    
+                    // Submit via fetch with detailed error handling
                     fetch(this.action, {
                             method: 'POST',
                             body: formData,
                             headers: {
                                 'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json'
-                            }
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            credentials: 'same-origin'
                         })
                         .then(response => {
-                            console.log('Response status:', response.status);
-                            if (response.redirected) {
-                                // If redirecting, follow it
-                                window.location.href = response.url;
-                                return;
+                            console.log('=== FETCH RESPONSE RECEIVED ===');
+                            console.log('Response status:', response.status, response.statusText);
+                            console.log('Response URL:', response.url);
+                            console.log('Response redirected:', response.redirected);
+                            console.log('Response headers:');
+                            for (let [key, value] of response.headers.entries()) {
+                                console.log(`  ${key}: ${value}`);
                             }
-                            return response.json().catch(() => {
-                                // If response is not JSON (might be HTML error page)
-                                throw new Error('Server returned non-JSON response');
+
+                            // Check if it's a redirect
+                            if (response.redirected) {
+                                console.log('Server is redirecting to:', response.url);
+                                console.log('Following redirect...');
+                                window.location.href = response.url;
+                                return null;
+                            }
+
+                            // Try to get response as text first
+                            return response.text().then(text => {
+                                console.log('Response text (first 500 chars):', text.substring(0, 500));
+                                
+                                // Try to parse as JSON
+                                try {
+                                    const jsonData = JSON.parse(text);
+                                    console.log('Successfully parsed JSON response:', jsonData);
+                                    return {
+                                        isJson: true,
+                                        data: jsonData,
+                                        text: text
+                                    };
+                                } catch (jsonError) {
+                                    console.log('Response is not valid JSON');
+                                    console.log('JSON parse error:', jsonError.message);
+                                    return {
+                                        isJson: false,
+                                        text: text
+                                    };
+                                }
                             });
                         })
-                        .then(data => {
-                            if (data) {
+                        .then(result => {
+                            console.log('=== PROCESSING RESPONSE ===');
+                            
+                            if (result === null) {
+                                // Redirect was handled
+                                console.log('Redirect handled, stopping further processing');
+                                return;
+                            }
+                            
+                            if (result.isJson) {
+                                const data = result.data;
+                                console.log('Processing JSON response:', data);
+                                
                                 if (data.success || data.message) {
-                                    // Success - reload page
-                                    window.location.reload();
+                                    console.log('Success! Message:', data.message || 'No message');
+                                    console.log('Reloading page...');
+                                    
+                                    // Show success message if available
+                                    if (data.message) {
+                                        alert('Success: ' + data.message);
+                                    }
+                                    
+                                    // Reload page after short delay
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1000);
+                                    
                                 } else if (data.error) {
-                                    // Error from server
+                                    console.error('Server returned error:', data.error);
                                     alert('Error: ' + data.error);
                                     submitBtn.innerHTML = originalText;
-                                    submitBtn.disabled = false;
+                                    submitBtn.disabled = originalDisabled;
+                                    
+                                } else if (data.errors) {
+                                    // Laravel validation errors
+                                    console.error('Validation errors:', data.errors);
+                                    const errorMessages = Object.values(data.errors).flat().join('\n');
+                                    alert('Please fix the following errors:\n' + errorMessages);
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.disabled = originalDisabled;
+                                    
+                                } else {
+                                    console.warn('Unexpected response format:', data);
+                                    alert('Unexpected response from server. Please try again.');
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.disabled = originalDisabled;
+                                }
+                                
+                            } else {
+                                // Not JSON - could be HTML error page or redirect
+                                console.log('Response is not JSON, checking content...');
+                                
+                                if (result.text.includes('Redirecting') || result.text.includes('location.href')) {
+                                    console.log('HTML contains redirect, reloading page...');
+                                    window.location.reload();
+                                } else if (result.text.includes('error') || result.text.includes('Error')) {
+                                    console.error('HTML error page detected');
+                                    // Try to extract error message
+                                    const errorMatch = result.text.match(/<div class="[^"]*alert[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+                                    if (errorMatch) {
+                                        const tempDiv = document.createElement('div');
+                                        tempDiv.innerHTML = errorMatch[1];
+                                        const errorText = tempDiv.textContent || tempDiv.innerText || 'Unknown error';
+                                        alert('Error: ' + errorText.trim());
+                                    } else {
+                                        alert('An error occurred. Please check the console for details.');
+                                    }
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.disabled = originalDisabled;
+                                } else {
+                                    console.log('Assuming success (non-JSON response), reloading page...');
+                                    window.location.reload();
                                 }
                             }
                         })
                         .catch(error => {
-                            console.error('Fetch error:', error);
-                            alert('Error submitting proof. Please try again. Error: ' + error.message);
+                            console.error('=== FETCH ERROR ===');
+                            console.error('Error name:', error.name);
+                            console.error('Error message:', error.message);
+                            console.error('Error stack:', error.stack);
+                            
+                            if (error.name === 'TypeError') {
+                                if (error.message.includes('Failed to fetch')) {
+                                    alert('Network error: Failed to connect to server. Please check your internet connection.');
+                                } else {
+                                    alert('Network error: ' + error.message);
+                                }
+                            } else {
+                                alert('Error submitting proof: ' + error.message);
+                            }
+                            
                             submitBtn.innerHTML = originalText;
-                            submitBtn.disabled = false;
+                            submitBtn.disabled = originalDisabled;
+                        })
+                        .finally(() => {
+                            console.log('=== FORM SUBMISSION COMPLETE ===');
                         });
                 });
+                
+                // Also add click listener to submit button for extra debugging
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', function(e) {
+                        console.log('Submit button clicked for form:', form.id);
+                    });
+                }
+            } else {
+                console.warn(`Form #${index + 1} not found`);
             }
         });
 
         // Handle signature modal
         window.showSignatureModal = function() {
+            console.log('showSignatureModal called');
             const modal = document.getElementById('signatureModal');
             if (modal) {
                 modal.style.display = 'flex';
@@ -1196,13 +1313,18 @@
                 if (!window.signaturePad) {
                     const canvas = document.getElementById('signaturePad');
                     if (canvas) {
+                        console.log('Initializing signature pad');
                         window.signaturePad = new SignaturePad(canvas, {
                             backgroundColor: 'rgb(255, 255, 255)',
-                            penColor: 'rgb(0, 0, 0)'
+                            penColor: 'rgb(0, 0, 0)',
+                            minWidth: 0.5,
+                            maxWidth: 2.5,
+                            throttle: 16
                         });
 
                         // Make responsive
                         function resizeCanvas() {
+                            console.log('Resizing signature canvas');
                             const ratio = Math.max(window.devicePixelRatio || 1, 1);
                             canvas.width = canvas.offsetWidth * ratio;
                             canvas.height = canvas.offsetHeight * ratio;
@@ -1214,12 +1336,27 @@
 
                         window.addEventListener("resize", resizeCanvas);
                         resizeCanvas();
+                        
+                        // Add event listener for signature
+                        canvas.addEventListener('endStroke', () => {
+                            const signatureInput = document.getElementById('signatureInput');
+                            if (signatureInput && !window.signaturePad.isEmpty()) {
+                                const signatureData = window.signaturePad.toDataURL();
+                                signatureInput.value = signatureData;
+                                console.log('Signature captured, data length:', signatureData.length);
+                            }
+                        });
+                    } else {
+                        console.error('Signature canvas not found');
                     }
                 }
+            } else {
+                console.error('Signature modal not found');
             }
         };
 
         window.closeSignatureModal = function() {
+            console.log('closeSignatureModal called');
             const modal = document.getElementById('signatureModal');
             if (modal) {
                 modal.style.display = 'none';
@@ -1229,6 +1366,7 @@
         };
 
         window.clearSignature = function() {
+            console.log('clearSignature called');
             if (window.signaturePad) {
                 window.signaturePad.clear();
                 const signatureInput = document.getElementById('signatureInput');
@@ -1241,8 +1379,11 @@
         // Handle signature form submission
         const signatureForm = document.getElementById('signatureForm');
         if (signatureForm) {
+            console.log('Found signature form:', signatureForm.id);
+            
             signatureForm.addEventListener('submit', function(e) {
                 e.preventDefault();
+                console.log('Signature form submission started');
 
                 // Get signature data
                 if (window.signaturePad && !window.signaturePad.isEmpty()) {
@@ -1250,6 +1391,7 @@
                     const signatureInput = document.getElementById('signatureInput');
                     if (signatureInput) {
                         signatureInput.value = signatureData;
+                        console.log('Signature data set, length:', signatureData.length);
                     }
                 } else {
                     alert('Please provide a signature.');
@@ -1298,6 +1440,8 @@
                         submitBtn.disabled = false;
                     });
             });
+        } else {
+            console.warn('Signature form not found');
         }
 
         // Close modals when clicking outside
@@ -1306,10 +1450,12 @@
             const signatureModal = document.getElementById('signatureModal');
 
             if (proofModal && proofModal.classList.contains('active') && event.target === proofModal) {
+                console.log('Clicked outside proof modal, closing');
                 closeProofModal();
             }
 
             if (signatureModal && signatureModal.classList.contains('active') && event.target === signatureModal) {
+                console.log('Clicked outside signature modal, closing');
                 closeSignatureModal();
             }
         });
@@ -1317,10 +1463,26 @@
         // Close with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
+                console.log('Escape key pressed, closing modals');
                 closeProofModal();
                 closeSignatureModal();
             }
         });
+
+        // Add global error handler for uncaught errors
+        window.addEventListener('error', function(event) {
+            console.error('Global error caught:', event.error);
+            console.error('Error in file:', event.filename);
+            console.error('Line number:', event.lineno);
+            console.error('Column number:', event.colno);
+        });
+
+        // Add unhandled promise rejection handler
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+
+        console.log('DOM initialization complete');
     });
 </script>
 @endpush
