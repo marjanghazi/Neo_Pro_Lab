@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,28 +17,28 @@
             --gray: #7A7F85;
             --light-gray: #F5F7FA;
         }
-        
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--white);
             color: var(--navy);
         }
-        
+
         .nav-link {
             color: var(--navy);
             font-weight: 600;
             transition: all 0.3s;
             position: relative;
         }
-        
+
         .nav-link:hover {
             color: var(--teal);
         }
-        
+
         .nav-link.active {
             color: var(--teal);
         }
-        
+
         .nav-link.active::after {
             content: '';
             position: absolute;
@@ -48,7 +49,7 @@
             background: var(--teal);
             border-radius: 3px;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, var(--teal) 0%, #008B85 100%);
             color: var(--white);
@@ -58,13 +59,14 @@
             transition: all 0.3s;
             display: inline-block;
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 169, 165, 0.3);
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="bg-white shadow-md sticky top-0 z-50">
@@ -80,7 +82,7 @@
                         <span class="text-sm text-gray-600 block -mt-1">Couriers</span>
                     </div>
                 </div>
-                
+
                 <!-- Desktop Menu -->
                 <div class="hidden md:flex items-center space-x-8">
                     <a href="{{ route('home') }}" class="nav-link {{ request()->routeIs('home') ? 'active' : '' }}">Home</a>
@@ -89,11 +91,13 @@
                     <a href="{{ route('coverage') }}" class="nav-link {{ request()->routeIs('coverage') ? 'active' : '' }}">Coverage</a>
                     <a href="{{ route('pricing') }}" class="nav-link {{ request()->routeIs('pricing') ? 'active' : '' }}">Pricing</a>
                     <a href="{{ route('contact') }}" class="nav-link {{ request()->routeIs('contact') ? 'active' : '' }}">Contact</a>
+                    <a href="{{ route('login') }}" class="nav-link {{ request()->routeIs('login') ? 'active' : '' }}">Login</a>
+                    <a href="{{ route('register') }}" class="nav-link {{ request()->routeIs('register') ? 'active' : '' }}">Register</a>
                     <a href="{{ route('pickup.create') }}" class="btn-primary">
                         <i class="fas fa-calendar-alt mr-2"></i>Schedule Pickup
                     </a>
                 </div>
-                
+
                 <!-- Mobile menu button -->
                 <button id="mobile-menu-button" class="md:hidden text-gray-700">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +105,7 @@
                     </svg>
                 </button>
             </div>
-            
+
             <!-- Mobile Menu -->
             <div id="mobile-menu" class="md:hidden hidden py-4 border-t">
                 <div class="flex flex-col space-y-4">
@@ -111,6 +115,9 @@
                     <a href="{{ route('coverage') }}" class="nav-link {{ request()->routeIs('coverage') ? 'active' : '' }}">Coverage</a>
                     <a href="{{ route('pricing') }}" class="nav-link {{ request()->routeIs('pricing') ? 'active' : '' }}">Pricing</a>
                     <a href="{{ route('contact') }}" class="nav-link {{ request()->routeIs('contact') ? 'active' : '' }}">Contact</a>
+                    <a href="{{ route('login') }}" class="nav-link {{ request()->routeIs('login') ? 'active' : '' }}">Login</a>
+                    <a href="{{ route('register') }}" class="nav-link {{ request()->routeIs('register') ? 'active' : '' }}">Register</a>
+
                     <a href="{{ route('pickup.create') }}" class="btn-primary w-full text-center">
                         <i class="fas fa-calendar-alt mr-2"></i>Schedule Pickup
                     </a>
@@ -140,7 +147,7 @@
                         Reliable medical courier services for healthcare providers in Massachusetts & Rhode Island.
                     </p>
                 </div>
-                
+
                 <!-- Quick Links -->
                 <div>
                     <h3 class="font-bold text-lg mb-4">Quick Links</h3>
@@ -152,7 +159,7 @@
                         <li><a href="{{ route('forms') }}" class="text-gray-400 hover:text-teal-400 transition">Forms</a></li>
                     </ul>
                 </div>
-                
+
                 <!-- Legal -->
                 <div>
                     <h3 class="font-bold text-lg mb-4">Legal</h3>
@@ -163,7 +170,7 @@
                         <li><a href="{{ route('insurance') }}" class="text-gray-400 hover:text-teal-400 transition">Insurance</a></li>
                     </ul>
                 </div>
-                
+
                 <!-- Contact -->
                 <div>
                     <h3 class="font-bold text-lg mb-4">Contact Us</h3>
@@ -187,7 +194,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
                 <p>&copy; {{ date('Y') }} NeoProLab Couriers LLC. All rights reserved.</p>
                 <p class="mt-2">HIPAA Compliant • Certified Medical Transport</p>
@@ -208,7 +215,7 @@
         document.addEventListener('click', function(event) {
             const menu = document.getElementById('mobile-menu');
             const button = document.getElementById('mobile-menu-button');
-            
+
             if (!menu.contains(event.target) && !button.contains(event.target)) {
                 menu.classList.add('hidden');
             }
@@ -221,4 +228,5 @@
     </script>
     @stack('scripts')
 </body>
+
 </html>
