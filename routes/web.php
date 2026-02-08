@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 // Controllers
@@ -328,7 +329,7 @@ Route::prefix('courier')
                         ]
                     );
                 } catch (\Exception $e) {
-                    \Log::error('Failed to save courier location to database: ' . $e->getMessage());
+                    Log::error('Failed to save courier location to database: ' . $e->getMessage());
                 }
             }
 

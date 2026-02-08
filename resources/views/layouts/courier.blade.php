@@ -1184,11 +1184,6 @@
             
             // Check location status every 2 minutes
             setInterval(checkLocationStatus, 120000);
-            
-            // Auto-start location updates if user has active assignments
-            @if(auth()->user()->assignedRequests()->whereIn('status', ['accepted_by_courier', 'picked_up', 'in_transit'])->exists())
-                startLocationUpdates();
-            @endif
         });
 
         // Handle photo form submission

@@ -16,6 +16,7 @@ class RedirectIfAuthenticated
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
                 $user = Auth::user();
+            if ($user instanceof User) {
 
                 if ($user->isAdmin()) {
                     return redirect()->route('admin.dashboard');
@@ -32,7 +33,7 @@ class RedirectIfAuthenticated
                 return redirect('/');
             }
         }
-
+        }
         return $next($request);
     }
 }

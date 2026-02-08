@@ -87,17 +87,17 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role->slug === 'admin';
+        return $this->role && $this->role->slug === 'admin';
     }
 
     public function isCourier(): bool
     {
-        return $this->role->slug === 'courier';
+        return $this->role && $this->role->slug === 'courier';
     }
 
     public function isClient(): bool
     {
-        return $this->role->slug === 'client';
+        return $this->role && $this->role->slug === 'client';
     }
 
     /*
@@ -151,5 +151,4 @@ class User extends Authenticatable
     {
         return $this->currentLocation;
     }
-    
 }

@@ -14,7 +14,7 @@ class CheckUserApproval
             $user = Auth::user();
             
             // Skip middleware for admin users and already approved users
-            if (!$user->isAdmin() && !$user->is_approved) {
+            if ($user->role !== 'admin' && !$user->is_approved) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
