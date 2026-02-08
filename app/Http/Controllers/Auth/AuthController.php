@@ -31,10 +31,19 @@ class AuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->remember)) {
-            $request->session()->regenerate();
+            $user = Auth::user();
+            
+            // Check if user is approved (except for admin users)
+            if (!$user->isAdmin() && !$user->is_approved) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                
+                return redirect()->route('login')
+                    ->with('error', 'Your account is pending approval. Please wait for admin approval.');
+            }
             
             // Update last login time
-            $user = Auth::user();
             $user->last_login_at = now();
             $user->save();
 
@@ -73,11 +82,14 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
             'is_active' => true,
+            'is_approved' => $role->slug === 'admin' ? true : false, // Auto-approve admins
         ]);
 
-        Auth::login($user);
+        // Send notification to admin about new registration
+        $this->notifyAdminAboutNewRegistration($user);
 
-        return $this->showLogin();
+        return redirect()->route('login')
+            ->with('success', 'Registration successful! Your account is pending admin approval. You will be notified once approved.');
     }
 
     public function logout(Request $request)
@@ -100,5 +112,17 @@ class AuthController extends Controller
         } else {
             return redirect()->route('client.dashboard');
         }
+    }
+
+    private function notifyAdminAboutNewRegistration(User $user)
+    {
+        // You can implement email notification here
+        // For now, we'll just log it
+        \Log::info('New user registration pending approval', [
+            'user_id' => $user->id,
+            'name' => $user->full_name,
+            'email' => $user->email,
+            'role' => $user->role->name,
+        ]);
     }
 }

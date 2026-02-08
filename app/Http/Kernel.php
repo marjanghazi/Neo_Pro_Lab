@@ -65,6 +65,8 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'role' => \App\Http\Middleware\CheckRole::class,
         'track.courier' => \App\Http\Middleware\CourierLocationTracking::class,
+        'user.approved' => \App\Http\Middleware\CheckUserApproval::class,
+
 
 
     ];
