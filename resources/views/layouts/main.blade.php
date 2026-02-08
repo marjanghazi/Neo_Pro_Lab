@@ -75,7 +75,11 @@
                 <!-- Logo -->
                 <div class="flex items-center space-x-2">
                     <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-xl">N</span>
+                        <div class="h-16 w-16 md:h-20 md:w-20 flex items-center justify-center">
+                            <img src="{{ asset('images/logo.svg') }}"
+                                alt="NeoPro Lab Logo"
+                                class="h-full w-full object-contain">
+                        </div>
                     </div>
                     <div>
                         <span class="font-bold text-xl text-gray-900">NeoProLab</span>
@@ -139,7 +143,11 @@
                 <div>
                     <div class="flex items-center space-x-2 mb-4">
                         <div class="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
-                            <span class="font-bold text-white">N</span>
+                            <div class="h-16 w-16 md:h-20 md:w-20 flex items-center justify-center">
+                                <img src="{{ asset('images/logo.svg') }}"
+                                    alt="NeoPro Lab Logo"
+                                    class="h-full w-full object-contain">
+                            </div>
                         </div>
                         <span class="font-bold text-lg">NeoProLab Couriers</span>
                     </div>

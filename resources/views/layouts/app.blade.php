@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -159,13 +160,33 @@
             margin-right: 6px;
         }
 
-        .status-pending { background: #f59e0b; }
-        .status-approved { background: #10b981; }
-        .status-assigned { background: #3b82f6; }
-        .status-picked-up { background: #8b5cf6; }
-        .status-delivered { background: #10b981; }
-        .status-completed { background: #059669; }
-        .status-cancelled { background: #ef4444; }
+        .status-pending {
+            background: #f59e0b;
+        }
+
+        .status-approved {
+            background: #10b981;
+        }
+
+        .status-assigned {
+            background: #3b82f6;
+        }
+
+        .status-picked-up {
+            background: #8b5cf6;
+        }
+
+        .status-delivered {
+            background: #10b981;
+        }
+
+        .status-completed {
+            background: #059669;
+        }
+
+        .status-cancelled {
+            background: #ef4444;
+        }
 
         .dropdown {
             position: relative;
@@ -218,6 +239,7 @@
     </style>
     @stack('styles')
 </head>
+
 <body>
     <div class="flex h-screen">
         <!-- Sidebar -->
@@ -225,31 +247,33 @@
             <div class="p-6">
                 <div class="flex items-center space-x-3 mb-8">
                     <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-xl">N</span>
+                        <div class="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center">
+                            <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+                        </div>
                     </div>
                     <div>
                         <span class="font-bold text-lg">NeoProLab</span>
                         <span class="text-xs text-gray-300 block -mt-1">Courier System</span>
                     </div>
                 </div>
-                
+
                 <nav class="space-y-1">
                     @yield('sidebar')
                 </nav>
-                
+
                 <div class="mt-8 pt-8 border-t border-gray-700">
                     <div class="flex items-center space-x-3">
-                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff" 
-                             alt="User" class="w-10 h-10 rounded-full">
+                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff"
+                            alt="User" class="w-10 h-10 rounded-full">
                         <div>
                             <p class="font-medium">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
                             <p class="text-xs text-gray-300">
                                 @if(auth()->user()->isAdmin())
-                                    Administrator
+                                Administrator
                                 @elseif(auth()->user()->isCourier())
-                                    Courier
+                                Courier
                                 @else
-                                    Client
+                                Client
                                 @endif
                             </p>
                         </div>
@@ -264,7 +288,9 @@
                 <div class="flex items-center justify-between mb-8">
                     <div class="flex items-center space-x-3">
                         <div class="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold">N</span>
+                            <div class="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center">
+                                <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+                            </div>
                         </div>
                         <span class="font-bold">NeoProLab</span>
                     </div>
@@ -272,7 +298,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                
+
                 <nav class="space-y-1">
                     @yield('sidebar')
                 </nav>
@@ -291,7 +317,7 @@
                         </button>
                         <h1 class="text-xl font-bold text-gray-800">@yield('page-title', 'Dashboard')</h1>
                     </div>
-                    
+
                     <!-- Right side -->
                     <div class="flex items-center space-x-4">
                         <!-- Notifications -->
@@ -316,36 +342,36 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- User Menu -->
                         <div class="dropdown relative">
                             <button class="flex items-center space-x-3">
-                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff" 
-                                     alt="User" class="w-8 h-8 rounded-full">
+                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff"
+                                    alt="User" class="w-8 h-8 rounded-full">
                                 <i class="fas fa-chevron-down text-gray-600"></i>
                             </button>
                             <div class="dropdown-menu">
                                 @if(auth()->user()->isAdmin())
-                                    <a href="{{ route('admin.profile.index') }}" class="dropdown-item">
-                                        <i class="fas fa-user mr-2"></i>Profile
-                                    </a>
-                                    <a href="{{ route('admin.settings.index') }}" class="dropdown-item">
-                                        <i class="fas fa-cog mr-2"></i>Settings
-                                    </a>
+                                <a href="{{ route('admin.profile.index') }}" class="dropdown-item">
+                                    <i class="fas fa-user mr-2"></i>Profile
+                                </a>
+                                <a href="{{ route('admin.settings.index') }}" class="dropdown-item">
+                                    <i class="fas fa-cog mr-2"></i>Settings
+                                </a>
                                 @elseif(auth()->user()->isCourier())
-                                    <a href="{{ route('courier.profile.index') }}" class="dropdown-item">
-                                        <i class="fas fa-user mr-2"></i>Profile
-                                    </a>
-                                    <a href="#" class="dropdown-item">
-                                        <i class="fas fa-cog mr-2"></i>Settings
-                                    </a>
+                                <a href="{{ route('courier.profile.index') }}" class="dropdown-item">
+                                    <i class="fas fa-user mr-2"></i>Profile
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-cog mr-2"></i>Settings
+                                </a>
                                 @else
-                                    <a href="{{ route('client.profile') }}" class="dropdown-item">
-                                        <i class="fas fa-user mr-2"></i>Profile
-                                    </a>
-                                    <a href="#" class="dropdown-item">
-                                        <i class="fas fa-cog mr-2"></i>Settings
-                                    </a>
+                                <a href="{{ route('client.profile') }}" class="dropdown-item">
+                                    <i class="fas fa-user mr-2"></i>Profile
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <i class="fas fa-cog mr-2"></i>Settings
+                                </a>
                                 @endif
                                 <div class="border-t border-gray-200"></div>
                                 <form method="POST" action="{{ route('logout') }}" class="dropdown-item">
@@ -419,7 +445,8 @@
             }
         });
     </script>
-    
+
     @stack('scripts')
 </body>
+
 </html>
