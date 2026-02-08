@@ -71,83 +71,91 @@ Route::post('/logout', [AuthController::class, 'logout'])
 */
 Route::prefix('admin')
     ->middleware(['auth', 'role:admin'])
+    ->name('admin.')
     ->group(function () {
 
         // Dashboard
-        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
 
         // Admin pricing routes
-        Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('admin.requests.calculate-price');
-        Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('admin.requests.send-quote');
-        Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('admin.requests.assign-with-quote');
+        Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
+        Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('requests.send-quote');
+        Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('requests.assign-with-quote');
 
         // Profile
-        Route::get('/profile', [AdminProfileController::class, 'index'])->name('admin.profile.index');
-        Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('admin.profile.edit');
-        Route::put('/profile/update', [AdminProfileController::class, 'update'])->name('admin.profile.update');
+        Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile.index');
+        Route::get('/profile/edit', [AdminProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile/update', [AdminProfileController::class, 'update'])->name('profile.update');
 
         // Settings
-        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
-        Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('admin.settings.general');
-        Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('admin.settings.notifications');
-        Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('admin.settings.courier');
-        Route::get('/settings/payment', [AdminSettingsController::class, 'payment'])->name('admin.settings.payment');
-        Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+        Route::get('/settings/general', [AdminSettingsController::class, 'general'])->name('settings.general');
+        Route::get('/settings/notifications', [AdminSettingsController::class, 'notifications'])->name('settings.notifications');
+        Route::get('/settings/courier', [AdminSettingsController::class, 'courier'])->name('settings.courier');
+        Route::get('/settings/payment', [AdminSettingsController::class, 'payment'])->name('settings.payment');
+        Route::post('/settings/update', [AdminSettingsController::class, 'update'])->name('settings.update');
 
         // Reports
-        Route::get('/reports', [AdminReportsController::class, 'index'])->name('admin.reports.index');
-        Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('admin.reports.performance');
-        Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('admin.reports.requests');
-        Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('admin.reports.facilities');
-        Route::get('/reports/payments', [AdminReportsController::class, 'payments'])->name('admin.reports.payments');
-        Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('admin.reports.export');
+        Route::get('/reports', [AdminReportsController::class, 'index'])->name('reports.index');
+        Route::get('/reports/performance', [AdminReportsController::class, 'performance'])->name('reports.performance');
+        Route::get('/reports/requests', [AdminReportsController::class, 'requests'])->name('reports.requests');
+        Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('reports.facilities');
+        Route::get('/reports/payments', [AdminReportsController::class, 'payments'])->name('reports.payments');
+        Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('reports.export');
 
         // Facilities
-        Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('admin.facilities.index');
-        Route::get('/facilities/create', [AdminFacilityController::class, 'create'])->name('admin.facilities.create');
-        Route::post('/facilities', [AdminFacilityController::class, 'store'])->name('admin.facilities.store');
-        Route::get('/facilities/{facility}', [AdminFacilityController::class, 'show'])->name('admin.facilities.show');
-        Route::get('/facilities/{facility}/edit', [AdminFacilityController::class, 'edit'])->name('admin.facilities.edit');
-        Route::put('/facilities/{facility}', [AdminFacilityController::class, 'update'])->name('admin.facilities.update');
-        Route::post('/facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('admin.facilities.approve');
-        Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('admin.facilities.reject');
-        Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('admin.facilities.destroy');
+        Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
+        Route::get('/facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');
+        Route::post('/facilities', [AdminFacilityController::class, 'store'])->name('facilities.store');
+        Route::get('/facilities/{facility}', [AdminFacilityController::class, 'show'])->name('facilities.show');
+        Route::get('/facilities/{facility}/edit', [AdminFacilityController::class, 'edit'])->name('facilities.edit');
+        Route::put('/facilities/{facility}', [AdminFacilityController::class, 'update'])->name('facilities.update');
+        Route::post('/facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('facilities.approve');
+        Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
+        Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
 
         // Couriers
-        Route::get('/couriers', [AdminCourierController::class, 'index'])->name('admin.couriers.index');
-        Route::get('/couriers/create', [AdminCourierController::class, 'create'])->name('admin.couriers.create');
-        Route::post('/couriers', [AdminCourierController::class, 'store'])->name('admin.couriers.store');
-        Route::get('/couriers/{courier}', [AdminCourierController::class, 'show'])->name('admin.couriers.show');
-        Route::get('/couriers/{courier}/edit', [AdminCourierController::class, 'edit'])->name('admin.couriers.edit');
-        Route::put('/couriers/{courier}', [AdminCourierController::class, 'update'])->name('admin.couriers.update');
+        Route::get('/couriers', [AdminCourierController::class, 'index'])->name('couriers.index');
+        Route::get('/couriers/create', [AdminCourierController::class, 'create'])->name('couriers.create');
+        Route::post('/couriers', [AdminCourierController::class, 'store'])->name('couriers.store');
+        Route::get('/couriers/{courier}', [AdminCourierController::class, 'show'])->name('couriers.show');
+        Route::get('/couriers/{courier}/edit', [AdminCourierController::class, 'edit'])->name('couriers.edit');
+        Route::put('/couriers/{courier}', [AdminCourierController::class, 'update'])->name('couriers.update');
 
-        // Users
-        Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
-        Route::get('/users/create', [AdminUserController::class, 'create'])->name('admin.users.create');
-        Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
-        Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('admin.users.show');
-        Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
-        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
-        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');
-        Route::post('/users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('admin.users.toggle-status');
+        // Users - Place PENDING route BEFORE dynamic {user} routes to avoid conflict
+        Route::get('/users/pending', [AdminUserController::class, 'pendingApprovals'])->name('users.pending');
+        
+        // Regular user routes
+        Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+        Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
+        Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+        Route::post('/users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
+        
+        // User approval routes
+        Route::post('/users/{user}/approve', [AdminUserController::class, 'approveUser'])->name('users.approve');
+        Route::delete('/users/{user}/reject', [AdminUserController::class, 'rejectUser'])->name('users.reject');
 
         // Requests
-        Route::get('/requests', [AdminRequestController::class, 'index'])->name('admin.requests.index');
-        Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('admin.requests.show');
-        Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('admin.requests.assign');
-        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('admin.requests.status');
-        Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('admin.requests.update-payment');
+        Route::get('/requests', [AdminRequestController::class, 'index'])->name('requests.index');
+        Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('requests.show');
+        Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
+        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
+        Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('requests.update-payment');
 
         // Payments (Admin)
-        Route::get('/payments', [AdminRequestController::class, 'payments'])->name('admin.payments.index');
-        Route::get('/payments/{payment}', [AdminRequestController::class, 'viewPayment'])->name('admin.payments.show');
-        Route::post('/payments/{payment}/refund', [AdminRequestController::class, 'refundPayment'])->name('admin.payments.refund');
-        Route::post('/payments/{payment}/mark-paid', [AdminRequestController::class, 'markPaymentAsPaid'])->name('admin.payments.mark-paid');
+        Route::get('/payments', [AdminRequestController::class, 'payments'])->name('payments.index');
+        Route::get('/payments/{payment}', [AdminRequestController::class, 'viewPayment'])->name('payments.show');
+        Route::post('/payments/{payment}/refund', [AdminRequestController::class, 'refundPayment'])->name('payments.refund');
+        Route::post('/payments/{payment}/mark-paid', [AdminRequestController::class, 'markPaymentAsPaid'])->name('payments.mark-paid');
 
         // Tracking
-        Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])->name('admin.requests.track');
-        Route::get('/api/courier/{courier}/location', [AdminRequestController::class, 'getCourierLocation'])->name('admin.courier.location');
+        Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])->name('requests.track');
+        Route::get('/api/courier/{courier}/location', [AdminRequestController::class, 'getCourierLocation'])->name('courier.location');
     });
 
 /*
@@ -155,7 +163,7 @@ Route::prefix('admin')
 | Client Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->group(function () {
+Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->name('client.')->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [ClientController::class, 'dashboard'])->name('dashboard');
@@ -221,7 +229,7 @@ Route::middleware(['auth', 'role:client'])->prefix('client')->name('client.')->g
 */
 Route::prefix('courier')
     ->name('courier.')
-    ->middleware(['auth', 'role:courier'])
+    ->middleware(['auth', 'role:courier', 'user.approved'])
     ->group(function () {
         // Dashboard
         Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');

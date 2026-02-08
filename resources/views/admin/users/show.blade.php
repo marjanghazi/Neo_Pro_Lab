@@ -37,6 +37,11 @@
                             <span class="badge badge-primary">
                                 {{ $user->role->name }}
                             </span>
+                            @if(!$user->isAdmin())
+                            <span class="badge badge-{{ $user->is_approved ? 'success' : 'warning' }}">
+                                {{ $user->is_approved ? 'Approved' : 'Pending Approval' }}
+                            </span>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -75,11 +80,47 @@
                                 <span class="text-red-600">No</span>
                             @endif
                         </p>
+                        <p><strong>Approval Status:</strong> 
+                            @if($user->isAdmin())
+                                <span class="text-blue-600">Auto-approved (Admin)</span>
+                            @elseif($user->is_approved)
+                                <span class="text-green-600">Approved</span>
+                            @else
+                                <span class="text-yellow-600">Pending Approval</span>
+                            @endif
+                        </p>
                         <p><strong>Account Created:</strong> {{ $user->created_at->format('F d, Y \a\t h:i A') }}</p>
                         <p><strong>Last Updated:</strong> {{ $user->updated_at->format('F d, Y \a\t h:i A') }}</p>
                     </div>
                 </div>
             </div>
+            
+            <!-- Approval Actions (for non-admin, pending users) -->
+            @if(!$user->isAdmin() && !$user->is_approved)
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h3 class="font-medium text-gray-700 mb-3">Approval Actions</h3>
+                <div class="flex space-x-3">
+                    <form action="{{ route('admin.users.approve', $user) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" 
+                                class="btn-success"
+                                onclick="return confirm('Approve {{ $user->full_name }}?')">
+                            <i class="fas fa-check-circle mr-2"></i> Approve User
+                        </button>
+                    </form>
+                    
+                    <form action="{{ route('admin.users.reject', $user) }}" method="POST" class="inline">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" 
+                                class="btn-danger"
+                                onclick="return confirm('Reject {{ $user->full_name }}? This will delete the user.')">
+                            <i class="fas fa-times-circle mr-2"></i> Reject User
+                        </button>
+                    </form>
+                </div>
+            </div>
+            @endif
         </div>
 
         <!-- Activity Log -->
@@ -182,6 +223,29 @@
             <h3 class="font-bold text-red-700 mb-4">Danger Zone</h3>
             
             <div class="space-y-3">
+                <!-- Approval Actions for non-approved users -->
+                @if(!$user->isAdmin() && !$user->is_approved)
+                <form action="{{ route('admin.users.approve', $user) }}" method="POST">
+                    @csrf
+                    <button type="submit" 
+                            class="w-full px-4 py-2 bg-green-50 border border-green-300 text-green-700 rounded-lg hover:bg-green-100 text-left">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        Approve User
+                    </button>
+                </form>
+                
+                <form action="{{ route('admin.users.reject', $user) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" 
+                            class="w-full px-4 py-2 bg-red-50 border border-red-300 text-red-700 rounded-lg hover:bg-red-100 text-left"
+                            onclick="return confirm('Reject this user?')">
+                        <i class="fas fa-times-circle mr-2"></i>
+                        Reject User
+                    </button>
+                </form>
+                @endif
+                
                 <form action="{{ route('admin.users.toggle-status', $user) }}" method="POST">
                     @csrf
                     <button type="submit" 

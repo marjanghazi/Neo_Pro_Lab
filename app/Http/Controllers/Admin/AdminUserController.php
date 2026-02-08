@@ -38,11 +38,18 @@ class AdminUserController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_active'] = $request->has('is_active');
+        $validated['is_approved'] = $request->has('is_approved');
 
         User::create($validated);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User created successfully.');
+    }
+
+    public function show(User $user)
+    {
+        $user->load('role');
+        return view('admin.users.show', compact('user'));
     }
 
     public function edit(User $user)
@@ -69,6 +76,7 @@ class AdminUserController extends Controller
         }
 
         $validated['is_active'] = $request->has('is_active');
+        $validated['is_approved'] = $request->has('is_approved');
 
         $user->update($validated);
 
@@ -84,7 +92,6 @@ class AdminUserController extends Controller
             ->with('success', 'User deleted successfully.');
     }
 
-    // In app/Http/Controllers/Admin/AdminUserController.php
     public function toggleStatus(User $user)
     {
         $user->update([
@@ -94,5 +101,61 @@ class AdminUserController extends Controller
         $status = $user->is_active ? 'activated' : 'deactivated';
 
         return back()->with('success', "User {$status} successfully!");
+    }
+
+    // Pending approvals methods
+    public function pendingApprovals()
+    {
+        $pendingUsers = User::where('is_approved', false)
+            ->whereHas('role', function($q) {
+                $q->where('slug', '!=', 'admin');
+            })
+            ->with('role')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('admin.users.pending', compact('pendingUsers'));
+    }
+
+    public function approveUser(User $user)
+    {
+        // Only approve non-admin users
+        if (!$user->isAdmin()) {
+            $user->update(['is_approved' => true]);
+            
+            // Log the approval (you can add this to an audit log)
+            \Log::info('User approved by admin', [
+                'user_id' => $user->id,
+                'admin_id' => auth()->id(),
+                'timestamp' => now()
+            ]);
+            
+            return redirect()->route('admin.users.pending')
+                ->with('success', 'User approved successfully.');
+        }
+        
+        return back()->with('error', 'Cannot approve admin users.');
+    }
+
+    public function rejectUser(User $user)
+    {
+        // Only reject non-admin, pending users
+        if (!$user->isAdmin() && !$user->is_approved) {
+            $userName = $user->full_name;
+            $user->delete();
+            
+            // Log the rejection
+            \Log::info('User rejected by admin', [
+                'user_id' => $user->id,
+                'user_name' => $userName,
+                'admin_id' => auth()->id(),
+                'timestamp' => now()
+            ]);
+            
+            return redirect()->route('admin.users.pending')
+                ->with('success', 'User rejected and removed successfully.');
+        }
+        
+        return back()->with('error', 'Cannot reject this user.');
     }
 }

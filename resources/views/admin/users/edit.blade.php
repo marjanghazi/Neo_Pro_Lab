@@ -30,6 +30,11 @@
                 <span class="badge badge-primary">
                     {{ $user->role->name }}
                 </span>
+                @if(!$user->isAdmin())
+                <span class="badge badge-{{ $user->is_approved ? 'success' : 'warning' }}">
+                    {{ $user->is_approved ? 'Approved' : 'Pending' }}
+                </span>
+                @endif
             </div>
         </div>
         
@@ -123,15 +128,30 @@
                 </div>
             </div>
             
-            <div class="mb-6">
-                <label class="flex items-center">
-                    <input type="checkbox" 
-                           name="is_active" 
-                           value="1"
-                           {{ old('is_active', $user->is_active) ? 'checked' : '' }}
-                           class="rounded border-gray-300 text-teal-600 focus:ring-teal-500">
-                    <span class="ml-2 text-sm text-gray-700">Active User</span>
-                </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" 
+                               name="is_active" 
+                               value="1"
+                               {{ old('is_active', $user->is_active) ? 'checked' : '' }}
+                               class="rounded border-gray-300 text-teal-600 focus:ring-teal-500">
+                        <span class="ml-2 text-sm text-gray-700">Active User</span>
+                    </label>
+                </div>
+                
+                @if(!$user->isAdmin())
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" 
+                               name="is_approved" 
+                               value="1"
+                               {{ old('is_approved', $user->is_approved) ? 'checked' : '' }}
+                               class="rounded border-gray-300 text-teal-600 focus:ring-teal-500">
+                        <span class="ml-2 text-sm text-gray-700">Approved User</span>
+                    </label>
+                </div>
+                @endif
             </div>
             
             <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
