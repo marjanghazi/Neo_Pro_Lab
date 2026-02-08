@@ -621,7 +621,7 @@
                         </div>
                         
                         <!-- Active Request Alert -->
-                        <div id="active-request-alert" class="hidden">
+                        <!-- <div id="active-request-alert" class="hidden">
                             <div class="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg">
                                 <i class="fas fa-truck text-blue-600"></i>
                                 <span class="text-sm text-blue-700 font-medium">
@@ -632,7 +632,7 @@
                                     View
                                 </a>
                             </div>
-                        </div>
+                        </div> -->
                         
                         <!-- Notifications -->
                         <div class="dropdown relative">
