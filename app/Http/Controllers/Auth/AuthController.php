@@ -77,7 +77,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return $this->redirectToDashboard();
+        return $this->showLogin();
     }
 
     public function logout(Request $request)
