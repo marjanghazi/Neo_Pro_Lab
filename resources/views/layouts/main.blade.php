@@ -160,11 +160,31 @@
                 <div>
                     <h3 class="font-bold text-lg mb-4">Quick Links</h3>
                     <ul class="space-y-2">
-                        <li><a href="{{ route('about') }}" class="text-gray-400 hover:text-teal-400 transition">About Us</a></li>
-                        <li><a href="{{ route('services') }}" class="text-gray-400 hover:text-teal-400 transition">Services</a></li>
-                        <li><a href="{{ route('pricing') }}" class="text-gray-400 hover:text-teal-400 transition">Pricing</a></li>
-                        <li><a href="{{ route('coverage') }}" class="text-gray-400 hover:text-teal-400 transition">Coverage</a></li>
-                        <li><a href="{{ route('forms') }}" class="text-gray-400 hover:text-teal-400 transition">Forms</a></li>
+                        <li>
+                            <a href="{{ route('about') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                ℹ️ About Us
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('services') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                🚚 Services
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('pricing') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                💰 Pricing
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('coverage') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                📍 Coverage
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('forms') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                📅 Forms
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
@@ -172,10 +192,26 @@
                 <div>
                     <h3 class="font-bold text-lg mb-4">Legal</h3>
                     <ul class="space-y-2">
-                        <li><a href="{{ route('hipaa-notice') }}" class="text-gray-400 hover:text-teal-400 transition">HIPAA Notice</a></li>
-                        <li><a href="{{ route('privacy') }}" class="text-gray-400 hover:text-teal-400 transition">Privacy Policy</a></li>
-                        <li><a href="{{ route('terms') }}" class="text-gray-400 hover:text-teal-400 transition">Terms & Conditions</a></li>
-                        <li><a href="{{ route('insurance') }}" class="text-gray-400 hover:text-teal-400 transition">Insurance</a></li>
+                        <li>
+                            <a href="{{ route('hipaa-notice') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                🏥 HIPAA Notice
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('privacy') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                🔒 Privacy Policy
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('terms') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                📜 Terms &amp; Conditions
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('insurance') }}" class="text-gray-400 hover:text-teal-400 transition">
+                                🛡️ Insurance
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
