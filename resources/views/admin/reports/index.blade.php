@@ -22,18 +22,18 @@
                 <p class="text-teal-100 text-sm">Analytics & Insights</p>
             </div>
             <nav class="space-y-1 p-4">
-                <a href="{{ route('admin.reports.performance') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.reports.performance') ? 'active' : '' }}">
+                <a href="{{ route('admin.reports.performance') }}"
+                    class="sidebar-item {{ request()->routeIs('admin.reports.performance') ? 'active' : '' }}">
                     <i class="fas fa-chart-line w-5"></i>
                     <span>Performance</span>
                 </a>
-                <a href="{{ route('admin.reports.requests') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.reports.requests') ? 'active' : '' }}">
+                <a href="{{ route('admin.reports.requests') }}"
+                    class="sidebar-item {{ request()->routeIs('admin.reports.requests') ? 'active' : '' }}">
                     <i class="fas fa-box w-5"></i>
                     <span>Request Reports</span>
                 </a>
-                <a href="{{ route('admin.reports.facilities') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.reports.facilities') ? 'active' : '' }}">
+                <a href="{{ route('admin.reports.facilities') }}"
+                    class="sidebar-item {{ request()->routeIs('admin.reports.facilities') ? 'active' : '' }}">
                     <i class="fas fa-hospital w-5"></i>
                     <span>Facility Reports</span>
                 </a>
@@ -62,17 +62,17 @@
             <form method="GET" class="space-y-4">
                 <div>
                     <label class="form-label">Start Date</label>
-                    <input type="date" 
-                           name="start_date" 
-                           value="{{ request('start_date', \Carbon\Carbon::now()->subMonth()->format('Y-m-d')) }}"
-                           class="form-input">
+                    <input type="date"
+                        name="start_date"
+                        value="{{ request('start_date', \Carbon\Carbon::now()->subMonth()->format('Y-m-d')) }}"
+                        class="form-input">
                 </div>
                 <div>
                     <label class="form-label">End Date</label>
-                    <input type="date" 
-                           name="end_date" 
-                           value="{{ request('end_date', \Carbon\Carbon::now()->format('Y-m-d')) }}"
-                           class="form-input">
+                    <input type="date"
+                        name="end_date"
+                        value="{{ request('end_date', \Carbon\Carbon::now()->format('Y-m-d')) }}"
+                        class="form-input">
                 </div>
                 <button type="submit" class="w-full btn-primary">
                     <i class="fas fa-filter mr-2"></i> Apply Filter
@@ -185,18 +185,18 @@
                 <h3 class="text-lg font-bold mb-4">Top Performing Couriers</h3>
                 <div class="space-y-4">
                     @php
-                        $topCouriers = \App\Models\User::whereHas('role', fn($q) => $q->where('slug', 'courier'))
-                            ->withCount(['assignedRequests' => fn($q) => $q->where('status', 'completed')])
-                            ->orderBy('assigned_requests_count', 'desc')
-                            ->limit(5)
-                            ->get();
+                    $topCouriers = \App\Models\User::whereHas('role', fn($q) => $q->where('slug', 'courier'))
+                    ->withCount(['assignedRequests' => fn($q) => $q->where('status', 'completed')])
+                    ->orderBy('assigned_requests_count', 'desc')
+                    ->limit(5)
+                    ->get();
                     @endphp
                     @foreach($topCouriers as $courier)
                     <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
                         <div class="flex items-center space-x-3">
-                            <img src="https://ui-avatars.com/api/?name={{ $courier->first_name }}+{{ $courier->last_name }}&background=0D8ABC&color=fff" 
-                                 alt="{{ $courier->full_name }}" 
-                                 class="w-10 h-10 rounded-full">
+                            <img src="https://ui-avatars.com/api/?name={{ $courier->first_name }}+{{ $courier->last_name }}&background=0D8ABC&color=fff"
+                                alt="{{ $courier->full_name }}"
+                                class="w-10 h-10 rounded-full">
                             <div>
                                 <p class="font-medium">{{ $courier->full_name }}</p>
                                 <p class="text-xs text-gray-500">{{ $courier->assigned_requests_count }} deliveries</p>
@@ -216,10 +216,10 @@
                 <h3 class="text-lg font-bold mb-4">Most Active Facilities</h3>
                 <div class="space-y-4">
                     @php
-                        $activeFacilities = \App\Models\Facility::withCount(['specimenRequests' => fn($q) => $q->where('status', 'completed')])
-                            ->orderBy('specimen_requests_count', 'desc')
-                            ->limit(5)
-                            ->get();
+                    $activeFacilities = \App\Models\Facility::withCount(['specimenRequests' => fn($q) => $q->where('status', 'completed')])
+                    ->orderBy('specimen_requests_count', 'desc')
+                    ->limit(5)
+                    ->get();
                     @endphp
                     @foreach($activeFacilities as $facility)
                     <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
@@ -262,10 +262,9 @@
                     </thead>
                     <tbody>
                         @php
-                            $recentRequests = \App\Models\SpecimenRequest::with(['facility', 'assignedTo'])
-                                ->orderBy('created_at', 'desc')
-                                ->limit(5)
-                                ->get();
+                        $recentRequests = \App\Models\SpecimenRequest::with(['facility', 'courier']) ->orderBy('created_at', 'desc')
+                        ->limit(5)
+                        ->get();
                         @endphp
                         @foreach($recentRequests as $request)
                         <tr>
@@ -273,13 +272,13 @@
                             <td>{{ $request->facility->name ?? 'N/A' }}</td>
                             <td>
                                 @php
-                                    $statusColors = [
-                                        'completed' => 'bg-green-100 text-green-800',
-                                        'in_transit' => 'bg-blue-100 text-blue-800',
-                                        'picked_up' => 'bg-purple-100 text-purple-800',
-                                        'assigned' => 'bg-yellow-100 text-yellow-800',
-                                        'pending' => 'bg-gray-100 text-gray-800',
-                                    ];
+                                $statusColors = [
+                                'completed' => 'bg-green-100 text-green-800',
+                                'in_transit' => 'bg-blue-100 text-blue-800',
+                                'picked_up' => 'bg-purple-100 text-purple-800',
+                                'assigned' => 'bg-yellow-100 text-yellow-800',
+                                'pending' => 'bg-gray-100 text-gray-800',
+                                ];
                                 @endphp
                                 <span class="px-2 py-1 text-xs rounded-full {{ $statusColors[$request->status] ?? 'bg-gray-100' }}">
                                     {{ ucfirst(str_replace('_', ' ', $request->status)) }}
@@ -298,55 +297,57 @@
 
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Sample chart data
-    const options = {
-        series: [{
-            name: 'Total Requests',
-            data: [30, 40, 35, 50, 49, 60, 70, 91, 125, 85, 95, 110, 120, 130, 115, 95, 85, 90, 100, 110, 95, 85, 90, 100, 110, 120, 130, 125, 115, 105]
-        }],
-        chart: {
-            height: 300,
-            type: 'area',
-            toolbar: {
-                show: false
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sample chart data
+        const options = {
+            series: [{
+                name: 'Total Requests',
+                data: [30, 40, 35, 50, 49, 60, 70, 91, 125, 85, 95, 110, 120, 130, 115, 95, 85, 90, 100, 110, 95, 85, 90, 100, 110, 120, 130, 125, 115, 105]
+            }],
+            chart: {
+                height: 300,
+                type: 'area',
+                toolbar: {
+                    show: false
+                }
+            },
+            colors: ['#00A9A5'],
+            dataLabels: {
+                enabled: false
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            xaxis: {
+                type: 'datetime',
+                categories: Array.from({
+                    length: 30
+                }, (_, i) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (29 - i));
+                    return date.toISOString().split('T')[0];
+                })
+            },
+            tooltip: {
+                x: {
+                    format: 'dd MMM yyyy'
+                }
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.7,
+                    opacityTo: 0.2,
+                    stops: [0, 90, 100]
+                }
             }
-        },
-        colors: ['#00A9A5'],
-        dataLabels: {
-            enabled: false
-        },
-        stroke: {
-            curve: 'smooth',
-            width: 2
-        },
-        xaxis: {
-            type: 'datetime',
-            categories: Array.from({length: 30}, (_, i) => {
-                const date = new Date();
-                date.setDate(date.getDate() - (29 - i));
-                return date.toISOString().split('T')[0];
-            })
-        },
-        tooltip: {
-            x: {
-                format: 'dd MMM yyyy'
-            }
-        },
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shadeIntensity: 1,
-                opacityFrom: 0.7,
-                opacityTo: 0.2,
-                stops: [0, 90, 100]
-            }
-        }
-    };
+        };
 
-    const chart = new ApexCharts(document.querySelector("#requestsChart"), options);
-    chart.render();
-});
+        const chart = new ApexCharts(document.querySelector("#requestsChart"), options);
+        chart.render();
+    });
 </script>
 @endpush
 @endsection
