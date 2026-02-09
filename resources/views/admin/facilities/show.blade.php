@@ -47,15 +47,15 @@
                     </div>
                 </div>
                 <div class="mt-4 md:mt-0 flex space-x-2">
-                    <a href="{{ route('admin.facilities.edit', $facility) }}" 
-                       class="btn-primary">
+                    <a href="{{ route('admin.facilities.edit', $facility) }}"
+                        class="btn-primary">
                         <i class="fas fa-edit mr-2"></i> Edit
                     </a>
                     @if(!$facility->is_approved && $facility->status == 'pending')
                     <form action="{{ route('admin.facilities.approve', $facility) }}" method="POST" class="inline">
                         @csrf
-                        <button type="submit" 
-                                class="btn-secondary bg-green-100 text-green-700 border-green-300 hover:bg-green-200">
+                        <button type="submit"
+                            class="btn-secondary bg-green-100 text-green-700 border-green-300 hover:bg-green-200">
                             <i class="fas fa-check mr-2"></i> Approve
                         </button>
                     </form>
@@ -250,9 +250,9 @@
                 @foreach($facility->users->take(5) as $user)
                 <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
                     <div class="flex items-center space-x-3">
-                        <img src="https://ui-avatars.com/api/?name={{ $user->first_name }}+{{ $user->last_name }}&background=0D8ABC&color=fff" 
-                             alt="{{ $user->full_name }}" 
-                             class="w-8 h-8 rounded-full">
+                        <img src="https://ui-avatars.com/api/?name={{ $user->first_name }}+{{ $user->last_name }}&background=0D8ABC&color=fff"
+                            alt="{{ $user->full_name }}"
+                            class="w-8 h-8 rounded-full">
                         <div>
                             <p class="font-medium text-sm">{{ $user->full_name }}</p>
                             <p class="text-xs text-gray-500">{{ $user->role->name }}</p>
@@ -300,7 +300,9 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Approved At:</span>
-                        <span class="font-medium">{{ $facility->approved_at->format('M d, Y H:i') }}</span>
+                        <span class="font-medium">
+                            {{ $facility->approved_at ? $facility->approved_at->format('M d, Y H:i') : 'Not recorded' }}
+                        </span>
                     </div>
                 </div>
                 @endif
@@ -329,31 +331,31 @@
         <div class="card p-6">
             <h3 class="text-lg font-bold mb-4">Quick Actions</h3>
             <div class="space-y-3">
-                <a href="{{ route('admin.facilities.edit', $facility) }}" 
-                   class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+                <a href="{{ route('admin.facilities.edit', $facility) }}"
+                    class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
                     <i class="fas fa-edit text-blue-600 mr-3"></i>
                     <span>Edit Facility Information</span>
                 </a>
                 @if(!$facility->is_approved)
                 <form action="{{ route('admin.facilities.approve', $facility) }}" method="POST">
                     @csrf
-                    <button type="submit" 
-                            class="w-full flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition text-left">
+                    <button type="submit"
+                        class="w-full flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition text-left">
                         <i class="fas fa-check text-green-600 mr-3"></i>
                         <span>Approve Facility</span>
                     </button>
                 </form>
                 @endif
                 @if($facility->is_approved && $facility->status == 'active')
-                <a href="#" 
-                   class="flex items-center p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition">
+                <a href="#"
+                    class="flex items-center p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition">
                     <i class="fas fa-pause text-yellow-600 mr-3"></i>
                     <span>Suspend Facility</span>
                 </a>
                 @endif
                 @if($facility->status != 'active')
-                <a href="#" 
-                   class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition">
+                <a href="#"
+                    class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition">
                     <i class="fas fa-play text-green-600 mr-3"></i>
                     <span>Activate Facility</span>
                 </a>
