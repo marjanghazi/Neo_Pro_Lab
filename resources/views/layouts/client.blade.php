@@ -11,7 +11,10 @@
     <i class="fas fa-plus-circle w-5"></i>
     <span>New Request</span>
 </a>
-
+<a href="{{ route('client.documents.index') }}" class="sidebar-item {{ request()->routeIs('client.documents.*') ? 'active' : '' }}">
+    <i class="fas fa-file-upload w-5"></i>
+    <span>Document Center</span>
+</a>
 <a href="{{ route('client.requests.index') }}" class="sidebar-item {{ request()->routeIs('client.requests.*') && !request()->routeIs('client.requests.create') ? 'active' : '' }}">
     <i class="fas fa-history w-5"></i>
     <span>Request History</span>

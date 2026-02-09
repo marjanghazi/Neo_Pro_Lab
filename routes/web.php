@@ -19,6 +19,7 @@ use App\Http\Controllers\Courier\CourierController;
 use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
+use App\Http\Controllers\Client\DocumentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -125,7 +126,7 @@ Route::prefix('admin')
 
         // Users - Place PENDING route BEFORE dynamic {user} routes to avoid conflict
         Route::get('/users/pending', [AdminUserController::class, 'pendingApprovals'])->name('users.pending');
-        
+
         // Regular user routes
         Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
         Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
@@ -135,7 +136,7 @@ Route::prefix('admin')
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
         Route::post('/users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus'])->name('users.toggle-status');
-        
+
         // User approval routes
         Route::post('/users/{user}/approve', [AdminUserController::class, 'approveUser'])->name('users.approve');
         Route::delete('/users/{user}/reject', [AdminUserController::class, 'rejectUser'])->name('users.reject');
@@ -220,6 +221,20 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
     Route::get('/payments/{payment}/receipt', [ClientController::class, 'downloadReceipt'])->name('payments.receipt');
     Route::get('/payments', [ClientController::class, 'paymentHistory'])->name('payments.history');
     Route::get('/payments/{payment}', [ClientController::class, 'viewPayment'])->name('payments.view');
+
+    // Document Upload Center Routes
+    Route::prefix('documents')->name('documents.')->group(function () {
+        Route::get('/', [DocumentController::class, 'index'])->name('index');
+        Route::get('/create', [DocumentController::class, 'create'])->name('create');
+        Route::post('/', [DocumentController::class, 'store'])->name('store');
+        Route::get('/templates', [DocumentController::class, 'templates'])->name('templates');
+        Route::get('/templates/{template}/download', [DocumentController::class, 'downloadTemplate'])->name('templates.download');
+        Route::get('/{document}', [DocumentController::class, 'show'])->name('show');
+        Route::get('/{document}/download', [DocumentController::class, 'download'])->name('download');
+        Route::get('/{document}/edit', [DocumentController::class, 'edit'])->name('edit');
+        Route::put('/{document}', [DocumentController::class, 'update'])->name('update');
+        Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('destroy');
+    });
 });
 
 /*
