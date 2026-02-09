@@ -12,6 +12,7 @@ class Signature extends Model
 
     protected $fillable = [
         'request_id',
+        'courier_id',
         'signature_type',
         'signed_by',
         'recipient_name',
@@ -37,5 +38,10 @@ class Signature extends Model
     public function signer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'signed_by');
+    }
+
+    public function courier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'courier_id');
     }
 }
