@@ -33,14 +33,13 @@ class AdminFacilityController extends Controller
 
     public function create()
     {
-        // Facility types from ENUM values in database
-        $facilityTypes = [
-            'hospital' => 'Hospital',
-            'clinic' => 'Clinic',
-            'lab' => 'Laboratory',
-            'research_center' => 'Research Center',
-            'other' => 'Other'
-        ];
+        $facilityTypes = collect([
+            ['id' => 'hospital', 'name' => 'Hospital'],
+            ['id' => 'clinic', 'name' => 'Clinic'],
+            ['id' => 'lab', 'name' => 'Laboratory'],
+            ['id' => 'research_center', 'name' => 'Research Center'],
+            ['id' => 'other', 'name' => 'Other']
+        ]);
 
         $admins = User::whereHas('role', function ($q) {
             $q->where('slug', 'admin');
@@ -95,14 +94,14 @@ class AdminFacilityController extends Controller
 
     public function edit(Facility $facility)
     {
-        // Facility types from ENUM values in database
-        $facilityTypes = [
-            'hospital' => 'Hospital',
-            'clinic' => 'Clinic',
-            'lab' => 'Laboratory',
-            'research_center' => 'Research Center',
-            'other' => 'Other'
-        ];
+        // Convert facility types array to collection of objects
+        $facilityTypes = collect([
+            ['id' => 'hospital', 'name' => 'Hospital'],
+            ['id' => 'clinic', 'name' => 'Clinic'],
+            ['id' => 'lab', 'name' => 'Laboratory'],
+            ['id' => 'research_center', 'name' => 'Research Center'],
+            ['id' => 'other', 'name' => 'Other']
+        ]);
 
         $admins = User::whereHas('role', function ($q) {
             $q->where('slug', 'admin');

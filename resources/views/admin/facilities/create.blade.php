@@ -46,7 +46,6 @@
                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
-
                 <!-- Facility Type -->
                 <div>
                     <label for="facility_type" class="form-label">Facility Type *</label>
@@ -55,9 +54,9 @@
                         class="form-input @error('facility_type') border-red-500 @enderror"
                         required>
                         <option value="">Select Facility Type</option>
-                        @foreach($facilityTypes as $value => $label)
-                        <option value="{{ $value }}" {{ old('facility_type') == $value ? 'selected' : '' }}>
-                            {{ $label }}
+                        @foreach($facilityTypes as $type)
+                        <option value="{{ $type['id'] }}" {{ old('facility_type') == $type['id'] ? 'selected' : '' }}>
+                            {{ $type['name'] }}
                         </option>
                         @endforeach
                     </select>
