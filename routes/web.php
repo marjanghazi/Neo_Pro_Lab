@@ -117,6 +117,13 @@ Route::prefix('admin')
         Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
         Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
 
+        // Add these routes in your admin facility routes section
+        Route::get('/facilities/{facility}/users', [AdminFacilityController::class, 'users'])->name('facilities.users.index');
+        Route::get('/facilities/{facility}/users/assign', [AdminFacilityController::class, 'assignUsersForm'])->name('facilities.users.assign.form');
+        Route::post('/facilities/{facility}/users/assign', [AdminFacilityController::class, 'assignUsers'])->name('facilities.users.assign');
+        Route::post('/facilities/{facility}/users/{user}/detach', [AdminFacilityController::class, 'detachUser'])->name('facilities.users.detach');
+        Route::post('/facilities/{facility}/users/{user}/toggle-primary', [AdminFacilityController::class, 'togglePrimaryContact'])->name('facilities.users.toggle-primary');
+
         // Couriers
         Route::get('/couriers', [AdminCourierController::class, 'index'])->name('couriers.index');
         Route::get('/couriers/create', [AdminCourierController::class, 'create'])->name('couriers.create');
@@ -237,7 +244,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('destroy');
     });
 
-      Route::get('/facility', [FacilityController::class, 'show'])
+    Route::get('/facility', [FacilityController::class, 'show'])
         ->name('facility.show');
 });
 

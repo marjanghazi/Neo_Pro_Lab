@@ -175,4 +175,85 @@ class AdminFacilityController extends Controller
         return redirect()->route('admin.facilities.index')
             ->with('success', 'Facility deleted successfully.');
     }
+    public function users(Facility $facility)
+    {
+        $facility->load(['users' => function ($query) {
+            $query->with(['role'])->orderBy('facility_users.created_at', 'desc');
+        }]);
+
+        $availableUsers = User::whereHas('role', function ($q) {
+            $q->whereIn('slug', ['client', 'staff']);
+        })
+            ->whereDoesntHave('facilities', function ($q) use ($facility) {
+                $q->where('facilities.id', $facility->id);
+            })
+            ->where('is_active', true)
+            ->where('is_approved', true)
+            ->orderBy('first_name')
+            ->get();
+
+        return view('admin.facilities.users', compact('facility', 'availableUsers'));
+    }
+
+    public function assignUsersForm(Facility $facility)
+    {
+        $availableUsers = User::whereHas('role', function ($q) {
+            $q->whereIn('slug', ['client', 'staff']);
+        })
+            ->whereDoesntHave('facilities', function ($q) use ($facility) {
+                $q->where('facilities.id', $facility->id);
+            })
+            ->where('is_active', true)
+            ->where('is_approved', true)
+            ->orderBy('first_name')
+            ->get();
+
+        $currentUsers = $facility->users()->pluck('users.id')->toArray();
+
+        return view('admin.facilities.assign-users', compact('facility', 'availableUsers', 'currentUsers'));
+    }
+
+    public function assignUsers(Request $request, Facility $facility)
+    {
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'positions' => 'nullable|array',
+            'departments' => 'nullable|array',
+        ]);
+
+        $userData = [];
+        foreach ($request->user_ids as $userId) {
+            $userData[$userId] = [
+                'position' => $request->positions[$userId] ?? null,
+                'department' => $request->departments[$userId] ?? null,
+                'is_primary_contact' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        $facility->users()->syncWithoutDetaching($userData);
+
+        return redirect()->route('admin.facilities.users.index', $facility)
+            ->with('success', 'Users assigned successfully!');
+    }
+
+    public function detachUser(Facility $facility, User $user)
+    {
+        $facility->users()->detach($user->id);
+
+        return back()->with('success', 'User removed from facility successfully!');
+    }
+
+    public function togglePrimaryContact(Facility $facility, User $user)
+    {
+        // Reset all users to non-primary first
+        $facility->users()->updateExistingPivot($facility->users()->pluck('users.id'), ['is_primary_contact' => false]);
+
+        // Set the selected user as primary
+        $facility->users()->updateExistingPivot($user->id, ['is_primary_contact' => true]);
+
+        return back()->with('success', 'Primary contact updated successfully!');
+    }
 }

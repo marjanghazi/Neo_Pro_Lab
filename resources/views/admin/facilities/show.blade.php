@@ -242,9 +242,18 @@
         <!-- Facility Users -->
         <div class="card p-6">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Facility Users</h3>
-                <span class="text-sm text-gray-500">{{ $stats['total_users'] }} users</span>
+                <div>
+                    <h3 class="text-lg font-bold">Facility Users</h3>
+                    <p class="text-sm text-gray-500">{{ $stats['total_users'] }} user(s) assigned</p>
+                </div>
+                <div class="flex space-x-2">
+                    <a href="{{ route('admin.facilities.users.index', $facility) }}"
+                        class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center text-sm">
+                        <i class="fas fa-user-cog mr-2"></i> Manage Users
+                    </a>
+                </div>
             </div>
+
             @if($facility->users->count() > 0)
             <div class="space-y-3">
                 @foreach($facility->users->take(5) as $user)
@@ -258,25 +267,37 @@
                             <p class="text-xs text-gray-500">{{ $user->role->name }}</p>
                         </div>
                     </div>
-                    <span class="text-xs px-2 py-1 rounded-full {{ $user->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                        {{ $user->is_active ? 'Active' : 'Inactive' }}
-                    </span>
+                    <div class="flex items-center space-x-2">
+                        @if($user->pivot->is_primary_contact)
+                        <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            <i class="fas fa-star mr-1"></i> Primary
+                        </span>
+                        @endif
+                        <span class="text-xs px-2 py-1 rounded-full {{ $user->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                            {{ $user->is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
                 </div>
                 @endforeach
             </div>
+
             @if($facility->users->count() > 5)
             <div class="mt-4 text-center">
-                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">
-                    View all {{ $facility->users->count() }} users →
+                <a href="{{ route('admin.facilities.users.index', $facility) }}" class="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center">
+                    View all {{ $facility->users->count() }} users <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </div>
             @endif
+
             @else
-            <div class="text-center py-4">
-                <i class="fas fa-users text-3xl text-gray-300 mb-2"></i>
-                <p class="text-gray-500">No users assigned</p>
-                <a href="#" class="text-sm text-blue-600 hover:text-blue-800 mt-2 inline-block">
-                    Assign Users
+            <div class="text-center py-8">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+                    <i class="fas fa-users text-2xl text-gray-400"></i>
+                </div>
+                <p class="text-gray-500 mb-4">No users assigned to this facility</p>
+                <a href="{{ route('admin.facilities.users.assign.form', $facility) }}"
+                    class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center text-sm">
+                    <i class="fas fa-user-plus mr-2"></i> Assign Users
                 </a>
             </div>
             @endif
