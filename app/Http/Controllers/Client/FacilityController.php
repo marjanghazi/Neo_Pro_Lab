@@ -13,22 +13,27 @@ class FacilityController extends Controller
      */
     public function show()
     {
-        // Get the authenticated user
-        $user = Auth::user();
+        // Get the authenticated user with facility relationship
+        $user = Auth::user()->load('facilities');
         
-        // Load user with their facility relationship
-        $user->load('facilities');
-        
-        // Get the first facility (assuming user belongs to one facility)
-        $facility = $user->facilities->first();
-        
-        if (!$facility) {
+        // Check if user belongs to any facility
+        if ($user->facilities->isEmpty()) {
             return redirect()->route('client.dashboard')
-                ->with('error', 'No facility assigned to your account.');
+                ->with('info', 'Your account is not associated with any facility.');
         }
         
-        // Load additional relationships if needed
-        $facility->load('approver');
+        // Get the first facility (or you can modify this logic if users can belong to multiple facilities)
+        $facility = $user->facilities->first();
+        
+        // Load additional relationships
+        $facility->load([
+            'approver',
+            'users' => function ($query) {
+                $query->select('users.id', 'first_name', 'last_name', 'email')
+                      ->withPivot('position', 'department', 'is_primary_contact');
+            },
+            'specimenRequests'
+        ]);
         
         return view('client.facility.show', compact('facility'));
     }

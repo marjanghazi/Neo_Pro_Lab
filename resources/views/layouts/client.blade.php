@@ -39,12 +39,13 @@
     @endif
 </a>
 
-<!-- In your client layout or dashboard -->
-<a href="{{ route('client.facility.show') }}" 
-   class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-    <i class="fas fa-hospital mr-3 text-teal-600"></i>
-    My Facility
+{{-- Only show facility link if user belongs to a facility --}}
+@if(auth()->user()->facilities()->exists())
+<a href="{{ route('client.facility.show') }}" class="sidebar-item {{ request()->routeIs('client.facility.*') ? 'active' : '' }}">
+    <i class="fas fa-hospital w-5"></i>
+    <span>My Facility</span>
 </a>
+@endif
 
 <a href="{{ route('client.profile') }}" class="sidebar-item {{ request()->routeIs('client.profile') ? 'active' : '' }}">
     <i class="fas fa-user w-5"></i>
