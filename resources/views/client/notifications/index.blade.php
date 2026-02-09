@@ -12,7 +12,7 @@
                 <h2 class="text-lg font-bold">Notifications</h2>
                 <p class="text-sm text-gray-600">Stay updated with your specimen requests</p>
             </div>
-            
+
             @if(auth()->user()->unreadNotifications->count() > 0)
             <form action="{{ route('client.notifications.mark-all-read') }}" method="POST">
                 @csrf
@@ -22,7 +22,7 @@
             </form>
             @endif
         </div>
-        
+
         <!-- Notification List -->
         <div class="space-y-4">
             @forelse($notifications as $notification)
@@ -33,28 +33,28 @@
                             @if(!$notification->is_read)
                             <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
                             @endif
-                            
+
                             <div>
                                 <h4 class="font-medium {{ !$notification->is_read ? 'text-gray-900' : 'text-gray-700' }}">
                                     {{ $notification->title }}
                                 </h4>
                                 <p class="text-sm text-gray-600 mt-1">{{ $notification->message }}</p>
-                                
-                                @if($notification->data && $notification->data->request_id)
-                                <a href="{{ route('client.requests.track', $notification->data->request_id) }}" 
-                                   class="text-sm text-teal-600 hover:text-teal-800 mt-2 inline-block">
+
+                                @if(($notification->data['request_id'] ?? null))
+                                <a href="{{ route('client.requests.track', $notification->data->request_id) }}"
+                                    class="text-sm text-teal-600 hover:text-teal-800 mt-2 inline-block">
                                     View Request
                                 </a>
                                 @endif
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="flex items-center space-x-2 ml-4">
                         <span class="text-xs text-gray-500 whitespace-nowrap">
                             {{ $notification->created_at->diffForHumans() }}
                         </span>
-                        
+
                         @if(!$notification->is_read)
                         <form action="{{ route('client.notifications.read', $notification) }}" method="POST">
                             @csrf
@@ -76,7 +76,7 @@
             </div>
             @endforelse
         </div>
-        
+
         <!-- Pagination -->
         @if($notifications->hasPages())
         <div class="mt-6">
