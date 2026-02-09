@@ -20,6 +20,7 @@ use App\Http\Controllers\PagesController;
 use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
 use App\Http\Controllers\Client\DocumentController;
+use App\Http\Controllers\Client\FacilityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -235,6 +236,9 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
         Route::put('/{document}', [DocumentController::class, 'update'])->name('update');
         Route::delete('/{document}', [DocumentController::class, 'destroy'])->name('destroy');
     });
+
+      Route::get('/facility', [FacilityController::class, 'show'])
+        ->name('facility.show');
 });
 
 /*
