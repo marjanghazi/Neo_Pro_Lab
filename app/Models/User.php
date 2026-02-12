@@ -24,6 +24,7 @@ class User extends Authenticatable
         'is_active',
         'email_verified_at',
         'last_login_at',
+        'is_approved',
     ];
 
     protected $hidden = [
@@ -35,6 +36,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'is_active' => 'boolean',
+        'is_approved' => 'boolean', // 👈 ADD THIS TOO
     ];
 
     /*
@@ -151,6 +153,4 @@ class User extends Authenticatable
     {
         return $this->currentLocation;
     }
-
-    
 }
