@@ -19,6 +19,9 @@
 @endsection
 
 @section('content')
+@php
+$prefilledData = session('prefilled_request_data', []);
+@endphp
 <div class="max-w-4xl mx-auto">
     <div class="card p-6">
         <h2 class="text-lg font-bold mb-6">New Specimen Pickup Request</h2>
@@ -108,7 +111,7 @@
                             name="recipient_name"
                             id="recipient_name"
                             required
-                            value="{{ old('recipient_name') }}"
+                            value="{{ old('recipient_name', $prefilledData['recipient_name'] ?? '') }}"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                         @error('recipient_name')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -120,7 +123,7 @@
                         <input type="tel"
                             name="contact_phone"
                             id="contact_phone"
-                            value="{{ auth()->user()->phone }}"
+                            value="{{ old('contact_phone', $prefilledData['contact_phone'] ?? auth()->user()->phone) }}"
                             required
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                         @error('contact_phone')
@@ -143,7 +146,7 @@
                         id="pickup_address"
                         rows="3"
                         required
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('pickup_address') }}</textarea>
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('pickup_address', $prefilledData['pickup_address'] ?? '') }}</textarea>
                     <p class="text-sm text-gray-500 mt-1">Include floor, room number, and any access codes</p>
                     @error('pickup_address')
                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -157,7 +160,7 @@
                             name="pickup_date"
                             id="pickup_date"
                             required
-                            value="{{ old('pickup_date', date('Y-m-d')) }}"
+                            value="{{ old('pickup_date', $prefilledData['pickup_date'] ?? date('Y-m-d')) }}"
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                         @error('pickup_date')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -171,12 +174,12 @@
                             required
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                             <option value="">Select time window...</option>
-                            <option value="8-10" {{ old('pickup_time') == '8-10' ? 'selected' : '' }}>8:00 AM - 10:00 AM</option>
-                            <option value="10-12" {{ old('pickup_time') == '10-12' ? 'selected' : '' }}>10:00 AM - 12:00 PM</option>
-                            <option value="12-14" {{ old('pickup_time') == '12-14' ? 'selected' : '' }}>12:00 PM - 2:00 PM</option>
-                            <option value="14-16" {{ old('pickup_time') == '14-16' ? 'selected' : '' }}>2:00 PM - 4:00 PM</option>
-                            <option value="16-18" {{ old('pickup_time') == '16-18' ? 'selected' : '' }}>4:00 PM - 6:00 PM</option>
-                            <option value="stat" {{ old('pickup_time') == 'stat' ? 'selected' : '' }}>STAT (Immediate)</option>
+                            <option value="8-10" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '8-10' ? 'selected' : '' }}>8:00 AM - 10:00 AM</option>
+                            <option value="10-12" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '10-12' ? 'selected' : '' }}>10:00 AM - 12:00 PM</option>
+                            <option value="12-14" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '12-14' ? 'selected' : '' }}>12:00 PM - 2:00 PM</option>
+                            <option value="14-16" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '14-16' ? 'selected' : '' }}>2:00 PM - 4:00 PM</option>
+                            <option value="16-18" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '16-18' ? 'selected' : '' }}>4:00 PM - 6:00 PM</option>
+                            <option value="stat" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == 'stat' ? 'selected' : '' }}>STAT (Immediate)</option>
                         </select>
                         @error('pickup_time')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -198,7 +201,7 @@
                         id="delivery_address"
                         rows="3"
                         required
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('delivery_address') }}</textarea>
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('delivery_address', $prefilledData['delivery_address'] ?? '') }}</textarea>
                     <p class="text-sm text-gray-500 mt-1">Include lab name, department, and contact information</p>
                     @error('delivery_address')
                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -210,7 +213,7 @@
                     <textarea name="delivery_instructions"
                         id="delivery_instructions"
                         rows="2"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('delivery_instructions') }}</textarea>
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">{{ old('delivery_instructions', $prefilledData['delivery_instructions'] ?? '') }}</textarea>
                 </div>
             </div>
 
@@ -229,14 +232,14 @@
                             required
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                             <option value="">Select type...</option>
-                            <option value="blood" {{ old('specimen_type') == 'blood' ? 'selected' : '' }}>Blood</option>
-                            <option value="urine" {{ old('specimen_type') == 'urine' ? 'selected' : '' }}>Urine</option>
-                            <option value="swab" {{ old('specimen_type') == 'swab' ? 'selected' : '' }}>Swab (Nasal/Throat)</option>
-                            <option value="biopsy" {{ old('specimen_type') == 'biopsy' ? 'selected' : '' }}>Biopsy Tissue</option>
-                            <option value="sputum" {{ old('specimen_type') == 'sputum' ? 'selected' : '' }}>Sputum</option>
-                            <option value="csf" {{ old('specimen_type') == 'csf' ? 'selected' : '' }}>CSF</option>
-                            <option value="stool" {{ old('specimen_type') == 'stool' ? 'selected' : '' }}>Stool</option>
-                            <option value="other" {{ old('specimen_type') == 'other' ? 'selected' : '' }}>Other</option>
+                            <option value="blood" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'blood' ? 'selected' : '' }}>Blood</option>
+                            <option value="urine" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'urine' ? 'selected' : '' }}>Urine</option>
+                            <option value="swab" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'swab' ? 'selected' : '' }}>Swab (Nasal/Throat)</option>
+                            <option value="biopsy" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'biopsy' ? 'selected' : '' }}>Biopsy Tissue</option>
+                            <option value="sputum" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'sputum' ? 'selected' : '' }}>Sputum</option>
+                            <option value="csf" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'csf' ? 'selected' : '' }}>CSF</option>
+                            <option value="stool" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'stool' ? 'selected' : '' }}>Stool</option>
+                            <option value="other" {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') == 'other' ? 'selected' : '' }}>Other</option>
                         </select>
                         @error('specimen_type')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -250,10 +253,10 @@
                             required
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                             <option value="">Select requirement...</option>
-                            <option value="ambient" {{ old('temperature_requirement') == 'ambient' ? 'selected' : '' }}>Ambient</option>
-                            <option value="2-8c" {{ old('temperature_requirement') == '2-8c' ? 'selected' : '' }}>2-8°C (Refrigerated)</option>
-                            <option value="-20c" {{ old('temperature_requirement') == '-20c' ? 'selected' : '' }}>-20°C (Frozen)</option>
-                            <option value="-80c" {{ old('temperature_requirement') == '-80c' ? 'selected' : '' }}>-80°C (Ultra Frozen)</option>
+                            <option value="ambient" {{ old('temperature_requirement', $prefilledData['temperature_requirement'] ?? '') == 'ambient' ? 'selected' : '' }}>Ambient</option>
+                            <option value="2-8c" {{ old('temperature_requirement', $prefilledData['temperature_requirement'] ?? '') == '2-8c' ? 'selected' : '' }}>2-8°C (Refrigerated)</option>
+                            <option value="-20c" {{ old('temperature_requirement', $prefilledData['temperature_requirement'] ?? '') == '-20c' ? 'selected' : '' }}>-20°C (Frozen)</option>
+                            <option value="-80c" {{ old('temperature_requirement', $prefilledData['temperature_requirement'] ?? '') == '-80c' ? 'selected' : '' }}>-80°C (Ultra Frozen)</option>
                         </select>
                         @error('temperature_requirement')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -269,9 +272,9 @@
                             required
                             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                             <option value="">Select priority...</option>
-                            <option value="stat" {{ old('priority_level') == 'stat' ? 'selected' : '' }}>STAT (Emergency, immediate)</option>
-                            <option value="routine" {{ old('priority_level') == 'routine' ? 'selected' : '' }}>Routine (Standard 4-hour window)</option>
-                            <option value="scheduled" {{ old('priority_level') == 'scheduled' ? 'selected' : '' }}>Scheduled (Specific time)</option>
+                            <option value="stat" {{ old('priority_level', $prefilledData['priority_level'] ?? '') == 'stat' ? 'selected' : '' }}>STAT (Emergency, immediate)</option>
+                            <option value="routine" {{ old('priority_level', $prefilledData['priority_level'] ?? '') == 'routine' ? 'selected' : '' }}>Routine (Standard 4-hour window)</option>
+                            <option value="scheduled" {{ old('priority_level', $prefilledData['priority_level'] ?? '') == 'scheduled' ? 'selected' : '' }}>Scheduled (Specific time)</option>
                         </select>
                         @error('priority_level')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -299,7 +302,7 @@
                         id="special_instructions"
                         rows="3"
                         class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        placeholder="Any special handling instructions, patient information, or additional details...">{{ old('special_instructions') }}</textarea>
+                        placeholder="Any special handling instructions, patient information, or additional details...">{{ old('special_instructions', $prefilledData['special_instructions'] ?? '') }}</textarea>
                 </div>
             </div>
 

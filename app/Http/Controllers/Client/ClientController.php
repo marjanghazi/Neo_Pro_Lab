@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Models\Payment;
 use App\Services\PaymentService;
+use Illuminate\Support\Facades\Session;
 
 class ClientController extends Controller
 {
@@ -71,6 +72,98 @@ class ClientController extends Controller
 
         return view('client.requests.index', compact('requests', 'status'));
     }
+
+    public function createRequestWithData()
+    {
+        $user = Auth::user();
+        $facility = $user->facilities()->first();
+
+        // Get pending pickup request from session
+        $pendingData = Session::get('pending_pickup_request');
+
+        if (!$pendingData) {
+            return redirect()->route('client.requests.create');
+        }
+
+        // Transform the public form data to match client form structure
+        $prefilledData = [
+            'recipient_name' => $pendingData['name'] ?? '',
+            'contact_phone' => $pendingData['phone'] ?? $user->phone,
+            'pickup_address' => $pendingData['pickupAddress'] ?? '',
+            'pickup_date' => $pendingData['pickupDate'] ?? date('Y-m-d'),
+            'pickup_time' => $this->convertPickupTime($pendingData['pickupTime'] ?? ''),
+            'delivery_address' => $pendingData['dropoffAddress'] ?? '',
+            'specimen_type' => $this->convertSpecimenType($pendingData['specimenType'] ?? ''),
+            'temperature_requirement' => $this->convertTemperatureRequirement($pendingData['temperature'] ?? ''),
+            'quantity' => 1,
+            'priority_level' => $pendingData['pickupTime'] === 'stat' ? 'stat' : 'routine',
+            'special_instructions' => $pendingData['description'] ?? '',
+            'delivery_instructions' => $pendingData['notes'] ?? '',
+        ];
+
+        // Clear the pending data from session
+        Session::forget('pending_pickup_request');
+
+        // Store in flash session for the form to use
+        Session::flash('prefilled_request_data', $prefilledData);
+
+        return view('client.requests.create', compact('facility'));
+    }
+
+    private function convertPickupTime($publicTime)
+    {
+        $timeMap = [
+            '800-900' => '8-10',
+            '900-1000' => '10-12',
+            '1000-1100' => '10-12',
+            '1100-1200' => '10-12',
+            '1200-100' => '12-14',
+            '100-200' => '14-16',
+            '200-300' => '14-16',
+            '300-400' => '16-18',
+            '400-500' => '16-18',
+            'stat' => 'stat',
+        ];
+
+        return $timeMap[$publicTime] ?? '8-10';
+    }
+
+    /**
+     * Convert public specimen type to client format
+     */
+    private function convertSpecimenType($publicType)
+    {
+        $typeMap = [
+            'blood' => 'blood',
+            'urine' => 'urine',
+            'biopsy' => 'biopsy',
+            'lab' => 'other',
+            'document' => 'other',
+            'medication' => 'other',
+            'vaccine' => 'other',
+            'supply' => 'other',
+            'other' => 'other',
+        ];
+
+        return $typeMap[$publicType] ?? 'other';
+    }
+
+    /**
+     * Convert public temperature requirement to client format
+     */
+    private function convertTemperatureRequirement($publicTemp)
+    {
+        $tempMap = [
+            'room' => 'ambient',
+            'cool' => '2-8c',
+            'frozen' => '-20c',
+            'other' => 'ambient',
+        ];
+
+        return $tempMap[$publicTemp] ?? 'ambient';
+    }
+
+
 
     public function createRequest()
     {

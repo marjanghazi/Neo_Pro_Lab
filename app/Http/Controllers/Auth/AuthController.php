@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -18,9 +19,15 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function showRegister()
+    public function showRegister(Request $request)
     {
-        return view('auth.register');
+        // Pre-fill email from query parameter if coming from pickup form
+        $email = $request->query('email', '');
+
+        // Check if there's a pending pickup request
+        $hasPendingPickup = Session::has('pending_pickup_request');
+
+        return view('auth.register', compact('email', 'hasPendingPickup'));
     }
 
     public function login(Request $request)
@@ -32,20 +39,26 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->remember)) {
             $user = Auth::user();
-            
+
             // Check if user is approved (except for admin users)
             if (!$user->isAdmin() && !$user->is_approved) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
-                
+
                 return redirect()->route('login')
                     ->with('error', 'Your account is pending approval. Please wait for admin approval.');
             }
-            
+
             // Update last login time
             $user->last_login_at = now();
             $user->save();
+
+            // Check if there's a pending pickup request after login
+            if (Session::has('pending_pickup_request')) {
+                return redirect()->route('client.requests.create-with-data')
+                    ->with('info', 'Please complete your pending pickup request.');
+            }
 
             // Redirect based on role
             return $this->redirectToDashboard();
@@ -88,6 +101,15 @@ class AuthController extends Controller
         // Send notification to admin about new registration
         $this->notifyAdminAboutNewRegistration($user);
 
+        // Log the user in after registration
+        Auth::login($user);
+
+        // Check if there's a pending pickup request
+        if (Session::has('pending_pickup_request')) {
+            return redirect()->route('client.requests.create-with-data')
+                ->with('info', 'Please complete your pickup request.');
+        }
+
         return redirect()->route('login')
             ->with('success', 'Registration successful! Your account is pending admin approval. You will be notified once approved.');
     }
@@ -97,14 +119,14 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        
+
         return redirect('/');
     }
 
     private function redirectToDashboard()
     {
         $user = Auth::user();
-        
+
         if ($user->isAdmin()) {
             return redirect()->route('admin.dashboard');
         } elseif ($user->isCourier()) {

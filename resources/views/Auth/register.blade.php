@@ -99,7 +99,8 @@
         font-size: 14px;
     }
 
-    input, select {
+    input,
+    select {
         width: 100%;
         padding: 14px;
         border: 2px solid #e0e0e0;
@@ -110,7 +111,8 @@
         background-color: var(--white);
     }
 
-    input:focus, select:focus {
+    input:focus,
+    select:focus {
         outline: none;
         border-color: var(--teal);
         box-shadow: 0 0 0 4px rgba(0, 169, 165, 0.1);
@@ -189,13 +191,13 @@
 
         <div class="auth-body">
             @if ($errors->any())
-                <div class="alert alert-error">
-                    <ul style="margin: 0; padding-left: 20px;">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
+            <div class="alert alert-error">
+                <ul style="margin: 0; padding-left: 20px;">
+                    @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
             @endif
 
             <form method="POST" action="{{ route('register') }}">
@@ -206,7 +208,7 @@
                         <label for="first_name">First Name *</label>
                         <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" required>
                         @error('first_name')
-                            <span class="error-message">{{ $message }}</span>
+                        <span class="error-message">{{ $message }}</span>
                         @enderror
                     </div>
 
@@ -214,16 +216,16 @@
                         <label for="last_name">Last Name *</label>
                         <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" required>
                         @error('last_name')
-                            <span class="error-message">{{ $message }}</span>
+                        <span class="error-message">{{ $message }}</span>
                         @enderror
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email Address *</label>
-                    <input type="email" id="email" name="email" value="{{ old('email') }}" required>
+                    <input type="email" id="email" name="email" value="{{ old('email', $email ?? '') }}" required>
                     @error('email')
-                        <span class="error-message">{{ $message }}</span>
+                    <span class="error-message">{{ $message }}</span>
                     @enderror
                 </div>
 
@@ -231,7 +233,7 @@
                     <label for="phone">Phone Number *</label>
                     <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" required>
                     @error('phone')
-                        <span class="error-message">{{ $message }}</span>
+                    <span class="error-message">{{ $message }}</span>
                     @enderror
                 </div>
 
@@ -243,7 +245,7 @@
                         <option value="courier" {{ old('role') == 'courier' ? 'selected' : '' }}>Courier/Driver</option>
                     </select>
                     @error('role')
-                        <span class="error-message">{{ $message }}</span>
+                    <span class="error-message">{{ $message }}</span>
                     @enderror
                 </div>
 
@@ -252,7 +254,7 @@
                         <label for="password">Password *</label>
                         <input type="password" id="password" name="password" required>
                         @error('password')
-                            <span class="error-message">{{ $message }}</span>
+                        <span class="error-message">{{ $message }}</span>
                         @enderror
                     </div>
 
@@ -265,7 +267,7 @@
                 <button type="submit" class="auth-btn">Create Account</button>
 
                 <div class="auth-footer">
-                    Already have an account? 
+                    Already have an account?
                     <a href="{{ route('login') }}">Sign in here</a>
                 </div>
             </form>

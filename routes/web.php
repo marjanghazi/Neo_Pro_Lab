@@ -21,6 +21,7 @@ use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
 use App\Http\Controllers\Client\DocumentController;
 use App\Http\Controllers\Client\FacilityController;
+use App\Http\Controllers\Public\PickupRequestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,8 +47,8 @@ Route::get('/terms', [PagesController::class, 'terms'])->name('terms');
 | Pickup & Forms (Public)
 |--------------------------------------------------------------------------
 */
-Route::get('/schedule-pickup', [PickupController::class, 'create'])->name('pickup.create');
-Route::post('/schedule-pickup', [PickupController::class, 'store'])->name('pickup.store');
+Route::get('/schedule-pickup', [App\Http\Controllers\Public\PickupRequestController::class, 'create'])->name('pickup.create');
+Route::post('/schedule-pickup', [App\Http\Controllers\Public\PickupRequestController::class, 'store'])->name('pickup.store');
 Route::get('/download/{filename}', [FormsController::class, 'download'])->name('download');
 
 /*
@@ -189,6 +190,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
     // Requests
     Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
     Route::get('/requests/create', [ClientController::class, 'createRequest'])->name('requests.create');
+    Route::get('/requests/create-with-data', [ClientController::class, 'createRequestWithData'])->name('requests.create-with-data');
 
     // New Routes for Pricing & Preview
     Route::post('/requests/preview', [ClientController::class, 'previewRequest'])->name('requests.preview');
