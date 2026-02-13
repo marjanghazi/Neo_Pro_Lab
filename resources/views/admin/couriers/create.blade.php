@@ -43,7 +43,7 @@
         </div>
     </div>
 
-    <form action="{{ route('admin.couriers.store') }}" method="POST" class="space-y-8">
+    <form action="{{ route('admin.couriers.store') }}" method="POST" enctype="multipart/form-data" class="space-y-8">
         @csrf
 
         <!-- Personal Information Section -->
@@ -338,6 +338,155 @@
                 </div>
             </div>
         </div>
+
+        <!-- Document Upload Section -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">
+    <div class="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                <i class="fas fa-file-upload text-white"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-bold text-gray-800">Document Upload</h3>
+                <p class="text-xs text-gray-500">Upload verification documents for the courier</p>
+            </div>
+        </div>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Profile Image -->
+            <div class="group">
+                <label for="profile_image" class="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-teal-600 transition-colors duration-200">
+                    Profile Image
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-user-circle text-gray-400 group-focus-within:text-teal-500 transition-colors duration-200"></i>
+                    </div>
+                    <input type="file" 
+                           id="profile_image" 
+                           name="profile_image" 
+                           accept="image/jpeg,image/png,image/jpg"
+                           class="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 @error('profile_image') border-red-500 bg-red-50 @enderror">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Accepted formats: JPEG, PNG, JPG (Max: 2MB)</p>
+                @error('profile_image')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            <!-- Government ID -->
+            <div class="group">
+                <label for="government_id" class="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-teal-600 transition-colors duration-200">
+                    Government ID
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-id-card text-gray-400 group-focus-within:text-teal-500 transition-colors duration-200"></i>
+                    </div>
+                    <input type="file" 
+                           id="government_id" 
+                           name="government_id" 
+                           accept="image/jpeg,image/png,image/jpg,application/pdf"
+                           class="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 @error('government_id') border-red-500 bg-red-50 @enderror">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Passport, Driver's License, or National ID (Max: 5MB)</p>
+                @error('government_id')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            <!-- Proof of Residency -->
+            <div class="group">
+                <label for="proof_of_residency" class="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-teal-600 transition-colors duration-200">
+                    Proof of Residency
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-home text-gray-400 group-focus-within:text-teal-500 transition-colors duration-200"></i>
+                    </div>
+                    <input type="file" 
+                           id="proof_of_residency" 
+                           name="proof_of_residency" 
+                           accept="image/jpeg,image/png,image/jpg,application/pdf"
+                           class="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 @error('proof_of_residency') border-red-500 bg-red-50 @enderror">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Utility bill, bank statement, or lease (Max: 5MB)</p>
+                @error('proof_of_residency')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            <!-- Driver's License -->
+            <div class="group">
+                <label for="drivers_license" class="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-teal-600 transition-colors duration-200">
+                    Driver's License
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-id-card text-gray-400 group-focus-within:text-teal-500 transition-colors duration-200"></i>
+                    </div>
+                    <input type="file" 
+                           id="drivers_license" 
+                           name="drivers_license" 
+                           accept="image/jpeg,image/png,image/jpg,application/pdf"
+                           class="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 @error('drivers_license') border-red-500 bg-red-50 @enderror">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Front and back copy (Max: 5MB)</p>
+                @error('drivers_license')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            <!-- Medical Transport Certificate (Optional) -->
+            <div class="group md:col-span-2">
+                <label for="medical_transport_cert" class="block text-sm font-semibold text-gray-700 mb-2 group-focus-within:text-teal-600 transition-colors duration-200">
+                    Medical Transport Certificate <span class="text-gray-400 text-xs ml-1">(Optional)</span>
+                </label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-certificate text-gray-400 group-focus-within:text-teal-500 transition-colors duration-200"></i>
+                    </div>
+                    <input type="file" 
+                           id="medical_transport_cert" 
+                           name="medical_transport_cert" 
+                           accept="image/jpeg,image/png,image/jpg,application/pdf"
+                           class="block w-full pl-10 pr-4 py-3 text-sm border border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-200 @error('medical_transport_cert') border-red-500 bg-red-50 @enderror">
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Professional certification document (Max: 5MB)</p>
+                @error('medical_transport_cert')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+        </div>
+        
+        <!-- Document Upload Notice -->
+        <div class="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-600 mt-0.5 mr-3"></i>
+                <div>
+                    <p class="text-sm font-medium text-blue-800">Document Upload Information</p>
+                    <p class="text-xs text-blue-700 mt-1">Uploaded documents will be stored securely and used for courier verification. All documents will be reviewed by the admin team.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Address Information Section -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300">

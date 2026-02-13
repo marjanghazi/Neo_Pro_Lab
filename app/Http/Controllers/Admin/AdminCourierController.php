@@ -262,6 +262,13 @@ class AdminCourierController extends Controller
             'state' => 'nullable|string|max:100',
             'zip_code' => 'nullable|string|max:20',
             'is_active' => 'boolean',
+
+            // Document validation
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'government_id' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
+            'proof_of_residency' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
+            'drivers_license' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
+            'medical_transport_cert' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
         ]);
 
         // Get courier role
@@ -279,10 +286,43 @@ class AdminCourierController extends Controller
             'is_approved' => true, // Admin created couriers are auto-approved
         ]);
 
-        return redirect()->route('admin.couriers.index')
-            ->with('success', 'Courier created successfully!');
-    }
+        // Handle document uploads and create verification record
+        $verificationData = [
+            'user_id' => $courier->id,
+            'verification_status' => 'pending', // Start as pending, admin can review
+            'submitted_at' => now(),
+        ];
 
+        // Upload documents if provided
+        $documentFields = [
+            'profile_image',
+            'government_id',
+            'proof_of_residency',
+            'drivers_license',
+            'medical_transport_cert'
+        ];
+
+        foreach ($documentFields as $field) {
+            if ($request->hasFile($field)) {
+                $path = $request->file($field)->store('courier-documents/' . str_replace('_', '-', $field), 'public');
+                $verificationData[$field] = $path;
+            }
+        }
+
+        // Create courier verification record
+        CourierVerification::create($verificationData);
+
+        // Optional: Send welcome email with document status
+        try {
+            // You can create a WelcomeCourierMail if needed
+            // Mail::to($courier->email)->send(new WelcomeCourierMail($courier));
+        } catch (\Exception $e) {
+            Log::error('Failed to send welcome email to courier: ' . $e->getMessage());
+        }
+
+        return redirect()->route('admin.couriers.index')
+            ->with('success', 'Courier created successfully with uploaded documents!');
+    }
     public function edit(User $courier)
     {
         // Verify the user is a courier
