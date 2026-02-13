@@ -52,26 +52,36 @@
     </div>
 
     <!-- Search and Filter -->
-    <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="md:col-span-2">
-            <div class="relative">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" 
-                       name="search"
-                       value="{{ request('search') }}"
-                       placeholder="Search facilities by name or license number..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+    <form method="GET" action="{{ route('admin.facilities.index') }}" class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" 
+                           name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Search facilities by name or license number..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                </div>
             </div>
-        </div>
-        <div>
-            <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                <option value="">All Status</option>
-                <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                <option value="suspended" {{ request('status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
-                <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
-            </select>
+            <div>
+                <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                    <option value="">All Status</option>
+                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    <option value="suspended" {{ request('status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                    <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                </select>
+            </div>
+            <div class="flex space-x-2">
+                <button type="submit" class="btn-primary px-6 py-2">
+                    <i class="fas fa-filter mr-2"></i> Filter
+                </button>
+                <a href="{{ route('admin.facilities.index') }}" class="btn-secondary px-6 py-2">
+                    <i class="fas fa-times mr-2"></i> Clear
+                </a>
+            </div>
         </div>
     </form>
 
@@ -91,7 +101,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($facilities as $facility)
+                @forelse($facilities as $facility)
                 <tr>
                     <td>
                         <div class="flex items-center space-x-3">
@@ -196,15 +206,37 @@
                         </div>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="8" class="text-center py-8">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-hospital text-gray-400 text-5xl mb-4"></i>
+                            <p class="text-gray-500 text-lg">No facilities found</p>
+                            @if(request('search') || request('status'))
+                                <p class="text-gray-400">Try adjusting your search or filter criteria</p>
+                                <a href="{{ route('admin.facilities.index') }}" class="btn-primary mt-4">
+                                    <i class="fas fa-times mr-2"></i> Clear Filters
+                                </a>
+                            @else
+                                <p class="text-gray-400">Get started by adding a new facility</p>
+                                <a href="{{ route('admin.facilities.create') }}" class="btn-primary mt-4">
+                                    <i class="fas fa-plus mr-2"></i> Add New Facility
+                                </a>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
+    @if($facilities->hasPages())
     <div class="mt-6">
         {{ $facilities->withQueryString()->links() }}
     </div>
+    @endif
 </div>
 
 <!-- Quick Actions -->
@@ -222,7 +254,7 @@
                 </div>
             </div>
         </a>
-        <a href="?status=pending" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition">
+        <a href="{{ route('admin.facilities.index', ['status' => 'pending']) }}" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 hover:bg-yellow-100 transition">
             <div class="flex items-center">
                 <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
                     <i class="fas fa-clock text-yellow-600"></i>

@@ -11,12 +11,63 @@ use Illuminate\Validation\Rules\Password;
 
 class AdminUserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('role')->paginate(20);
-        $roles = Role::all();
+        $query = User::with('role');
 
-        return view('admin.users.index', compact('users', 'roles'));
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // Apply role filter
+        if ($request->filled('role')) {
+            $roleSlug = $request->role;
+            $role = Role::where('slug', $roleSlug)->first();
+            if ($role) {
+                $query->where('role_id', $role->id);
+            }
+        }
+
+        // Apply status/approval filter
+        if ($request->filled('status')) {
+            $status = $request->status;
+            
+            switch ($status) {
+                case 'approved':
+                    $query->where('is_approved', true);
+                    break;
+                case 'pending':
+                    $query->where('is_approved', false)
+                          ->whereHas('role', function($q) {
+                              $q->where('slug', '!=', 'admin');
+                          });
+                    break;
+                case 'active':
+                    $query->where('is_active', true);
+                    break;
+                case 'inactive':
+                    $query->where('is_active', false);
+                    break;
+            }
+        }
+
+        $users = $query->orderBy('created_at', 'desc')->paginate(20);
+        $roles = Role::all();
+        $pendingCount = User::where('is_approved', false)
+            ->whereHas('role', function($q) {
+                $q->where('slug', '!=', 'admin');
+            })
+            ->count();
+
+        return view('admin.users.index', compact('users', 'roles', 'pendingCount'));
     }
 
     public function create()
@@ -104,15 +155,35 @@ class AdminUserController extends Controller
     }
 
     // Pending approvals methods
-    public function pendingApprovals()
+    public function pendingApprovals(Request $request)
     {
-        $pendingUsers = User::where('is_approved', false)
+        $query = User::where('is_approved', false)
             ->whereHas('role', function($q) {
                 $q->where('slug', '!=', 'admin');
             })
-            ->with('role')
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->with('role');
+
+        // Apply search filter to pending approvals as well
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Apply role filter to pending approvals
+        if ($request->filled('role')) {
+            $roleSlug = $request->role;
+            $role = Role::where('slug', $roleSlug)->first();
+            if ($role) {
+                $query->where('role_id', $role->id);
+            }
+        }
+
+        $pendingUsers = $query->orderBy('created_at', 'desc')->paginate(20);
         
         return view('admin.users.pending', compact('pendingUsers'));
     }

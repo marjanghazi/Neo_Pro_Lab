@@ -52,25 +52,37 @@
     </div>
 
     <!-- Search and Filter -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="md:col-span-2">
-            <div class="relative">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" 
-                       placeholder="Search couriers by name, email, or phone..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+    <form method="GET" action="{{ route('admin.couriers.index') }}" class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text"
+                        name="search"
+                        value="{{ request('search') }}"
+                        placeholder="Search couriers by name, email, or phone..."
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                </div>
+            </div>
+            <div>
+                <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                    <option value="">All Status</option>
+                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    <option value="available" {{ request('status') == 'available' ? 'selected' : '' }}>Available</option>
+                    <option value="busy" {{ request('status') == 'busy' ? 'selected' : '' }}>Busy</option>
+                </select>
+            </div>
+            <div class="flex space-x-2">
+                <button type="submit" class="btn-primary px-6 py-2">
+                    <i class="fas fa-filter mr-2"></i> Filter
+                </button>
+                <a href="{{ route('admin.couriers.index') }}" class="btn-secondary px-6 py-2">
+                    <i class="fas fa-times mr-2"></i> Clear
+                </a>
             </div>
         </div>
-        <div>
-            <select class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="available">Available</option>
-                <option value="busy">Busy</option>
-            </select>
-        </div>
-    </div>
+    </form>
 
     <!-- Couriers Table -->
     <div class="table-container">
@@ -87,12 +99,12 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($couriers as $courier)
+                @forelse($couriers as $courier)
                 <tr>
                     <td>
                         <div class="flex items-center space-x-3">
-                            <img src="https://ui-avatars.com/api/?name={{ $courier->first_name }}+{{ $courier->last_name }}&background=0D8ABC&color=fff" 
-                                 alt="{{ $courier->full_name }}" class="w-10 h-10 rounded-full">
+                            <img src="https://ui-avatars.com/api/?name={{ $courier->first_name }}+{{ $courier->last_name }}&background=0D8ABC&color=fff"
+                                alt="{{ $courier->full_name }}" class="w-10 h-10 rounded-full">
                             <div>
                                 <p class="font-medium">{{ $courier->full_name }}</p>
                                 <p class="text-xs text-gray-500">ID: {{ $courier->id }}</p>
@@ -106,7 +118,36 @@
                         </div>
                     </td>
                     <td>
-                        @if($courier->is_active)
+                        @php
+                        $status = 'inactive';
+                        $statusColor = 'red';
+
+                        if($courier->is_active) {
+                        $hasActiveAssignments = $courier->assignedRequests()
+                        ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
+                        ->exists();
+
+                        if($hasActiveAssignments) {
+                        $status = 'busy';
+                        $statusColor = 'purple';
+                        } else {
+                        $status = 'available';
+                        $statusColor = 'green';
+                        }
+                        }
+                        @endphp
+
+                        @if($status == 'available')
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            <span class="text-green-700">Available</span>
+                        </div>
+                        @elseif($status == 'busy')
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                            <span class="text-purple-700">Busy</span>
+                        </div>
+                        @elseif($courier->is_active)
                         <div class="flex items-center">
                             <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                             <span class="text-green-700">Active</span>
@@ -120,16 +161,21 @@
                     </td>
                     <td>
                         <div class="text-center">
-                            <span class="text-lg font-bold">{{ $courier->assigned_requests_count }}</span>
+                            <span class="text-lg font-bold">{{ $courier->assigned_requests_count ?? 0 }}</span>
                             <p class="text-xs text-gray-500">Active</p>
                         </div>
                     </td>
                     <td>
+                        @php
+                        $completionRate = $courier->completed_deliveries_count && $courier->total_assignments_count
+                        ? round(($courier->completed_deliveries_count / $courier->total_assignments_count) * 100)
+                        : 85;
+                        @endphp
                         <div class="flex items-center">
                             <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                                <div class="bg-green-500 h-2 rounded-full" style="width: 85%"></div>
+                                <div class="bg-green-500 h-2 rounded-full" style="width: {{ $completionRate }}%"></div>
                             </div>
-                            <span class="text-sm font-medium">85%</span>
+                            <span class="text-sm font-medium">{{ $completionRate }}%</span>
                         </div>
                     </td>
                     <td class="text-sm text-gray-500">
@@ -137,14 +183,14 @@
                     </td>
                     <td>
                         <div class="flex items-center space-x-2">
-                            <a href="{{ route('admin.couriers.show', $courier) }}" 
-                               class="text-blue-600 hover:text-blue-800 p-1"
-                               title="View Details">
+                            <a href="{{ route('admin.couriers.show', $courier) }}"
+                                class="text-blue-600 hover:text-blue-800 p-1"
+                                title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ route('admin.couriers.edit', $courier) }}" 
-                               class="text-teal-600 hover:text-teal-800 p-1"
-                               title="Edit">
+                            <a href="{{ route('admin.couriers.edit', $courier) }}"
+                                class="text-teal-600 hover:text-teal-800 p-1"
+                                title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <a href="#" class="text-purple-600 hover:text-purple-800 p-1" title="Assign Delivery">
@@ -156,15 +202,37 @@
                         </div>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="7" class="text-center py-8">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-truck text-gray-400 text-5xl mb-4"></i>
+                            <p class="text-gray-500 text-lg">No couriers found</p>
+                            @if(request('search') || request('status'))
+                            <p class="text-gray-400">Try adjusting your search or filter criteria</p>
+                            <a href="{{ route('admin.couriers.index') }}" class="btn-primary mt-4">
+                                <i class="fas fa-times mr-2"></i> Clear Filters
+                            </a>
+                            @else
+                            <p class="text-gray-400">Get started by adding a new courier</p>
+                            <a href="{{ route('admin.couriers.create') }}" class="btn-primary mt-4">
+                                <i class="fas fa-plus mr-2"></i> Add New Courier
+                            </a>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
+    @if($couriers->hasPages())
     <div class="mt-6">
-        {{ $couriers->links() }}
+        {{ $couriers->withQueryString()->links() }}
     </div>
+    @endif
 </div>
 
 <!-- Courier Locations Map -->

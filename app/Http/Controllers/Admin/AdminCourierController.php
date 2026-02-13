@@ -10,19 +10,70 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminCourierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $couriers = User::whereHas('role', function ($q) {
+        $query = User::whereHas('role', function ($q) {
             $q->where('slug', 'courier');
         })->withCount(['assignedRequests' => function ($q) {
             $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
-        }])->paginate(20);
+        }]);
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+            });
+        }
+
+        // Apply status filter
+        if ($request->filled('status')) {
+            $status = $request->status;
+            
+            switch ($status) {
+                case 'active':
+                    $query->where('is_active', true);
+                    break;
+                case 'inactive':
+                    $query->where('is_active', false);
+                    break;
+                case 'available':
+                    $query->where('is_active', true)
+                          ->whereDoesntHave('assignedRequests', function ($q) {
+                              $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
+                          });
+                    break;
+                case 'busy':
+                    $query->where('is_active', true)
+                          ->whereHas('assignedRequests', function ($q) {
+                              $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
+                          });
+                    break;
+            }
+        }
+
+        // Add performance metrics to each courier
+        $couriers = $query->withCount([
+            'assignedRequests as completed_deliveries_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
+            'assignedRequests as total_assignments_count'
+        ])->paginate(20);
 
         return view('admin.couriers.index', compact('couriers'));
     }
 
     public function show(User $courier)
     {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
         $courier->load(['assignedRequests' => function ($q) {
             $q->with(['client', 'facility'])->orderBy('created_at', 'desc')->limit(10);
         }]);
@@ -55,7 +106,7 @@ class AdminCourierController extends Controller
 
         return round(($onTime / $completedRequests->count()) * 100, 1);
     }
-    // In AdminCourierController.php
+
     public function create()
     {
         return view('admin.couriers.create');
@@ -103,7 +154,6 @@ class AdminCourierController extends Controller
         return redirect()->route('admin.couriers.index')
             ->with('success', 'Courier created successfully!');
     }
-    // In AdminCourierController.php - add these methods:
 
     public function edit(User $courier)
     {

@@ -48,33 +48,47 @@
     </div>
 
     <!-- Search and Filter -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="md:col-span-2">
-            <div class="relative">
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" 
-                       placeholder="Search users by name, email, or phone..." 
-                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+    <form method="GET" action="{{ route('admin.users.index') }}" class="mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="md:col-span-2">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" 
+                           name="search"
+                           value="{{ request('search') }}"
+                           placeholder="Search users by name, email, or phone..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                </div>
+            </div>
+            <div>
+                <select name="role" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                    <option value="">All Roles</option>
+                    @foreach($roles as $role)
+                        <option value="{{ $role->slug }}" {{ request('role') == $role->slug ? 'selected' : '' }}>
+                            {{ $role->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                    <option value="">All Status</option>
+                    <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending Approval</option>
+                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
+                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                </select>
+            </div>
+            <div class="flex space-x-2">
+                <button type="submit" class="btn-primary px-6 py-2">
+                    <i class="fas fa-filter mr-2"></i> Filter
+                </button>
+                <a href="{{ route('admin.users.index') }}" class="btn-secondary px-6 py-2">
+                    <i class="fas fa-times mr-2"></i> Clear
+                </a>
             </div>
         </div>
-        <div>
-            <select class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                <option value="">All Roles</option>
-                <option value="admin">Administrator</option>
-                <option value="courier">Courier</option>
-                <option value="client">Client</option>
-            </select>
-        </div>
-        <div>
-            <select class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                <option value="">All Status</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending Approval</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-            </select>
-        </div>
-    </div>
+    </form>
 
     <!-- Users Table -->
     <div class="table-container">
@@ -92,7 +106,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($users as $user)
+                @forelse($users as $user)
                 <tr>
                     <td>
                         <div class="flex items-center space-x-3">
@@ -184,14 +198,36 @@
                         </div>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                <tr>
+                    <td colspan="8" class="text-center py-8">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-users text-gray-400 text-5xl mb-4"></i>
+                            <p class="text-gray-500 text-lg">No users found</p>
+                            @if(request('search') || request('role') || request('status'))
+                                <p class="text-gray-400">Try adjusting your search or filter criteria</p>
+                                <a href="{{ route('admin.users.index') }}" class="btn-primary mt-4">
+                                    <i class="fas fa-times mr-2"></i> Clear Filters
+                                </a>
+                            @else
+                                <p class="text-gray-400">Get started by adding a new user</p>
+                                <a href="{{ route('admin.users.create') }}" class="btn-primary mt-4">
+                                    <i class="fas fa-plus mr-2"></i> Add New User
+                                </a>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
+    @if($users->hasPages())
     <div class="mt-6">
-        {{ $users->links() }}
+        {{ $users->withQueryString()->links() }}
     </div>
+    @endif
 </div>
 @endsection
