@@ -10,6 +10,9 @@ use App\Models\CourierVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail; // Add this
+use App\Mail\CourierApprovedMail; // Add this
+use Illuminate\Support\Facades\Log; // Add this
 
 class AdminCourierController extends Controller
 {
@@ -32,17 +35,17 @@ class AdminCourierController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
             });
         }
 
         // Apply status filter
         if ($request->filled('status')) {
             $status = $request->status;
-            
+
             switch ($status) {
                 case 'active':
                     $query->where('is_active', true);
@@ -51,26 +54,26 @@ class AdminCourierController extends Controller
                     $query->where('is_active', false);
                     break;
                 case 'verified':
-                    $query->whereHas('courierVerification', function($q) {
+                    $query->whereHas('courierVerification', function ($q) {
                         $q->where('verification_status', 'approved');
                     });
                     break;
                 case 'pending':
-                    $query->whereHas('courierVerification', function($q) {
+                    $query->whereHas('courierVerification', function ($q) {
                         $q->where('verification_status', 'pending');
                     });
                     break;
                 case 'available':
                     $query->where('is_active', true)
-                          ->whereDoesntHave('assignedRequests', function ($q) {
-                              $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
-                          });
+                        ->whereDoesntHave('assignedRequests', function ($q) {
+                            $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
+                        });
                     break;
                 case 'busy':
                     $query->where('is_active', true)
-                          ->whereHas('assignedRequests', function ($q) {
-                              $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
-                          });
+                        ->whereHas('assignedRequests', function ($q) {
+                            $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
+                        });
                     break;
             }
         }
@@ -125,7 +128,7 @@ class AdminCourierController extends Controller
         }
 
         $verification = $courier->courierVerification;
-        
+
         if (!$verification) {
             return redirect()->back()->with('error', 'No verification records found for this courier.');
         }
@@ -143,8 +146,19 @@ class AdminCourierController extends Controller
             'is_active' => true
         ]);
 
-        return redirect()->route('admin.couriers.show', $courier)
-            ->with('success', 'Courier verification approved successfully. The courier can now accept deliveries.');
+        // Send approval email to the courier
+        try {
+            Mail::to($courier->email)->send(new CourierApprovedMail($courier));
+
+            return redirect()->route('admin.couriers.show', $courier)
+                ->with('success', 'Courier verification approved successfully. An email notification has been sent to the courier.');
+        } catch (\Exception $e) {
+            // Log the error but don't fail the approval
+            Log::error('Failed to send approval email to courier: ' . $e->getMessage());
+
+            return redirect()->route('admin.couriers.show', $courier)
+                ->with('success', 'Courier verification approved successfully. Note: Email notification could not be sent.');
+        }
     }
 
     public function rejectVerification(Request $request, User $courier)
@@ -159,7 +173,7 @@ class AdminCourierController extends Controller
         ]);
 
         $verification = $courier->courierVerification;
-        
+
         if (!$verification) {
             return redirect()->back()->with('error', 'No verification records found for this courier.');
         }
@@ -188,19 +202,19 @@ class AdminCourierController extends Controller
         }
 
         $verification = $courier->courierVerification;
-        
+
         if (!$verification || !$verification->$documentType) {
             abort(404, 'Document not found');
         }
 
         $allowedDocuments = ['profile_image', 'government_id', 'proof_of_residency', 'drivers_license', 'medical_transport_cert'];
-        
+
         if (!in_array($documentType, $allowedDocuments)) {
             abort(404, 'Invalid document type');
         }
 
         $path = storage_path('app/public/' . $verification->$documentType);
-        
+
         if (!file_exists($path)) {
             abort(404, 'File not found');
         }
