@@ -34,7 +34,7 @@
                 <input type="date" id="date-filter" value="{{ request('date') }}" class="border rounded-lg px-3 py-2 text-sm">
             </div>
             
-            <button onclick="applyFilters()" class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">
+            <button onclick="applyFilters()" class="px-4 py-2 bg-teal-600 rounded-lg hover:bg-teal-700">
                 <i class="fas fa-filter mr-2"></i>Apply
             </button>
             
