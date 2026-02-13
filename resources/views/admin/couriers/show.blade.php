@@ -199,6 +199,65 @@
                 </a>
             </div>
         </div>
+
+        <!-- Verification Status -->
+<div class="card p-6">
+    <h3 class="font-bold mb-4">Verification Status</h3>
+    
+    @if($courier->courierVerification)
+        <div class="space-y-4">
+            <div class="flex items-center justify-between p-3 {{ 
+                $courier->courierVerification->isApproved() ? 'bg-green-50' : 
+                ($courier->courierVerification->isPending() ? 'bg-yellow-50' : 'bg-red-50') 
+            }} rounded-lg">
+                <div class="flex items-center">
+                    <i class="fas fa-{{ 
+                        $courier->courierVerification->isApproved() ? 'check-circle text-green-600' : 
+                        ($courier->courierVerification->isPending() ? 'clock text-yellow-600' : 'times-circle text-red-600') 
+                    }} mr-3"></i>
+                    <div>
+                        <p class="font-medium">Verification Status</p>
+                        <p class="text-sm text-gray-600">
+                            {{ ucfirst($courier->courierVerification->verification_status) }}
+                        </p>
+                    </div>
+                </div>
+                @if($courier->courierVerification->isPending())
+                <a href="{{ route('admin.couriers.verification', $courier) }}" 
+                   class="text-sm text-teal-600 hover:underline">
+                    Review Now
+                </a>
+                @endif
+            </div>
+            
+            @if($courier->courierVerification->verified_at)
+            <p class="text-sm text-gray-600">
+                <strong>Verified on:</strong> {{ $courier->courierVerification->verified_at->format('M d, Y h:i A') }}
+            </p>
+            @endif
+            
+            @if($courier->courierVerification->rejection_reason)
+            <div class="p-3 bg-red-50 rounded-lg">
+                <p class="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
+                <p class="text-sm text-red-700">{{ $courier->courierVerification->rejection_reason }}</p>
+            </div>
+            @endif
+            
+            <div class="mt-3">
+                <a href="{{ route('admin.couriers.verification', $courier) }}" 
+                   class="text-sm text-teal-600 hover:underline flex items-center">
+                    <i class="fas fa-clipboard-check mr-2"></i>
+                    View All Documents
+                </a>
+            </div>
+        </div>
+    @else
+        <div class="text-center py-4 text-gray-500">
+            <i class="fas fa-hourglass text-3xl mb-2"></i>
+            <p>No verification documents submitted yet</p>
+        </div>
+    @endif
+</div>
     </div>
 </div>
 

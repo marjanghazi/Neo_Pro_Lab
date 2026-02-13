@@ -106,6 +106,21 @@ Route::prefix('admin')
         Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('reports.facilities');
         Route::get('/reports/payments', [AdminReportsController::class, 'payments'])->name('reports.payments');
         Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('reports.export');
+        // Admin Courier Verification Routes ✅
+        Route::get('/couriers/{courier}/verification', [AdminCourierController::class, 'verification'])
+            ->name('couriers.verification');
+
+        Route::post('/couriers/{courier}/verification/approve', [AdminCourierController::class, 'approveVerification'])
+            ->name('couriers.verification.approve');
+
+        Route::post('/couriers/{courier}/verification/reject', [AdminCourierController::class, 'rejectVerification'])
+            ->name('couriers.verification.reject');
+
+        Route::get('/couriers/{courier}/document/{documentType}', [AdminCourierController::class, 'viewDocument'])
+            ->name('couriers.document');
+
+        Route::patch('/couriers/{courier}/toggle-active', [AdminCourierController::class, 'toggleActive'])
+            ->name('couriers.toggle-active');
 
         // Facilities
         Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');

@@ -1,12 +1,15 @@
 <?php
+// app/Http/Controllers/Admin/AdminCourierController.php
 
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\CourierVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class AdminCourierController extends Controller
 {
@@ -14,9 +17,15 @@ class AdminCourierController extends Controller
     {
         $query = User::whereHas('role', function ($q) {
             $q->where('slug', 'courier');
-        })->withCount(['assignedRequests' => function ($q) {
-            $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
-        }]);
+        })->with(['courierVerification'])->withCount([
+            'assignedRequests as active_assignments_count' => function ($q) {
+                $q->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up']);
+            },
+            'assignedRequests as completed_deliveries_count' => function ($q) {
+                $q->where('status', 'completed');
+            },
+            'assignedRequests as total_assignments_count'
+        ]);
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -41,6 +50,16 @@ class AdminCourierController extends Controller
                 case 'inactive':
                     $query->where('is_active', false);
                     break;
+                case 'verified':
+                    $query->whereHas('courierVerification', function($q) {
+                        $q->where('verification_status', 'approved');
+                    });
+                    break;
+                case 'pending':
+                    $query->whereHas('courierVerification', function($q) {
+                        $q->where('verification_status', 'pending');
+                    });
+                    break;
                 case 'available':
                     $query->where('is_active', true)
                           ->whereDoesntHave('assignedRequests', function ($q) {
@@ -56,13 +75,7 @@ class AdminCourierController extends Controller
             }
         }
 
-        // Add performance metrics to each courier
-        $couriers = $query->withCount([
-            'assignedRequests as completed_deliveries_count' => function ($q) {
-                $q->where('status', 'completed');
-            },
-            'assignedRequests as total_assignments_count'
-        ])->paginate(20);
+        $couriers = $query->orderBy('created_at', 'desc')->paginate(20);
 
         return view('admin.couriers.index', compact('couriers'));
     }
@@ -74,9 +87,13 @@ class AdminCourierController extends Controller
             abort(404, 'User is not a courier');
         }
 
-        $courier->load(['assignedRequests' => function ($q) {
-            $q->with(['client', 'facility'])->orderBy('created_at', 'desc')->limit(10);
-        }]);
+        $courier->load([
+            'assignedRequests' => function ($q) {
+                $q->with(['client', 'facility'])->orderBy('created_at', 'desc')->limit(10);
+            },
+            'courierVerification',
+            'courierVerification.verifier'
+        ]);
 
         $stats = [
             'total_assignments' => $courier->assignedRequests()->count(),
@@ -86,6 +103,109 @@ class AdminCourierController extends Controller
         ];
 
         return view('admin.couriers.show', compact('courier', 'stats'));
+    }
+
+    public function verification(User $courier)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $courier->load('courierVerification');
+
+        return view('admin.couriers.verification', compact('courier'));
+    }
+
+    public function approveVerification(Request $request, User $courier)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $verification = $courier->courierVerification;
+        
+        if (!$verification) {
+            return redirect()->back()->with('error', 'No verification records found for this courier.');
+        }
+
+        $verification->update([
+            'verification_status' => 'approved',
+            'verified_at' => now(),
+            'verified_by' => auth()->id(),
+            'rejection_reason' => null
+        ]);
+
+        // Auto-approve the user account as well
+        $courier->update([
+            'is_approved' => true,
+            'is_active' => true
+        ]);
+
+        return redirect()->route('admin.couriers.show', $courier)
+            ->with('success', 'Courier verification approved successfully. The courier can now accept deliveries.');
+    }
+
+    public function rejectVerification(Request $request, User $courier)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $request->validate([
+            'rejection_reason' => 'required|string|min:10|max:500'
+        ]);
+
+        $verification = $courier->courierVerification;
+        
+        if (!$verification) {
+            return redirect()->back()->with('error', 'No verification records found for this courier.');
+        }
+
+        $verification->update([
+            'verification_status' => 'rejected',
+            'verified_at' => now(),
+            'verified_by' => auth()->id(),
+            'rejection_reason' => $request->rejection_reason
+        ]);
+
+        // Optionally deactivate the account or keep it pending
+        $courier->update([
+            'is_approved' => false
+        ]);
+
+        return redirect()->route('admin.couriers.show', $courier)
+            ->with('success', 'Courier verification rejected. The courier has been notified.');
+    }
+
+    public function viewDocument(User $courier, $documentType)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $verification = $courier->courierVerification;
+        
+        if (!$verification || !$verification->$documentType) {
+            abort(404, 'Document not found');
+        }
+
+        $allowedDocuments = ['profile_image', 'government_id', 'proof_of_residency', 'drivers_license', 'medical_transport_cert'];
+        
+        if (!in_array($documentType, $allowedDocuments)) {
+            abort(404, 'Invalid document type');
+        }
+
+        $path = storage_path('app/public/' . $verification->$documentType);
+        
+        if (!file_exists($path)) {
+            abort(404, 'File not found');
+        }
+
+        return response()->file($path);
     }
 
     private function calculateOnTimeRate($courier)
@@ -141,14 +261,8 @@ class AdminCourierController extends Controller
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),
             'role_id' => $courierRole->id,
-            'vehicle_type' => $validated['vehicle_type'] ?? null,
-            'vehicle_number' => $validated['vehicle_number'] ?? null,
-            'license_number' => $validated['license_number'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'state' => $validated['state'] ?? null,
-            'zip_code' => $validated['zip_code'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
+            'is_approved' => true, // Admin created couriers are auto-approved
         ]);
 
         return redirect()->route('admin.couriers.index')
@@ -200,13 +314,6 @@ class AdminCourierController extends Controller
             'last_name' => $validated['last_name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'],
-            'vehicle_type' => $validated['vehicle_type'] ?? null,
-            'vehicle_number' => $validated['vehicle_number'] ?? null,
-            'license_number' => $validated['license_number'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'state' => $validated['state'] ?? null,
-            'zip_code' => $validated['zip_code'] ?? null,
             'is_active' => $validated['is_active'] ?? true,
         ]);
 
@@ -219,5 +326,22 @@ class AdminCourierController extends Controller
 
         return redirect()->route('admin.couriers.show', $courier)
             ->with('success', 'Courier updated successfully!');
+    }
+
+    public function toggleActive(User $courier)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $courier->update([
+            'is_active' => !$courier->is_active
+        ]);
+
+        $status = $courier->is_active ? 'activated' : 'deactivated';
+
+        return redirect()->back()
+            ->with('success', "Courier account {$status} successfully.");
     }
 }
