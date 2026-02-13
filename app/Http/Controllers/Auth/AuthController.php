@@ -1,16 +1,19 @@
 <?php
+// app/Http/Controllers/Auth/AuthController.php
 
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\CourierVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -71,14 +74,28 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        // Base validation rules
+        $rules = [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|unique:users',
             'phone' => 'required|string|max:20',
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'role' => 'required|in:client,courier',
-        ]);
+        ];
+
+        // Add courier document validation rules
+        if ($request->role === 'courier') {
+            $rules = array_merge($rules, [
+                'profile_image' => 'required|image|mimes:jpeg,png|max:5120',
+                'government_id' => 'required|file|mimes:jpeg,png,pdf|max:5120',
+                'proof_of_residency' => 'required|file|mimes:jpeg,png,pdf|max:5120',
+                'drivers_license' => 'required|file|mimes:jpeg,png,pdf|max:5120',
+                'medical_transport_cert' => 'nullable|file|mimes:jpeg,png,pdf|max:5120',
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -87,6 +104,7 @@ class AuthController extends Controller
         // Get role ID based on selection
         $role = Role::where('slug', $request->role)->firstOrFail();
 
+        // Create user
         $user = User::create([
             'role_id' => $role->id,
             'first_name' => $request->first_name,
@@ -95,8 +113,59 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
             'is_active' => true,
-            'is_approved' => $role->slug === 'admin' ? true : false, // Auto-approve admins
+            'is_approved' => false, // Always false initially, admin will approve after document verification
         ]);
+
+        // Handle courier document uploads
+        if ($request->role === 'courier') {
+            $documentPaths = [];
+            
+            // Upload profile image
+            if ($request->hasFile('profile_image')) {
+                $path = $request->file('profile_image')->store('courier-documents/profile-images', 'public');
+                $documentPaths['profile_image'] = $path;
+                
+                // Also update user's profile image
+                $user->profile_image = $path;
+                $user->save();
+            }
+            
+            // Upload government ID
+            if ($request->hasFile('government_id')) {
+                $path = $request->file('government_id')->store('courier-documents/government-ids', 'public');
+                $documentPaths['government_id'] = $path;
+            }
+            
+            // Upload proof of residency
+            if ($request->hasFile('proof_of_residency')) {
+                $path = $request->file('proof_of_residency')->store('courier-documents/proof-of-residency', 'public');
+                $documentPaths['proof_of_residency'] = $path;
+            }
+            
+            // Upload driver's license
+            if ($request->hasFile('drivers_license')) {
+                $path = $request->file('drivers_license')->store('courier-documents/drivers-licenses', 'public');
+                $documentPaths['drivers_license'] = $path;
+            }
+            
+            // Upload medical transport certificate (optional)
+            if ($request->hasFile('medical_transport_cert')) {
+                $path = $request->file('medical_transport_cert')->store('courier-documents/medical-certs', 'public');
+                $documentPaths['medical_transport_cert'] = $path;
+            }
+
+            // Create courier verification record
+            CourierVerification::create([
+                'user_id' => $user->id,
+                'profile_image' => $documentPaths['profile_image'] ?? null,
+                'government_id' => $documentPaths['government_id'] ?? null,
+                'proof_of_residency' => $documentPaths['proof_of_residency'] ?? null,
+                'drivers_license' => $documentPaths['drivers_license'] ?? null,
+                'medical_transport_cert' => $documentPaths['medical_transport_cert'] ?? null,
+                'verification_status' => 'pending',
+                'submitted_at' => now(),
+            ]);
+        }
 
         // Send notification to admin about new registration
         $this->notifyAdminAboutNewRegistration($user);
@@ -108,6 +177,12 @@ class AuthController extends Controller
         if (Session::has('pending_pickup_request')) {
             return redirect()->route('client.requests.create-with-data')
                 ->with('info', 'Please complete your pickup request.');
+        }
+
+        // Show different success message for couriers
+        if ($request->role === 'courier') {
+            return redirect()->route('courier.dashboard')
+                ->with('info', 'Registration successful! Your documents have been submitted for verification. You will be able to accept deliveries once your account is approved.');
         }
 
         return redirect()->route('login')

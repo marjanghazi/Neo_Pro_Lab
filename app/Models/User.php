@@ -153,4 +153,17 @@ class User extends Authenticatable
     {
         return $this->currentLocation;
     }
+    // Add this in the relationships section
+    public function courierVerification()
+    {
+        return $this->hasOne(CourierVerification::class);
+    }
+
+    // Helper method to check if courier is verified
+    public function isVerifiedCourier(): bool
+    {
+        return $this->isCourier() &&
+            $this->courierVerification &&
+            $this->courierVerification->isApproved();
+    }
 }
