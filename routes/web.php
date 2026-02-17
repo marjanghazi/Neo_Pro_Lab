@@ -81,6 +81,24 @@ Route::prefix('admin')
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
 
+        // Notifications
+        Route::get('/notifications', [App\Http\Controllers\Admin\AdminNotificationController::class, 'index'])
+            ->name('notifications.index');
+        Route::get('/notifications/recent', [App\Http\Controllers\Admin\AdminNotificationController::class, 'getRecent'])
+            ->name('notifications.recent');
+        Route::get('/notifications/unread-count', [App\Http\Controllers\Admin\AdminNotificationController::class, 'getUnreadCount'])
+            ->name('notifications.unread-count');
+        Route::get('/notifications/{notification}', [App\Http\Controllers\Admin\AdminNotificationController::class, 'show'])
+            ->name('notifications.show');
+        Route::post('/notifications/{notification}/read', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAsRead'])
+            ->name('notifications.read');
+        Route::post('/notifications/read-all', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAllAsRead'])
+            ->name('notifications.read-all');
+        Route::delete('/notifications/{notification}', [App\Http\Controllers\Admin\AdminNotificationController::class, 'destroy'])
+            ->name('notifications.destroy');
+        Route::delete('/notifications/clear-all', [App\Http\Controllers\Admin\AdminNotificationController::class, 'clearAll'])
+            ->name('notifications.clear-all');
+
         // Admin pricing routes
         Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
         Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('requests.send-quote');

@@ -10,9 +10,12 @@ use Illuminate\Http\Request;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use App\Models\CourierQuote;
+use App\Traits\Notifiable;
 
 class AdminRequestController extends Controller
 {
+    use Notifiable;
+
     public function index(Request $request)
     {
         $query = SpecimenRequest::with(['client', 'facility', 'courier']);
@@ -62,18 +65,34 @@ class AdminRequestController extends Controller
             'status' => 'assigned',
         ]);
 
-        // Create notification for courier
-        Notification::create([
-            'user_id' => $validated['courier_id'],
-            'request_id' => $request->id,
-            'type' => 'request_assigned',
-            'title' => 'New Assignment',
-            'message' => "You have been assigned to request #{$request->request_number}",
-            'data' => json_encode([
+        // Create notification for courier using the trait
+        $this->notifyCourier(
+            $validated['courier_id'],
+            'request_assigned',
+            'New Assignment',
+            "You have been assigned to request #{$request->request_number}",
+            $request->id,
+            [
                 'request_id' => $request->id,
-                'request_number' => $request->request_number
-            ]),
-        ]);
+                'request_number' => $request->request_number,
+                'assigned_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'assigned_at' => now()->toDateTimeString()
+            ]
+        );
+
+        // Also notify admins about the assignment
+        $this->notifyAdmins(
+            'request_assigned',
+            'Request Assigned',
+            "Request #{$request->request_number} has been assigned to a courier",
+            $request->id,
+            [
+                'request_id' => $request->id,
+                'request_number' => $request->request_number,
+                'courier_id' => $validated['courier_id'],
+                'assigned_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+            ]
+        );
 
         // Handle AJAX response
         if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -102,23 +121,39 @@ class AdminRequestController extends Controller
             'cancelled_by' => $validated['status'] == 'cancelled' ? Auth::id() : null,
         ]);
 
-        // Create notification - with null checks
+        // Create notification for client
         if (in_array($validated['status'], ['approved', 'rejected'])) {
-            // Check if client_id exists
             if ($request->client_id) {
-                Notification::create([
-                    'user_id' => $request->client_id,
-                    'request_id' => $request->id,
-                    'type' => 'status_update',
-                    'title' => 'Request ' . ucfirst($validated['status']),
-                    'message' => "Your request " . ($request->request_number ?: '#' . $request->id) . " has been {$validated['status']}.",
-                    'data' => json_encode([
+                $this->notifyClient(
+                    $request->client_id,
+                    'status_update',
+                    'Request ' . ucfirst($validated['status']),
+                    "Your request " . ($request->request_number ?: '#' . $request->id) . " has been {$validated['status']}.",
+                    $request->id,
+                    [
                         'request_id' => $request->id,
-                        'status' => $validated['status']
-                    ]),
-                ]);
+                        'request_number' => $request->request_number,
+                        'status' => $validated['status'],
+                        'updated_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                        'updated_at' => now()->toDateTimeString()
+                    ]
+                );
             }
         }
+
+        // Notify admins about the status change
+        $this->notifyAdmins(
+            'status_update',
+            'Request Status Updated',
+            "Request #{$request->request_number} has been {$validated['status']}",
+            $request->id,
+            [
+                'request_id' => $request->id,
+                'request_number' => $request->request_number,
+                'status' => $validated['status'],
+                'updated_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+            ]
+        );
 
         // Handle AJAX response
         if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -200,6 +235,20 @@ class AdminRequestController extends Controller
                 'additional_stops' => $request->stops->count(),
                 'is_price_quoted' => true,
             ]);
+
+            // Notify admins about price calculation
+            $this->notifyAdmins(
+                'price_calculated',
+                'Price Calculated',
+                "Price has been calculated for request #{$request->request_number}: $" . number_format($totalPrice, 2),
+                $request->id,
+                [
+                    'request_id' => $request->id,
+                    'request_number' => $request->request_number,
+                    'total_price' => $totalPrice,
+                    'calculated_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+                ]
+            );
 
             // Check if it's an AJAX request
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -291,13 +340,13 @@ class AdminRequestController extends Controller
                 $basePrice = 50.00;
                 $distanceCharge = $distanceMiles > 15 ? ($distanceMiles - 15) * 2.00 : 0.00;
                 $statUrgentCharge = $request->priority_level == 'stat' ? 20.00 : 0.00;
-                
+
                 $pickupTime = $request->scheduled_pickup_time;
                 $nightHoursCharge = ($pickupTime && $pickupTime->hour >= 18) ? 25.00 : 0.00;
                 $weekendCharge = ($pickupTime && in_array($pickupTime->dayOfWeek, [0, 6])) ? $basePrice * 0.35 : 0.00;
                 $coldChainCharge = in_array($request->temperature_requirement, ['cold', 'frozen']) ? 7.00 : 0.00;
                 $additionalStopCharge = $request->stops->count() * 10.00;
-                
+
                 $totalPrice = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge +
                     $weekendCharge + $coldChainCharge + $additionalStopCharge;
                 $courierFee = $totalPrice * 0.70;
@@ -324,7 +373,7 @@ class AdminRequestController extends Controller
                     'additional_stops' => $request->stops->count(),
                     'is_price_quoted' => true,
                 ]);
-                
+
                 // Refresh the request to get updated values
                 $request->refresh();
             }
@@ -356,21 +405,39 @@ class AdminRequestController extends Controller
                 'acceptance_deadline' => $quote->valid_until,
             ]);
 
-            // Create notification for courier
-            Notification::create([
-                'user_id' => $validated['courier_id'],
-                'request_id' => $request->id,
-                'type' => 'quote_received',
-                'title' => 'New Price Quote Received',
-                'message' => "You have received a price quote for request #{$request->request_number}",
-                'data' => json_encode([
+            // Create notification for courier using the trait
+            $this->notifyCourier(
+                $validated['courier_id'],
+                'quote_received',
+                'New Price Quote Received',
+                "You have received a price quote for request #{$request->request_number}",
+                $request->id,
+                [
                     'request_id' => $request->id,
                     'request_number' => $request->request_number,
                     'quote_id' => $quote->id,
                     'courier_fee' => $quote->courier_fee,
                     'total_price' => $quote->total_price,
-                ]),
-            ]);
+                    'valid_until' => $quote->valid_until->toDateTimeString(),
+                    'created_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+                ]
+            );
+
+            // Notify admins about the quote creation
+            $this->notifyAdmins(
+                'quote_created',
+                'New Quote Created',
+                "A new price quote has been created for request #{$request->request_number}",
+                $request->id,
+                [
+                    'request_id' => $request->id,
+                    'request_number' => $request->request_number,
+                    'quote_id' => $quote->id,
+                    'courier_id' => $validated['courier_id'],
+                    'total_price' => $quote->total_price,
+                    'created_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+                ]
+            );
 
             // Handle AJAX response
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -417,13 +484,13 @@ class AdminRequestController extends Controller
                 $basePrice = 50.00;
                 $distanceCharge = $distanceMiles > 15 ? ($distanceMiles - 15) * 2.00 : 0.00;
                 $statUrgentCharge = $request->priority_level == 'stat' ? 20.00 : 0.00;
-                
+
                 $pickupTime = $request->scheduled_pickup_time;
                 $nightHoursCharge = ($pickupTime && $pickupTime->hour >= 18) ? 25.00 : 0.00;
                 $weekendCharge = ($pickupTime && in_array($pickupTime->dayOfWeek, [0, 6])) ? $basePrice * 0.35 : 0.00;
                 $coldChainCharge = in_array($request->temperature_requirement, ['cold', 'frozen']) ? 7.00 : 0.00;
                 $additionalStopCharge = $request->stops->count() * 10.00;
-                
+
                 $totalPrice = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge +
                     $weekendCharge + $coldChainCharge + $additionalStopCharge;
                 $courierFee = $totalPrice * 0.70;
@@ -450,11 +517,11 @@ class AdminRequestController extends Controller
                     'additional_stops' => $request->stops->count(),
                     'is_price_quoted' => true,
                 ]);
-                
+
                 // Refresh the request to get updated values
                 $request->refresh();
             }
-            
+
             $courierFee = $request->courier_fee;
             $totalPrice = $request->total_price;
 
@@ -489,22 +556,56 @@ class AdminRequestController extends Controller
                 'status' => 'pending_courier_acceptance', // New status
             ]);
 
-            // Create notification for courier
-            Notification::create([
-                'user_id' => $validated['courier_id'],
-                'request_id' => $request->id,
-                'type' => 'request_assigned_with_quote',
-                'title' => 'New Assignment with Price Quote',
-                'message' => "You have been assigned to request #{$request->request_number} with a price quote",
-                'data' => json_encode([
+            // Create notification for courier using the trait
+            $this->notifyCourier(
+                $validated['courier_id'],
+                'request_assigned_with_quote',
+                'New Assignment with Price Quote',
+                "You have been assigned to request #{$request->request_number} with a price quote",
+                $request->id,
+                [
                     'request_id' => $request->id,
                     'request_number' => $request->request_number,
                     'quote_id' => $quote->id,
                     'courier_fee' => $quote->courier_fee,
                     'total_price' => $quote->total_price,
                     'deadline' => $quote->valid_until->format('Y-m-d H:i:s'),
-                ]),
-            ]);
+                    'assigned_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+                ]
+            );
+
+            // Notify client about the assignment (if client exists)
+            if ($request->client_id) {
+                $this->notifyClient(
+                    $request->client_id,
+                    'request_assigned',
+                    'Request Assigned to Courier',
+                    "Your request #{$request->request_number} has been assigned to a courier and is awaiting acceptance",
+                    $request->id,
+                    [
+                        'request_id' => $request->id,
+                        'request_number' => $request->request_number,
+                        'status' => 'pending_courier_acceptance',
+                        'assigned_at' => now()->toDateTimeString()
+                    ]
+                );
+            }
+
+            // Notify admins about the assignment with quote
+            $this->notifyAdmins(
+                'request_assigned_with_quote',
+                'Request Assigned with Quote',
+                "Request #{$request->request_number} has been assigned to a courier with a price quote",
+                $request->id,
+                [
+                    'request_id' => $request->id,
+                    'request_number' => $request->request_number,
+                    'courier_id' => $validated['courier_id'],
+                    'quote_id' => $quote->id,
+                    'total_price' => $quote->total_price,
+                    'assigned_by' => auth()->user()->full_name ?? auth()->user()->first_name . ' ' . auth()->user()->last_name
+                ]
+            );
 
             // Handle AJAX response
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -536,7 +637,7 @@ class AdminRequestController extends Controller
                 ->with('error', 'Error assigning courier: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Get calculated price data (for AJAX updates without calculation)
      */
@@ -563,14 +664,14 @@ class AdminRequestController extends Controller
                 'additional_stops' => $request->additional_stops ?? 0,
                 'is_price_quoted' => $request->is_price_quoted ?? false,
             ];
-            
+
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'data' => $data
                 ]);
             }
-            
+
             return $data;
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -579,7 +680,7 @@ class AdminRequestController extends Controller
                     'message' => 'Error fetching price data: ' . $e->getMessage()
                 ], 500);
             }
-            
+
             throw $e;
         }
     }
