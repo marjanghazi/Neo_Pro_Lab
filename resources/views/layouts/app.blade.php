@@ -219,15 +219,16 @@
         <!-- Sidebar -->
         <div class="sidebar w-64 flex-shrink-0 hidden md:block">
             <div class="p-6">
-                <div class="flex items-center space-x-3 mb-8">
-                    <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                        <div class="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center">
+                <!-- Updated: Larger logo for desktop -->
+                <div class="flex items-center space-x-4 mb-10">
+                    <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center">
+                        <div class="h-14 w-14 flex items-center justify-center">
                             <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
                         </div>
                     </div>
                     <div>
-                        <span class="font-bold text-lg">NeoProLab</span>
-                        <span class="text-xs text-gray-300 block -mt-1">Courier System</span>
+                        <span class="font-bold text-xl">NeoProLab</span>
+                        <span class="text-xs text-gray-300 block">Courier System</span>
                     </div>
                 </div>
 
@@ -259,14 +260,15 @@
         <!-- Mobile Sidebar -->
         <div id="mobile-sidebar" class="sidebar fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full transition-transform md:hidden">
             <div class="p-6">
+                <!-- Updated: Larger logo for mobile -->
                 <div class="flex items-center justify-between mb-8">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                            <div class="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center">
+                        <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
+                            <div class="h-10 w-10 flex items-center justify-center">
                                 <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
                             </div>
                         </div>
-                        <span class="font-bold">NeoProLab</span>
+                        <span class="font-bold text-lg">NeoProLab</span>
                     </div>
                     <button onclick="closeMobileSidebar()" class="text-white">
                         <i class="fas fa-times"></i>
