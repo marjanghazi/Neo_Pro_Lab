@@ -17,8 +17,8 @@
         --success-light: #D1FAE5;
         --warning: #F59E0B;
         --warning-light: #FEF3C7;
-        --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         --shadow-lg: 0 10px 40px -3px rgba(10, 147, 150, 0.2);
         --transition: all 0.2s ease;
     }
@@ -94,7 +94,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+        background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
         pointer-events: none;
     }
 
@@ -250,17 +250,39 @@
         background-color: var(--success-light);
     }
 
+    /* Alternative style - more prominent */
     .toggle-password {
         position: absolute;
         right: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        background: none;
-        border: none;
+        background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+        border: 2px solid var(--white);
+        border-radius: 50%;
         cursor: pointer;
-        padding: 0;
-        color: var(--gray);
+        padding: 0.5rem;
+        color: var(--white);
         transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+
+    .toggle-password:hover {
+        transform: translateY(-50%) scale(1.15);
+        box-shadow: 0 4px 12px rgba(10, 147, 150, 0.4);
+    }
+
+    .toggle-password svg {
+        width: 22px;
+        height: 22px;
+        stroke: var(--white);
+        stroke-width: 2.5;
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
     }
 
     .toggle-password:hover {
@@ -373,7 +395,7 @@
     .file-name {
         margin-top: 0.75rem;
         padding: 0.5rem;
-        background: rgba(255,255,255,0.8);
+        background: rgba(255, 255, 255, 0.8);
         border-radius: 8px;
         font-size: 0.9rem;
         color: var(--teal-dark);
@@ -496,7 +518,7 @@
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.5s ease;
     }
 
@@ -609,6 +631,7 @@
             opacity: 0;
             transform: translateY(-10px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -616,8 +639,15 @@
     }
 
     @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
     }
 
     /* Responsive design */
@@ -647,7 +677,7 @@
             <div class="auth-logo">
                 <div class="auth-logo-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                     </svg>
                 </div>
                 <div class="auth-logo-text">NeoProLab</div>
@@ -658,18 +688,18 @@
 
         <div class="auth-body">
             @if ($errors->any())
-                <div class="alert alert-error">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
+            <div class="alert alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <ul>
+                    @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
             @endif
 
             <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" id="registrationForm">
@@ -679,48 +709,48 @@
                     <div class="form-group">
                         <label for="first_name">
                             <svg viewBox="0 0 24 24">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
                             </svg>
                             First Name <span class="required-star">*</span>
                         </label>
                         <div class="input-wrapper {{ $errors->has('first_name') ? 'error' : '' }}">
-                            <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" 
-                                   placeholder="Enter your first name" required>
+                            <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}"
+                                placeholder="Enter your first name" required>
                         </div>
                         @error('first_name')
-                            <span class="error-message">
-                                <svg viewBox="0 0 24 24">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <line x1="12" y1="8" x2="12" y2="12"/>
-                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                                </svg>
-                                {{ $message }}
-                            </span>
+                        <span class="error-message">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {{ $message }}
+                        </span>
                         @enderror
                     </div>
 
                     <div class="form-group">
                         <label for="last_name">
                             <svg viewBox="0 0 24 24">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
                             </svg>
                             Last Name <span class="required-star">*</span>
                         </label>
                         <div class="input-wrapper {{ $errors->has('last_name') ? 'error' : '' }}">
-                            <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" 
-                                   placeholder="Enter your last name" required>
+                            <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}"
+                                placeholder="Enter your last name" required>
                         </div>
                         @error('last_name')
-                            <span class="error-message">
-                                <svg viewBox="0 0 24 24">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <line x1="12" y1="8" x2="12" y2="12"/>
-                                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                                </svg>
-                                {{ $message }}
-                            </span>
+                        <span class="error-message">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            {{ $message }}
+                        </span>
                         @enderror
                     </div>
                 </div>
@@ -728,56 +758,56 @@
                 <div class="form-group">
                     <label for="email">
                         <svg viewBox="0 0 24 24">
-                            <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z"/>
-                            <polyline points="22,6 12,13 2,6"/>
+                            <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" />
+                            <polyline points="22,6 12,13 2,6" />
                         </svg>
                         Email Address <span class="required-star">*</span>
                     </label>
                     <div class="input-wrapper {{ $errors->has('email') ? 'error' : '' }}">
-                        <input type="email" id="email" name="email" value="{{ old('email', $email ?? '') }}" 
-                               placeholder="Enter your email address" required autocomplete="email">
+                        <input type="email" id="email" name="email" value="{{ old('email', $email ?? '') }}"
+                            placeholder="Enter your email address" required autocomplete="email">
                     </div>
                     @error('email')
-                        <span class="error-message">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            {{ $message }}
-                        </span>
+                    <span class="error-message">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        {{ $message }}
+                    </span>
                     @enderror
                 </div>
 
                 <div class="form-group">
                     <label for="phone">
                         <svg viewBox="0 0 24 24">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                            <line x1="12" y1="18" x2="12.01" y2="18" />
                         </svg>
                         Phone Number <span class="required-star">*</span>
                     </label>
                     <div class="input-wrapper {{ $errors->has('phone') ? 'error' : '' }}">
-                        <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" 
-                               placeholder="Enter your phone number" required>
+                        <input type="tel" id="phone" name="phone" value="{{ old('phone') }}"
+                            placeholder="Enter your phone number" required>
                     </div>
                     @error('phone')
-                        <span class="error-message">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            {{ $message }}
-                        </span>
+                    <span class="error-message">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        {{ $message }}
+                    </span>
                     @enderror
                 </div>
 
                 <div class="form-group">
                     <label for="role">
                         <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="8" r="4"/>
-                            <path d="M5.5 20v-2a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v2"/>
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M5.5 20v-2a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v2" />
                         </svg>
                         I am a <span class="required-star">*</span>
                     </label>
@@ -789,14 +819,14 @@
                         </select>
                     </div>
                     @error('role')
-                        <span class="error-message">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            {{ $message }}
-                        </span>
+                    <span class="error-message">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        {{ $message }}
+                    </span>
                     @enderror
                 </div>
 
@@ -805,11 +835,11 @@
                     <div class="document-section">
                         <h3>
                             <svg viewBox="0 0 24 24">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                                <polyline points="10 9 9 9 8 9"/>
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
                             </svg>
                             Required Documents for Courier Verification
                         </h3>
@@ -829,9 +859,9 @@
                         <div class="form-group">
                             <label>1. Profile Picture <span class="required-star">*</span></label>
                             <div class="file-upload-area" id="profileArea" onclick="document.getElementById('profile_image').click()">
-                                <input type="file" id="profile_image" name="profile_image" 
-                                       accept="image/jpeg,image/png" 
-                                       onchange="handleFileSelect(this, 'profile_file_name', 'profileArea')">
+                                <input type="file" id="profile_image" name="profile_image"
+                                    accept="image/jpeg,image/png"
+                                    onchange="handleFileSelect(this, 'profile_file_name', 'profileArea')">
                                 <div class="file-upload-label">
                                     <span class="upload-icon">📸</span>
                                     <span class="upload-text">Click to upload your profile picture</span>
@@ -840,7 +870,7 @@
                                 <div id="profile_file_name" class="file-name"></div>
                             </div>
                             @error('profile_image')
-                                <span class="error-message">{{ $message }}</span>
+                            <span class="error-message">{{ $message }}</span>
                             @enderror
                         </div>
 
@@ -848,9 +878,9 @@
                         <div class="form-group">
                             <label>2. Government Issue ID <span class="required-star">*</span></label>
                             <div class="file-upload-area" id="govtIdArea" onclick="document.getElementById('government_id').click()">
-                                <input type="file" id="government_id" name="government_id" 
-                                       accept="image/jpeg,image/png,application/pdf" 
-                                       onchange="handleFileSelect(this, 'govt_id_file_name', 'govtIdArea')">
+                                <input type="file" id="government_id" name="government_id"
+                                    accept="image/jpeg,image/png,application/pdf"
+                                    onchange="handleFileSelect(this, 'govt_id_file_name', 'govtIdArea')">
                                 <div class="file-upload-label">
                                     <span class="upload-icon">🪪</span>
                                     <span class="upload-text">Click to upload your ID</span>
@@ -859,7 +889,7 @@
                                 <div id="govt_id_file_name" class="file-name"></div>
                             </div>
                             @error('government_id')
-                                <span class="error-message">{{ $message }}</span>
+                            <span class="error-message">{{ $message }}</span>
                             @enderror
                         </div>
 
@@ -867,9 +897,9 @@
                         <div class="form-group">
                             <label>3. Proof of Residency <span class="required-star">*</span></label>
                             <div class="file-upload-area" id="residencyArea" onclick="document.getElementById('proof_of_residency').click()">
-                                <input type="file" id="proof_of_residency" name="proof_of_residency" 
-                                       accept="image/jpeg,image/png,application/pdf" 
-                                       onchange="handleFileSelect(this, 'residency_file_name', 'residencyArea')">
+                                <input type="file" id="proof_of_residency" name="proof_of_residency"
+                                    accept="image/jpeg,image/png,application/pdf"
+                                    onchange="handleFileSelect(this, 'residency_file_name', 'residencyArea')">
                                 <div class="file-upload-label">
                                     <span class="upload-icon">🏠</span>
                                     <span class="upload-text">Click to upload proof of address</span>
@@ -878,7 +908,7 @@
                                 <div id="residency_file_name" class="file-name"></div>
                             </div>
                             @error('proof_of_residency')
-                                <span class="error-message">{{ $message }}</span>
+                            <span class="error-message">{{ $message }}</span>
                             @enderror
                         </div>
 
@@ -886,9 +916,9 @@
                         <div class="form-group">
                             <label>4. Driver's License <span class="required-star">*</span></label>
                             <div class="file-upload-area" id="licenseArea" onclick="document.getElementById('drivers_license').click()">
-                                <input type="file" id="drivers_license" name="drivers_license" 
-                                       accept="image/jpeg,image/png,application/pdf" 
-                                       onchange="handleFileSelect(this, 'license_file_name', 'licenseArea')">
+                                <input type="file" id="drivers_license" name="drivers_license"
+                                    accept="image/jpeg,image/png,application/pdf"
+                                    onchange="handleFileSelect(this, 'license_file_name', 'licenseArea')">
                                 <div class="file-upload-label">
                                     <span class="upload-icon">🚗</span>
                                     <span class="upload-text">Click to upload your driver's license</span>
@@ -897,7 +927,7 @@
                                 <div id="license_file_name" class="file-name"></div>
                             </div>
                             @error('drivers_license')
-                                <span class="error-message">{{ $message }}</span>
+                            <span class="error-message">{{ $message }}</span>
                             @enderror
                         </div>
 
@@ -905,9 +935,9 @@
                         <div class="form-group">
                             <label>5. Medical Transport Certificate</label>
                             <div class="file-upload-area" id="certArea" onclick="document.getElementById('medical_transport_cert').click()">
-                                <input type="file" id="medical_transport_cert" name="medical_transport_cert" 
-                                       accept="image/jpeg,image/png,application/pdf" 
-                                       onchange="handleFileSelect(this, 'cert_file_name', 'certArea')">
+                                <input type="file" id="medical_transport_cert" name="medical_transport_cert"
+                                    accept="image/jpeg,image/png,application/pdf"
+                                    onchange="handleFileSelect(this, 'cert_file_name', 'certArea')">
                                 <div class="file-upload-label">
                                     <span class="upload-icon">🏥</span>
                                     <span class="upload-text">Click to upload your certification</span>
@@ -916,13 +946,13 @@
                                 <div id="cert_file_name" class="file-name"></div>
                             </div>
                             @error('medical_transport_cert')
-                                <span class="error-message">{{ $message }}</span>
+                            <span class="error-message">{{ $message }}</span>
                             @enderror
                             <div class="document-hint">
                                 <svg viewBox="0 0 24 24">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <line x1="12" y1="12" x2="12" y2="16"/>
-                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="12" x2="12" y2="16" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
                                 </svg>
                                 If you don't have this yet, you can upload it later. Your account will be pending until verified.
                             </div>
@@ -934,19 +964,19 @@
                     <div class="form-group">
                         <label for="password">
                             <svg viewBox="0 0 24 24">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                             </svg>
                             Password <span class="required-star">*</span>
                         </label>
                         <div class="input-wrapper {{ $errors->has('password') ? 'error' : '' }}">
-                            <input type="password" id="password" name="password" 
-                                   placeholder="Create a password" required
-                                   oninput="checkPasswordStrength(this.value)">
+                            <input type="password" id="password" name="password"
+                                placeholder="Create a password" required
+                                oninput="checkPasswordStrength(this.value)">
                             <button type="button" class="toggle-password" onclick="togglePassword('password')" aria-label="Toggle password visibility">
                                 <svg viewBox="0 0 24 24" width="20" height="20">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
                                 </svg>
                             </button>
                         </div>
@@ -958,27 +988,27 @@
                         </div>
                         <div id="strengthText" class="strength-text">Enter a password</div>
                         @error('password')
-                            <span class="error-message">{{ $message }}</span>
+                        <span class="error-message">{{ $message }}</span>
                         @enderror
                     </div>
 
                     <div class="form-group">
                         <label for="password_confirmation">
                             <svg viewBox="0 0 24 24">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                                <polyline points="12 15 12 18"/>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                <polyline points="12 15 12 18" />
                             </svg>
                             Confirm Password <span class="required-star">*</span>
                         </label>
                         <div class="input-wrapper">
-                            <input type="password" id="password_confirmation" name="password_confirmation" 
-                                   placeholder="Confirm your password" required
-                                   oninput="validatePasswordMatch(this.value)">
+                            <input type="password" id="password_confirmation" name="password_confirmation"
+                                placeholder="Confirm your password" required
+                                oninput="validatePasswordMatch(this.value)">
                             <button type="button" class="toggle-password" onclick="togglePassword('password_confirmation')" aria-label="Toggle password visibility">
                                 <svg viewBox="0 0 24 24" width="20" height="20">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
                                 </svg>
                             </button>
                         </div>
@@ -988,9 +1018,9 @@
 
                 <button type="submit" class="auth-btn" id="submitBtn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                        <line x1="17" y1="11" x2="22" y2="11"/>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                        <line x1="17" y1="11" x2="22" y2="11" />
                     </svg>
                     Create Account
                 </button>
@@ -1010,7 +1040,7 @@
         const passwordInput = document.getElementById(fieldId);
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
-        
+
         // Update button icon
         const button = passwordInput.parentElement.querySelector('.toggle-password svg');
         if (type === 'text') {
@@ -1024,30 +1054,30 @@
     function checkPasswordStrength(password) {
         const strengthBars = document.querySelectorAll('#passwordStrength .strength-bar');
         const strengthText = document.getElementById('strengthText');
-        
+
         // Reset bars
         strengthBars.forEach(bar => {
             bar.className = 'strength-bar';
         });
-        
+
         if (!password) {
             strengthText.textContent = 'Enter a password';
             return;
         }
-        
+
         let strength = 0;
-        
+
         // Check length
         if (password.length >= 8) strength++;
         if (password.length >= 12) strength++;
-        
+
         // Check for mixed case
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-        
+
         // Check for numbers and special characters
         if (/[0-9]/.test(password)) strength++;
         if (/[^a-zA-Z0-9]/.test(password)) strength++;
-        
+
         // Update bars
         for (let i = 0; i < Math.min(strength, 4); i++) {
             if (strength <= 2) {
@@ -1058,7 +1088,7 @@
                 strengthBars[i].classList.add('strong');
             }
         }
-        
+
         // Update text
         if (strength <= 2) {
             strengthText.textContent = 'Weak password';
@@ -1076,12 +1106,12 @@
     function validatePasswordMatch(confirmPassword) {
         const password = document.getElementById('password').value;
         const messageEl = document.getElementById('passwordMatchMessage');
-        
+
         if (!confirmPassword) {
             messageEl.textContent = '';
             return;
         }
-        
+
         if (password === confirmPassword) {
             messageEl.textContent = '✓ Passwords match';
             messageEl.style.color = 'var(--success)';
@@ -1095,7 +1125,7 @@
     function toggleCourierFields(role) {
         const courierFields = document.getElementById('courierFields');
         const fileInputs = document.querySelectorAll('#courierFields input[type="file"]:not(#medical_transport_cert)');
-        
+
         if (role === 'courier') {
             courierFields.classList.add('visible');
             // Make required file inputs mandatory
@@ -1116,10 +1146,10 @@
     function handleFileSelect(input, displayElementId, areaId) {
         const displayElement = document.getElementById(displayElementId);
         const area = document.getElementById(areaId);
-        
+
         if (input.files && input.files[0]) {
             const file = input.files[0];
-            
+
             // Validate file size (5MB limit)
             if (file.size > 5 * 1024 * 1024) {
                 alert('File size must be less than 5MB');
@@ -1128,7 +1158,7 @@
                 area.classList.remove('has-file');
                 return;
             }
-            
+
             // Validate file type
             const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
             if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|pdf)$/i)) {
@@ -1138,7 +1168,7 @@
                 area.classList.remove('has-file');
                 return;
             }
-            
+
             // Display selected file name with remove option
             displayElement.innerHTML = `
                 <svg viewBox="0 0 24 24" width="16" height="16">
@@ -1158,7 +1188,7 @@
             displayElement.innerHTML = '';
             area.classList.remove('has-file');
         }
-        
+
         updateDocumentProgress();
     }
 
@@ -1167,11 +1197,11 @@
         const input = document.getElementById(inputId);
         const displayElement = document.getElementById(displayElementId);
         const area = document.getElementById(areaId);
-        
+
         input.value = '';
         displayElement.innerHTML = '';
         area.classList.remove('has-file');
-        
+
         updateDocumentProgress();
     }
 
@@ -1179,7 +1209,7 @@
     function updateDocumentProgress() {
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
-        
+
         const fileInputs = [
             'profile_image',
             'government_id',
@@ -1187,7 +1217,7 @@
             'drivers_license',
             'medical_transport_cert'
         ];
-        
+
         let uploaded = 0;
         fileInputs.forEach(inputId => {
             const input = document.getElementById(inputId);
@@ -1195,7 +1225,7 @@
                 uploaded++;
             }
         });
-        
+
         const percentage = (uploaded / 5) * 100;
         progressFill.style.width = percentage + '%';
         progressText.textContent = `${uploaded} of 5 documents uploaded`;
@@ -1204,11 +1234,11 @@
     // Form validation before submit
     document.getElementById('registrationForm').addEventListener('submit', function(e) {
         const role = document.getElementById('role').value;
-        
+
         if (role === 'courier') {
             const requiredFiles = ['profile_image', 'government_id', 'proof_of_residency', 'drivers_license'];
             let missingFiles = [];
-            
+
             requiredFiles.forEach(fileId => {
                 const input = document.getElementById(fileId);
                 if (!input.files || input.files.length === 0) {
@@ -1221,17 +1251,17 @@
                     missingFiles.push(labels[fileId]);
                 }
             });
-            
+
             if (missingFiles.length > 0) {
                 e.preventDefault();
                 alert('Please upload all required documents:\n• ' + missingFiles.join('\n• '));
             }
         }
-        
+
         // Validate password match
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('password_confirmation').value;
-        
+
         if (password !== confirmPassword) {
             e.preventDefault();
             alert('Passwords do not match. Please try again.');
@@ -1244,7 +1274,7 @@
         if (role === 'courier') {
             toggleCourierFields('courier');
         }
-        
+
         // Initialize password strength if password exists
         const password = document.getElementById('password').value;
         if (password) {
@@ -1256,7 +1286,7 @@
     document.getElementById('email').addEventListener('blur', function() {
         const email = this.value;
         const wrapper = this.closest('.input-wrapper');
-        
+
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             wrapper.classList.add('error');
             if (!wrapper.parentElement.querySelector('.error-message')) {
@@ -1285,7 +1315,7 @@
     document.getElementById('phone').addEventListener('blur', function() {
         const phone = this.value;
         const wrapper = this.closest('.input-wrapper');
-        
+
         if (phone && !/^[\d\s\+\-\(\)]{10,}$/.test(phone)) {
             wrapper.classList.add('error');
             if (!wrapper.parentElement.querySelector('.error-message')) {

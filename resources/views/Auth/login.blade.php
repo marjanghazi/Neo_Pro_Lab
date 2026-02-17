@@ -15,8 +15,8 @@
         --danger-light: #FEE2E2;
         --success: #10B981;
         --success-light: #D1FAE5;
-        --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         --shadow-lg: 0 10px 40px -3px rgba(10, 147, 150, 0.2);
         --transition: all 0.2s ease;
     }
@@ -92,7 +92,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+        background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
         pointer-events: none;
     }
 
@@ -217,17 +217,39 @@
         background-color: var(--success-light);
     }
 
+    /* Alternative style - more prominent */
     .toggle-password {
         position: absolute;
         right: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        background: none;
-        border: none;
+        background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+        border: 2px solid var(--white);
+        border-radius: 50%;
         cursor: pointer;
-        padding: 0;
-        color: var(--gray);
+        padding: 0.5rem;
+        color: var(--white);
         transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+    }
+
+    .toggle-password:hover {
+        transform: translateY(-50%) scale(1.15);
+        box-shadow: 0 4px 12px rgba(10, 147, 150, 0.4);
+    }
+
+    .toggle-password svg {
+        width: 22px;
+        height: 22px;
+        stroke: var(--white);
+        stroke-width: 2.5;
+        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
     }
 
     .toggle-password:hover {
@@ -319,7 +341,7 @@
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 0.5s ease;
     }
 
@@ -395,6 +417,7 @@
             opacity: 0;
             transform: translateY(-10px);
         }
+
         to {
             opacity: 1;
             transform: translateY(0);
@@ -428,7 +451,7 @@
             <div class="auth-logo">
                 <div class="auth-logo-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                     </svg>
                 </div>
                 <div class="auth-logo-text">NeoProLab</div>
@@ -439,28 +462,28 @@
 
         <div class="auth-body">
             @if (session('status'))
-                <div class="alert alert-success">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M8 12L11 15L16 9"/>
-                    </svg>
-                    {{ session('status') }}
-                </div>
+            <div class="alert alert-success">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 12L11 15L16 9" />
+                </svg>
+                {{ session('status') }}
+            </div>
             @endif
 
             @if ($errors->any())
-                <div class="alert alert-error">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
+            <div class="alert alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <ul>
+                    @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
             @endif
 
             <form method="POST" action="{{ route('login') }}" id="loginForm">
@@ -469,69 +492,67 @@
                 <div class="form-group">
                     <label for="email">
                         <svg viewBox="0 0 24 24">
-                            <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z"/>
-                            <polyline points="22,6 12,13 2,6"/>
+                            <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" />
+                            <polyline points="22,6 12,13 2,6" />
                         </svg>
                         Email Address
                     </label>
                     <div class="input-wrapper {{ $errors->has('email') ? 'error' : '' }}">
-                        <input 
-                            type="email" 
-                            id="email" 
-                            name="email" 
-                            value="{{ old('email') }}" 
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value="{{ old('email') }}"
                             placeholder="Enter your email"
-                            required 
+                            required
                             autofocus
-                            autocomplete="email"
-                        >
+                            autocomplete="email">
                     </div>
                     @error('email')
-                        <span class="error-message">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            {{ $message }}
-                        </span>
+                    <span class="error-message">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        {{ $message }}
+                    </span>
                     @enderror
                 </div>
 
                 <div class="form-group">
                     <label for="password">
                         <svg viewBox="0 0 24 24">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
                         Password
                     </label>
                     <div class="input-wrapper {{ $errors->has('password') ? 'error' : '' }}">
-                        <input 
-                            type="password" 
-                            id="password" 
-                            name="password" 
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
                             placeholder="Enter your password"
                             required
-                            autocomplete="current-password"
-                        >
+                            autocomplete="current-password">
                         <button type="button" class="toggle-password" onclick="togglePassword()" aria-label="Toggle password visibility">
                             <svg viewBox="0 0 24 24" width="20" height="20">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
                             </svg>
                         </button>
                     </div>
                     @error('password')
-                        <span class="error-message">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            {{ $message }}
-                        </span>
+                    <span class="error-message">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        {{ $message }}
+                    </span>
                     @enderror
                 </div>
 
@@ -541,23 +562,23 @@
                         <span>Remember me</span>
                     </label>
                     @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}" class="forgot-password">
-                            Forgot your password?
-                        </a>
+                    <a href="{{ route('password.request') }}" class="forgot-password">
+                        Forgot your password?
+                    </a>
                     @endif
                 </div>
 
                 <button type="submit" class="auth-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
-                        <polyline points="10 17 15 12 10 7"/>
-                        <line x1="15" y1="12" x2="3" y2="12"/>
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                        <polyline points="10 17 15 12 10 7" />
+                        <line x1="15" y1="12" x2="3" y2="12" />
                     </svg>
                     Sign In
                 </button>
 
                 <div class="auth-footer">
-                    Don't have an account? 
+                    Don't have an account?
                     <a href="{{ route('register') }}">Create an account</a>
                 </div>
             </form>
@@ -571,7 +592,7 @@
         const passwordInput = document.getElementById('password');
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
-        
+
         // Update button icon
         const button = document.querySelector('.toggle-password svg');
         if (type === 'text') {
@@ -585,7 +606,7 @@
     document.getElementById('loginForm').addEventListener('submit', function(e) {
         const email = document.getElementById('email');
         const password = document.getElementById('password');
-        
+
         if (!email.value.trim()) {
             e.preventDefault();
             showError(email, 'Email is required');
@@ -593,7 +614,7 @@
             e.preventDefault();
             showError(email, 'Please enter a valid email address');
         }
-        
+
         if (!password.value) {
             e.preventDefault();
             showError(password, 'Password is required');
@@ -607,7 +628,7 @@
     function showError(input, message) {
         const wrapper = input.closest('.input-wrapper');
         const existingError = wrapper.parentElement.querySelector('.error-message');
-        
+
         if (!existingError) {
             const error = document.createElement('span');
             error.className = 'error-message';
@@ -621,9 +642,9 @@
             `;
             wrapper.parentElement.appendChild(error);
         }
-        
+
         wrapper.classList.add('error');
-        
+
         // Remove error after 3 seconds
         setTimeout(() => {
             wrapper.classList.remove('error');
