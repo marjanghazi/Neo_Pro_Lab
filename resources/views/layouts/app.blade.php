@@ -156,6 +156,8 @@
             border-bottom: 1px solid rgba(226, 232, 240, 0.6);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
             flex-shrink: 0;
+            position: relative;
+            z-index: 45;
         }
 
         /* Content Area */
@@ -415,6 +417,115 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+
+        /* Dropdown Styles */
+        .dropdown-container {
+            position: relative;
+        }
+
+        /* Notification Dropdown */
+        .notification-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 380px;
+            max-width: 90vw;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            margin-top: 12px;
+            overflow: hidden;
+            z-index: 9999;
+            transform-origin: top right;
+            animation: dropdownFade 0.2s ease-out;
+        }
+
+        .notification-item {
+            padding: 16px;
+            border-bottom: 1px solid #F1F5F9;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: white;
+        }
+
+        .notification-item:hover {
+            background: #F8FAFC;
+            transform: translateX(2px);
+        }
+
+        .notification-item.unread {
+            background: #F0FDF9;
+            position: relative;
+        }
+
+        .notification-item.unread::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--teal);
+            border-radius: 3px 0 0 3px;
+        }
+
+        /* User Menu Dropdown */
+        .user-menu-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 260px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            margin-top: 12px;
+            overflow: hidden;
+            z-index: 9999;
+            transform-origin: top right;
+            animation: dropdownFade 0.2s ease-out;
+        }
+
+        .user-menu-item {
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #1E293B;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            background: white;
+        }
+
+        .user-menu-item:hover {
+            background: #F8FAFC;
+            padding-left: 22px;
+        }
+
+        .user-menu-item i {
+            width: 20px;
+            color: var(--gray);
+            font-size: 1rem;
+        }
+
+        .user-menu-item.text-red-600 i {
+            color: var(--danger);
+        }
+
+        @keyframes dropdownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        [x-cloak] { display: none !important; }
     </style>
 
     @stack('styles')
@@ -530,17 +641,85 @@
 
                     <div class="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
                         <!-- Notifications -->
-                        <div class="relative" x-data="{ open: false, notifications: [], unreadCount: 0 }" x-init="fetchNotifications(); setInterval(() => fetchNotifications(), 30000)" @click.away="open = false">
+                        <div class="dropdown-container" x-data="{ 
+                            open: false, 
+                            notifications: [], 
+                            unreadCount: 0,
+                            loading: false,
+                            fetchNotifications() {
+                                this.loading = true;
+                                fetch('/notifications')
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        this.notifications = data.notifications;
+                                        this.unreadCount = data.unread_count;
+                                    })
+                                    .catch(error => console.error('Error fetching notifications:', error))
+                                    .finally(() => this.loading = false);
+                            },
+                            markAsRead(id) {
+                                fetch(`/notifications/${id}/read`, { method: 'POST' })
+                                    .then(() => {
+                                        this.fetchNotifications();
+                                    })
+                                    .catch(error => console.error('Error marking notification as read:', error));
+                            },
+                            markAllAsRead() {
+                                fetch('/notifications/read-all', { method: 'POST' })
+                                    .then(() => {
+                                        this.fetchNotifications();
+                                    })
+                                    .catch(error => console.error('Error marking all notifications as read:', error));
+                            }
+                        }" x-init="fetchNotifications(); setInterval(() => fetchNotifications(), 30000)" @click.away="open = false">
                             <button @click="open = !open" class="relative w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
                                 <i class="fas fa-bell text-base md:text-lg"></i>
                                 <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
                             </button>
 
-                            <!-- Notifications dropdown content (keep as is from your original) -->
+                            <!-- Notifications dropdown -->
+                            <div x-show="open" class="notification-dropdown" x-cloak @click.stop>
+                                <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                                    <h3 class="font-semibold text-gray-800">Notifications</h3>
+                                    <button x-show="unreadCount > 0" @click="markAllAsRead" class="text-xs text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                                        Mark all as read
+                                    </button>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <template x-if="loading">
+                                        <div class="flex items-center justify-center py-8">
+                                            <i class="fas fa-spinner fa-spin text-teal-500 text-xl"></i>
+                                        </div>
+                                    </template>
+                                    <template x-if="!loading && notifications.length === 0">
+                                        <div class="text-center py-8 px-4">
+                                            <i class="far fa-bell-slash text-4xl text-gray-300 mb-3"></i>
+                                            <p class="text-gray-500 text-sm">No notifications</p>
+                                        </div>
+                                    </template>
+                                    <template x-for="notification in notifications" :key="notification.id">
+                                        <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
+                                            <div class="flex items-start gap-3">
+                                                <i :class="notification.data.icon || 'fas fa-info-circle'" class="text-teal-500 mt-1"></i>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm text-gray-800" x-text="notification.data.message"></p>
+                                                    <p class="text-xs text-gray-500 mt-1" x-text="new Date(notification.created_at).toLocaleString()"></p>
+                                                </div>
+                                                <span x-show="!notification.read_at" class="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0 mt-2"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="border-t border-gray-200 p-3 text-center bg-gray-50">
+                                    <a href="/notifications" class="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                                        View all notifications
+                                    </a>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- User Menu -->
-                        <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                        <div class="dropdown-container" x-data="{ open: false }" @click.away="open = false">
                             <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none p-1.5 md:p-2 rounded-lg hover:bg-gray-100 transition-colors">
                                 <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=32"
                                     alt="User"
@@ -548,7 +727,30 @@
                                 <i class="fas fa-chevron-down text-xs text-gray-600 hidden md:inline"></i>
                             </button>
 
-                            <!-- User menu dropdown content (keep as is from your original) -->
+                            <!-- User menu dropdown -->
+                            <div x-show="open" class="user-menu-dropdown" x-cloak @click.stop>
+                                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                                    <p class="font-semibold text-gray-800">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                                    <p class="text-xs text-gray-500 mt-1 truncate">{{ auth()->user()->email }}</p>
+                                </div>
+                                <a href="{{ route('admin.profile.index') }}" class="user-menu-item">
+                                    <i class="fas fa-user"></i>
+                                    <span>My Profile</span>
+                                </a>
+                                <a href="{{ route('admin.settings.index') }}" class="user-menu-item">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Settings</span>
+                                </a>
+                                
+                                <div class="border-t border-gray-200 my-1"></div>
+                                <form method="POST" action="{{ route('logout') }}" id="logout-form">
+                                    @csrf
+                                    <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="user-menu-item text-red-600 hover:bg-red-50">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        <span>Logout</span>
+                                    </a>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
