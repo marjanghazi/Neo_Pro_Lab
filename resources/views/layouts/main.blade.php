@@ -73,10 +73,10 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-20">
                 <!-- Logo -->
-                <div class="flex items-center space-x-2">
-                    <div class="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                        <div class="h-16 w-16 md:h-20 md:w-20 flex items-center justify-center">
-                            <img src="{{ asset('images/logo.svg') }}"
+                <div class="flex items-center space-x-3"> <!-- Increased space -->
+                    <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center"> <!-- Increased background size -->
+                        <div class="h-32 w-32 md:h-36 md:w-36 flex items-center justify-center"> <!-- Much larger -->
+                            <img src="{{ asset('images/logo.png') }}"
                                 alt="NeoPro Lab Logo"
                                 class="h-full w-full object-contain">
                         </div>
@@ -144,7 +144,7 @@
                     <div class="flex items-center space-x-2 mb-4">
                         <div class="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
                             <div class="h-16 w-16 md:h-20 md:w-20 flex items-center justify-center">
-                                <img src="{{ asset('images/logo.svg') }}"
+                                <img src="{{ asset('images/logo.png') }}"
                                     alt="NeoPro Lab Logo"
                                     class="h-full w-full object-contain">
                             </div>

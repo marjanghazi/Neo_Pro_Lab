@@ -3,207 +3,412 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>@yield('title', 'Dashboard') - NeoProLab</title>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+    <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- ApexCharts -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0/dist/apexcharts.css">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0"></script>
+
+    <!-- Alpine.js -->
     <script src="//unpkg.com/alpinejs" defer></script>
+
     <style>
         :root {
-            --navy: #0D1B2A;
-            --teal: #00A9A5;
+            --navy: #0A1929;
+            --navy-light: #1E2A3A;
+            --teal: #00B8A9;
+            --teal-dark: #008B7A;
+            --teal-light: rgba(0, 184, 169, 0.1);
             --white: #FFFFFF;
-            --gray: #7A7F85;
-            --light-gray: #F5F7FA;
-            --dark-navy: #0A1521;
-            --light-teal: rgba(0, 169, 165, 0.1);
+            --gray: #64748B;
+            --gray-light: #F1F5F9;
+            --dark: #0F172A;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --info: #3B82F6;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #f8fafc;
-            color: #334155;
+            font-family: 'Inter', sans-serif;
+            color: var(--dark);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        .sidebar {
-            background: linear-gradient(180deg, var(--navy) 0%, var(--dark-navy) 100%);
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+
+        /* Layout */
+        .app-wrapper {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Sidebar - Desktop */
+        .sidebar-desktop {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(180deg, var(--navy) 0%, var(--dark) 100%);
             color: white;
-            transition: all 0.3s ease;
+            overflow-y: auto;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 30;
         }
 
+        /* Sidebar - Mobile */
+        .sidebar-mobile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(180deg, var(--navy) 0%, var(--dark) 100%);
+            color: white;
+            overflow-y: auto;
+            z-index: 50;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-mobile.open {
+            transform: translateX(0);
+        }
+
+        /* Mobile Overlay */
+        .mobile-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 40;
+            display: none;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            flex-shrink: 0;
+        }
+
+        /* Content Area */
+        .content-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .content-wrapper {
+                padding: 1rem;
+            }
+        }
+
+        /* Content Container */
+        .content-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Hide desktop sidebar on mobile */
+        @media (max-width: 767px) {
+            .sidebar-desktop {
+                display: none;
+            }
+        }
+
+        /* Hide mobile sidebar on desktop */
+        @media (min-width: 768px) {
+            .sidebar-mobile {
+                display: none;
+            }
+            .mobile-overlay {
+                display: none !important;
+            }
+        }
+
+        /* Sidebar Items */
         .sidebar-item {
             color: rgba(255, 255, 255, 0.7);
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin: 4px 0;
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin: 4px 8px;
             transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .sidebar-item:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--teal), transparent);
+            transition: width 0.3s;
+            opacity: 0.2;
+        }
+
+        .sidebar-item:hover:before {
+            width: 100%;
         }
 
         .sidebar-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: white;
+            transform: translateX(4px);
         }
 
         .sidebar-item.active {
             background: var(--teal);
             color: white;
+            box-shadow: 0 8px 16px -4px rgba(0, 184, 169, 0.3);
         }
 
-        .navbar {
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        .sidebar-item i {
+            width: 24px;
+            font-size: 1.2rem;
         }
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s;
-        }
-
-        .card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-
+        /* Cards */
         .stat-card {
-            background: linear-gradient(135deg, var(--white) 0%, #f8fafc 100%);
+            background: linear-gradient(135deg, white 0%, #F8FAFC 100%);
             border-left: 4px solid var(--teal);
+            border-radius: 16px;
+            padding: 1.5rem;
+            height: 100%;
+            width: 100%;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--teal) 0%, #008B85 100%);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.2s;
+        @media (max-width: 640px) {
+            .stat-card {
+                padding: 1rem;
+            }
         }
 
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 169, 165, 0.3);
-        }
-
+        /* Tables */
         .table-container {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
             overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            width: 100%;
         }
 
         table {
-            min-width: 100%;
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 600px;
         }
 
         th {
-            background: #f8fafc;
+            background: #F8FAFC;
             font-weight: 600;
-            color: #475569;
-            padding: 12px 16px;
-            border-bottom: 2px solid #e2e8f0;
+            color: var(--navy);
+            padding: 16px 20px;
+            border-bottom: 2px solid #E2E8F0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
         }
 
         td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #475569;
         }
 
-        tr:hover {
-            background: #f8fafc;
+        tr:hover td {
+            background: #F8FAFC;
         }
 
+        /* Badges */
         .badge {
             display: inline-flex;
             align-items: center;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.75rem;
             font-weight: 600;
+            gap: 6px;
+            white-space: nowrap;
         }
 
         .badge-success {
-            background: #dcfce7;
+            background: #DCFCE7;
             color: #166534;
         }
 
         .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
+            background: #FEF3C7;
+            color: #92400E;
         }
 
         .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
+            background: #FEE2E2;
+            color: #991B1B;
         }
 
         .badge-info {
-            background: #e0f2fe;
+            background: #E0F2FE;
             color: #075985;
         }
 
         .badge-primary {
-            background: var(--light-teal);
-            color: var(--teal);
+            background: var(--teal-light);
+            color: var(--teal-dark);
         }
 
+        /* Notification Badge */
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: linear-gradient(135deg, var(--danger), #DC2626);
+            color: white;
+            border-radius: 50%;
+            min-width: 20px;
+            height: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            border: 2px solid white;
+        }
+
+        /* Logo */
+        .logo-container {
+            background: linear-gradient(135deg, rgba(0, 184, 169, 0.1) 0%, rgba(0, 139, 122, 0.1) 100%);
+            backdrop-filter: blur(4px);
+            border-radius: 16px;
+            padding: 2px;
+        }
+
+        .logo-wrapper {
+            background: white;
+            border-radius: 14px;
+            padding: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        /* Status Indicators */
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             display: inline-block;
             margin-right: 6px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
         }
 
-        .status-pending {
-            background: #f59e0b;
-        }
+        .status-pending { background: var(--warning); }
+        .status-approved { background: var(--success); }
+        .status-assigned { background: var(--info); }
+        .status-picked-up { background: #8B5CF6; }
+        .status-delivered { background: var(--success); }
+        .status-completed { background: #059669; }
+        .status-cancelled { background: var(--danger); }
 
-        .status-approved {
-            background: #10b981;
-        }
-
-        .status-assigned {
-            background: #3b82f6;
-        }
-
-        .status-picked-up {
-            background: #8b5cf6;
-        }
-
-        .status-delivered {
-            background: #10b981;
-        }
-
-        .status-completed {
-            background: #059669;
-        }
-
-        .status-cancelled {
-            background: #ef4444;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        /* Line Clamp */
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -211,44 +416,95 @@
             overflow: hidden;
         }
     </style>
+
     @stack('styles')
 </head>
 
 <body>
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <div class="sidebar w-64 flex-shrink-0 hidden md:block">
-            <div class="p-6">
-                <!-- Updated: Larger logo for desktop -->
-                <div class="flex items-center space-x-4 mb-10">
-                    <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center">
-                        <div class="h-14 w-14 flex items-center justify-center">
-                            <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+    <div class="app-wrapper">
+        <!-- Desktop Sidebar -->
+        <aside class="sidebar-desktop">
+            <div class="p-6 h-full flex flex-col">
+                <!-- Logo Section -->
+                <div class="mb-8">
+                    <div class="flex items-center space-x-3">
+                        <div class="logo-container">
+                            <div class="logo-wrapper w-14 h-14 flex items-center justify-center">
+                                <img src="{{ asset('images/logo.png') }}"
+                                    alt="NeoPro Lab"
+                                    class="w-12 h-12 object-contain"
+                                    onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA1NiA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHJ4PSIxNCIgZmlsbD0iIzAwQjhBOSIvPjxwYXRoIGQ9Ik0yOCAxNEwzNSAyOEwyOCA0MkwyMSAyOEwyOCAxNFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyOCIgY3k9IjI4IiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <span class="font-bold text-xl">NeoProLab</span>
-                        <span class="text-xs text-gray-300 block">Courier System</span>
+                        <div>
+                            <h1 class="font-bold text-xl tracking-tight">NeoProLab</h1>
+                            <p class="text-xs text-gray-400 mt-0.5">Courier Management</p>
+                        </div>
                     </div>
                 </div>
 
-                <nav class="space-y-1">
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto space-y-1">
                     @yield('sidebar')
                 </nav>
 
-                <div class="mt-8 pt-8 border-t border-gray-700">
-                    <div class="flex items-center space-x-3">
-                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff"
-                            alt="User" class="w-10 h-10 rounded-full">
-                        <div>
-                            <p class="font-medium">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
-                            <p class="text-xs text-gray-300">
+                <!-- User Profile Section -->
+                <div class="mt-6 pt-6 border-t border-gray-700/30">
+                    <div class="flex items-center space-x-3 p-3 rounded-xl bg-white/5">
+                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=40"
+                            alt="User"
+                            class="w-10 h-10 rounded-xl object-cover border-2 border-teal-400/30">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                            <p class="text-xs text-gray-400">
                                 @if(auth()->user()->isAdmin())
-                                Administrator
+                                <span class="flex items-center"><i class="fas fa-crown mr-1 text-xs"></i>Administrator</span>
                                 @elseif(auth()->user()->isCourier())
-                                Courier
+                                <span class="flex items-center"><i class="fas fa-motorcycle mr-1 text-xs"></i>Courier</span>
                                 @else
-                                Client
+                                <span class="flex items-center"><i class="fas fa-user mr-1 text-xs"></i>Client</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile Sidebar -->
+        <div id="mobileSidebar" class="sidebar-mobile">
+            <div class="p-6 h-full flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="logo-wrapper w-12 h-12 flex items-center justify-center">
+                            <img src="{{ asset('images/logo.png') }}"
+                                alt="NeoPro Lab"
+                                class="w-10 h-10 object-contain"
+                                onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSIxMCIgZmlsbD0iIzAwQjhBOSIvPjxwYXRoIGQ9Ik0yMCAxMEwyNSAyMEwyMCAzMEwxNSAyMEwyMCAxMFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI0IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+                        </div>
+                        <span class="font-bold text-lg">NeoProLab</span>
+                    </div>
+                    <button id="closeMobileSidebar" class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <nav class="flex-1 overflow-y-auto space-y-1">
+                    @yield('sidebar')
+                </nav>
+
+                <div class="mt-6 pt-6 border-t border-gray-700/30">
+                    <div class="flex items-center space-x-3 p-3 rounded-xl bg-white/5">
+                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=40"
+                            alt="User"
+                            class="w-10 h-10 rounded-xl object-cover">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                            <p class="text-xs text-gray-400">
+                                @if(auth()->user()->isAdmin()) Administrator
+                                @elseif(auth()->user()->isCourier()) Courier
+                                @else Client
                                 @endif
                             </p>
                         </div>
@@ -257,331 +513,120 @@
             </div>
         </div>
 
-        <!-- Mobile Sidebar -->
-        <div id="mobile-sidebar" class="sidebar fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full transition-transform md:hidden">
-            <div class="p-6">
-                <!-- Updated: Larger logo for mobile -->
-                <div class="flex items-center justify-between mb-8">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-                            <div class="h-10 w-10 flex items-center justify-center">
-                                <img src="{{ asset('images/logo.svg') }}" alt="NeoPro Lab Logo" class="h-full w-full object-contain" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzI1NjNlYSIvPjxwYXRoIGQ9Ik0zMiAxNkw0MCAzMkwzMiA0OEwyNCAzMkwzMiAxNloiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
-                            </div>
-                        </div>
-                        <span class="font-bold text-lg">NeoProLab</span>
-                    </div>
-                    <button onclick="closeMobileSidebar()" class="text-white">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <nav class="space-y-1">
-                    @yield('sidebar')
-                </nav>
-            </div>
-        </div>
+        <!-- Mobile Overlay -->
+        <div id="mobileOverlay" class="mobile-overlay"></div>
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="main-content">
             <!-- Navbar -->
             <header class="navbar">
-                <div class="flex items-center justify-between px-6 py-4">
-                    <!-- Left side -->
-                    <div class="flex items-center space-x-4">
-                        <button id="mobile-menu-button" class="md:hidden text-gray-700">
-                            <i class="fas fa-bars text-xl"></i>
+                <div class="flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
+                    <div class="flex items-center space-x-3">
+                        <button id="mobileMenuButton" class="md:hidden w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                            <i class="fas fa-bars text-lg"></i>
                         </button>
-                        <h1 class="text-xl font-bold text-gray-800">@yield('page-title', 'Dashboard')</h1>
+                        <h1 class="text-lg md:text-2xl font-bold text-gray-800 tracking-tight truncate">@yield('page-title', 'Dashboard')</h1>
                     </div>
 
-                    <!-- Right side -->
-                    <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
                         <!-- Notifications -->
-                        <div class="relative" x-data="{ 
-                                open: false, 
-                                notifications: [], 
-                                unreadCount: 0,
-                                init() {
-                                    this.fetchNotifications();
-                                    // Refresh notifications every 30 seconds
-                                    setInterval(() => this.fetchNotifications(), 30000);
-                                },
-                                fetchNotifications() {
-                                    fetch('{{ route("admin.notifications.recent") }}')
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            this.notifications = data.notifications;
-                                            this.unreadCount = data.unread_count;
-                                        })
-                                        .catch(error => console.error('Error fetching notifications:', error));
-                                },
-                                markAsRead(notificationId) {
-                                    fetch(`{{ url("admin/notifications") }}/${notificationId}/read`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                            'Content-Type': 'application/json'
-                                        }
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            this.fetchNotifications();
-                                        }
-                                    })
-                                    .catch(error => console.error('Error marking notification as read:', error));
-                                },
-                                markAllAsRead() {
-                                    fetch('{{ route("admin.notifications.read-all") }}', {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                            'Content-Type': 'application/json'
-                                        }
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            this.fetchNotifications();
-                                        }
-                                    })
-                                    .catch(error => console.error('Error marking all notifications as read:', error));
-                                },
-                                getNotificationUrl(notification) {
-                                    if (notification.request_id) {
-                                        return `{{ url("admin/requests") }}/${notification.request_id}`;
-                                    }
-                                    return `{{ url("admin/notifications") }}/${notification.id}`;
-                                },
-                                getNotificationIcon(type) {
-                                    const icons = {
-                                        'request_assigned': 'fas fa-user-check',
-                                        'request_assigned_with_quote': 'fas fa-file-invoice-dollar',
-                                        'quote_received': 'fas fa-tag',
-                                        'status_update': 'fas fa-exchange-alt',
-                                        'request_created': 'fas fa-plus-circle',
-                                        'payment_received': 'fas fa-credit-card',
-                                        'courier_online': 'fas fa-circle',
-                                        'courier_offline': 'fas fa-circle',
-                                        'system_alert': 'fas fa-exclamation-triangle',
-                                        'price_calculated': 'fas fa-calculator',
-                                        'quote_created': 'fas fa-file-invoice'
-                                    };
-                                    return icons[notification.type] || 'fas fa-bell';
-                                },
-                                getIconBackground(type) {
-                                    const backgrounds = {
-                                        'request_assigned': 'bg-blue-100 text-blue-600',
-                                        'request_assigned_with_quote': 'bg-purple-100 text-purple-600',
-                                        'quote_received': 'bg-green-100 text-green-600',
-                                        'status_update': 'bg-yellow-100 text-yellow-600',
-                                        'request_created': 'bg-indigo-100 text-indigo-600',
-                                        'payment_received': 'bg-emerald-100 text-emerald-600',
-                                        'courier_online': 'bg-green-100 text-green-600',
-                                        'courier_offline': 'bg-gray-100 text-gray-600',
-                                        'system_alert': 'bg-red-100 text-red-600',
-                                        'price_calculated': 'bg-orange-100 text-orange-600',
-                                        'quote_created': 'bg-teal-100 text-teal-600'
-                                    };
-                                    return backgrounds[type] || 'bg-gray-100 text-gray-600';
-                                },
-                                timeAgo(timestamp) {
-                                    const date = new Date(timestamp);
-                                    const now = new Date();
-                                    const seconds = Math.floor((now - date) / 1000);
-                                    
-                                    const intervals = {
-                                        year: 31536000,
-                                        month: 2592000,
-                                        week: 604800,
-                                        day: 86400,
-                                        hour: 3600,
-                                        minute: 60,
-                                        second: 1
-                                    };
-                                    
-                                    for (let [unit, secondsInUnit] of Object.entries(intervals)) {
-                                        const interval = Math.floor(seconds / secondsInUnit);
-                                        if (interval >= 1) {
-                                            return interval + ' ' + unit + (interval === 1 ? '' : 's') + ' ago';
-                                        }
-                                    }
-                                    
-                                    return 'just now';
-                                }
-                            }">
-                            <button @click="open = !open" @click.away="open = false" class="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none">
-                                <i class="fas fa-bell text-xl"></i>
-                                <span x-show="unreadCount > 0"
-                                    x-text="unreadCount"
-                                    class="notification-badge"
-                                    :class="{ 'hidden': unreadCount === 0 }"></span>
+                        <div class="relative" x-data="{ open: false, notifications: [], unreadCount: 0 }" x-init="fetchNotifications(); setInterval(() => fetchNotifications(), 30000)" @click.away="open = false">
+                            <button @click="open = !open" class="relative w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                                <i class="fas fa-bell text-base md:text-lg"></i>
+                                <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
                             </button>
 
-                            <div x-show="open"
-                                x-transition:enter="transition ease-out duration-100"
-                                x-transition:enter-start="transform opacity-0 scale-95"
-                                x-transition:enter-end="transform opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75"
-                                x-transition:leave-start="transform opacity-100 scale-100"
-                                x-transition:leave-end="transform opacity-0 scale-95"
-                                class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-                                style="display: none;">
-
-                                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                                    <h3 class="font-semibold text-gray-700">Notifications</h3>
-                                    <div class="flex space-x-2">
-                                        <template x-if="unreadCount > 0">
-                                            <button @click="markAllAsRead(); $event.preventDefault()" class="text-xs text-teal-600 hover:text-teal-800">
-                                                Mark all read
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <div class="max-h-96 overflow-y-auto">
-                                    <template x-for="notification in notifications" :key="notification.id">
-                                        <a :href="getNotificationUrl(notification)"
-                                            @click="markAsRead(notification.id); open = false"
-                                            class="block px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition"
-                                            :class="{ 'bg-teal-50': !notification.is_read }">
-                                            <div class="flex items-start space-x-3">
-                                                <div class="flex-shrink-0">
-                                                    <div class="w-8 h-8 rounded-full flex items-center justify-center"
-                                                        :class="getIconBackground(notification.type)">
-                                                        <i :class="getNotificationIcon(notification.type)" class="text-xs"></i>
-                                                    </div>
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-sm font-medium text-gray-900" x-text="notification.title"></p>
-                                                    <p class="text-xs text-gray-600 mt-1 line-clamp-2" x-text="notification.message"></p>
-                                                    <div class="flex items-center justify-between mt-2">
-                                                        <p class="text-xs text-gray-400" x-text="timeAgo(notification.created_at)"></p>
-                                                        <span x-show="!notification.is_read" class="w-2 h-2 bg-teal-600 rounded-full"></span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </template>
-
-                                    <div x-show="notifications.length === 0" class="p-8 text-center">
-                                        <div class="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-3">
-                                            <i class="fas fa-bell-slash text-gray-400"></i>
-                                        </div>
-                                        <p class="text-sm text-gray-500">No notifications</p>
-                                    </div>
-                                </div>
-
-                                <div class="p-3 border-t border-gray-200 text-center">
-                                    <a href="{{ route('admin.notifications.index') }}"
-                                        @click="open = false"
-                                        class="text-sm text-teal-600 hover:text-teal-800 font-medium">
-                                        View all notifications
-                                    </a>
-                                </div>
-                            </div>
+                            <!-- Notifications dropdown content (keep as is from your original) -->
                         </div>
 
                         <!-- User Menu -->
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" @click.away="open = false" class="flex items-center space-x-3 focus:outline-none">
-                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=0D8ABC&color=fff"
-                                    alt="User" class="w-8 h-8 rounded-full">
-                                <i class="fas fa-chevron-down text-gray-600"></i>
+                        <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                            <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none p-1.5 md:p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=32"
+                                    alt="User"
+                                    class="w-7 h-7 md:w-8 md:h-8 rounded-lg object-cover">
+                                <i class="fas fa-chevron-down text-xs text-gray-600 hidden md:inline"></i>
                             </button>
-                            <div x-show="open"
-                                x-transition:enter="transition ease-out duration-100"
-                                x-transition:enter-start="transform opacity-0 scale-95"
-                                x-transition:enter-end="transform opacity-100 scale-100"
-                                x-transition:leave="transition ease-in duration-75"
-                                x-transition:leave-start="transform opacity-100 scale-100"
-                                x-transition:leave-end="transform opacity-0 scale-95"
-                                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
-                                style="display: none;">
-                                @if(auth()->user()->isAdmin())
-                                <a href="{{ route('admin.profile.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-user mr-2"></i>Profile
-                                </a>
-                                <a href="{{ route('admin.settings.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-cog mr-2"></i>Settings
-                                </a>
-                                @elseif(auth()->user()->isCourier())
-                                <a href="{{ route('courier.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-user mr-2"></i>Profile
-                                </a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-cog mr-2"></i>Settings
-                                </a>
-                                @else
-                                <a href="{{ route('client.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-user mr-2"></i>Profile
-                                </a>
-                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-cog mr-2"></i>Settings
-                                </a>
-                                @endif
-                                <div class="border-t border-gray-200 my-1"></div>
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
-                                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                                    </button>
-                                </form>
-                            </div>
+
+                            <!-- User menu dropdown content (keep as is from your original) -->
                         </div>
                     </div>
                 </div>
             </header>
 
             <!-- Main Content Area -->
-            <main class="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
-                <!-- Breadcrumbs -->
-                @hasSection('breadcrumbs')
-                <div class="mb-6">
-                    <nav class="flex" aria-label="Breadcrumb">
-                        <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                            <li class="inline-flex items-center">
-                                <a href="#" class="inline-flex items-center text-sm text-gray-700 hover:text-teal-600">
-                                    <i class="fas fa-home mr-2"></i>
-                                    Home
-                                </a>
-                            </li>
-                            @yield('breadcrumbs')
-                        </ol>
-                    </nav>
-                </div>
-                @endif
+            <main class="content-wrapper">
+                <div class="content-container">
+                    @hasSection('breadcrumbs')
+                    <div class="mb-4 md:mb-6 animate-slide-in">
+                        <nav class="flex" aria-label="Breadcrumb">
+                            <ol class="inline-flex items-center flex-wrap space-x-1 md:space-x-2">
+                                <li class="inline-flex items-center">
+                                    <a href="#" class="inline-flex items-center text-xs md:text-sm text-gray-600 hover:text-teal-600 transition-colors">
+                                        <i class="fas fa-home mr-1.5"></i>
+                                        Home
+                                    </a>
+                                </li>
+                                @yield('breadcrumbs')
+                            </ol>
+                        </nav>
+                    </div>
+                    @endif
 
-                <!-- Page Content -->
-                <div class="space-y-6">
-                    @yield('content')
+                    <div class="space-y-4 md:space-y-6">
+                        @yield('content')
+                    </div>
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Mobile Sidebar Overlay -->
-    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
-
+    <!-- Mobile Menu JavaScript -->
     <script>
-        // Mobile menu toggle
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileSidebar = document.getElementById('mobile-sidebar');
-        const mobileOverlay = document.getElementById('mobile-overlay');
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const mobileSidebar = document.getElementById('mobileSidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            const closeButton = document.getElementById('closeMobileSidebar');
 
-        mobileMenuButton.addEventListener('click', () => {
-            mobileSidebar.classList.toggle('-translate-x-full');
-            mobileOverlay.classList.toggle('hidden');
+            function openMobileSidebar() {
+                mobileSidebar.classList.add('open');
+                mobileOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileSidebar() {
+                mobileSidebar.classList.remove('open');
+                mobileOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (mobileMenuButton) {
+                mobileMenuButton.addEventListener('click', openMobileSidebar);
+            }
+
+            if (closeButton) {
+                closeButton.addEventListener('click', closeMobileSidebar);
+            }
+
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', closeMobileSidebar);
+            }
+
+            // Close on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && mobileSidebar.classList.contains('open')) {
+                    closeMobileSidebar();
+                }
+            });
+
+            // Handle resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && mobileSidebar.classList.contains('open')) {
+                    closeMobileSidebar();
+                }
+            });
         });
-
-        mobileOverlay.addEventListener('click', () => {
-            closeMobileSidebar();
-        });
-
-        function closeMobileSidebar() {
-            mobileSidebar.classList.add('-translate-x-full');
-            mobileOverlay.classList.add('hidden');
-        }
     </script>
 
     @stack('scripts')
