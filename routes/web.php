@@ -89,7 +89,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     Route::post('/notifications/clear-all', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
     Route::get('/notifications/{notification}', [NotificationController::class, 'show'])->name('notifications.show');
-        Route::get('/notifications/json', [App\Http\Controllers\NotificationController::class, 'getRecent'])->name('notifications.json');
+    Route::get('/notifications/json', [App\Http\Controllers\NotificationController::class, 'getRecent'])->name('notifications.json');
 });
 
 /*
@@ -158,6 +158,9 @@ Route::prefix('admin')
         Route::post('/facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('facilities.approve');
         Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
         Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
+        // Add these with your other facility routes
+        Route::post('/facilities/{facility}/suspend', [AdminFacilityController::class, 'suspend'])->name('facilities.suspend');
+        Route::delete('/facilities/{facility}/delete', [AdminFacilityController::class, 'destroy'])->name('facilities.delete');
 
         // Add these routes in your admin facility routes section
         Route::get('/facilities/{facility}/users', [AdminFacilityController::class, 'users'])->name('facilities.users.index');

@@ -21,9 +21,15 @@ class Facility extends Model
         'state',
         'country',
         'postal_code',
+        'phone',           // ADD THIS - missing in your model
+        'email',           // ADD THIS - missing in your model
+        'website',         // ADD THIS - missing in your model
+        'operating_hours', // ADD THIS - missing in your model
+        'zip_code',        // ADD THIS - missing in your model
         'contact_person_name',
         'contact_person_phone',
         'contact_person_email',
+        'notes',           // ADD THIS - missing in your model
         'is_approved',
         'approved_by',
         'approved_at',

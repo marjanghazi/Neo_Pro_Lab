@@ -53,8 +53,33 @@
         </div>
     </div>
 
+    <!-- Display Success/Error Messages -->
+    @if(session('success'))
+    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 m-6" role="alert">
+        <p>{{ session('success') }}</p>
+    </div>
+    @endif
+
+    @if(session('error'))
+    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
+        <p>{{ session('error') }}</p>
+    </div>
+    @endif
+
+    <!-- Display Validation Errors -->
+    @if($errors->any())
+    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
+        <p class="font-bold">Please fix the following errors:</p>
+        <ul class="list-disc ml-4 mt-2">
+            @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
     <!-- Form -->
-    <form action="{{ route('admin.facilities.update', $facility) }}" method="POST" class="space-y-8 p-6 md:p-8">
+    <form action="{{ route('admin.facilities.update', $facility) }}" method="POST" class="space-y-8 p-6 md:p-8" id="editFacilityForm">
         @csrf
         @method('PUT')
 
@@ -166,10 +191,11 @@
                             name="status"
                             class="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 @error('status') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror"
                             required>
-                            <option value="pending" {{ old('status', $facility->status) == 'pending' ? 'selected' : '' }} class="text-yellow-600">Pending</option>
-                            <option value="active" {{ old('status', $facility->status) == 'active' ? 'selected' : '' }} class="text-green-600">Active</option>
-                            <option value="inactive" {{ old('status', $facility->status) == 'inactive' ? 'selected' : '' }} class="text-gray-600">Inactive</option>
-                            <option value="suspended" {{ old('status', $facility->status) == 'suspended' ? 'selected' : '' }} class="text-red-600">Suspended</option>
+                            <option value="pending" {{ old('status', $facility->status) == 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="active" {{ old('status', $facility->status) == 'active' ? 'selected' : '' }}>Active</option>
+                            <option value="inactive" {{ old('status', $facility->status) == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                            <option value="suspended" {{ old('status', $facility->status) == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                            <option value="rejected" {{ old('status', $facility->status) == 'rejected' ? 'selected' : '' }}>Rejected</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <i class="fas fa-chevron-down text-gray-400"></i>
@@ -314,7 +340,7 @@
                 <!-- Address -->
                 <div class="md:col-span-2 group">
                     <label for="address" class="block text-sm font-medium text-gray-700 mb-2">
-                        Address <span class="text-red-500">*</span>
+                        Street Address <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -404,6 +430,55 @@
                             required>
                     </div>
                     @error('zip_code')
+                    <div class="flex items-center mt-2 text-red-600 text-sm">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>{{ $message }}</span>
+                    </div>
+                    @enderror
+                </div>
+
+                <!-- Country -->
+                <div class="group">
+                    <label for="country" class="block text-sm font-medium text-gray-700 mb-2">
+                        Country <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-globe-americas text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                            id="country"
+                            name="country"
+                            value="{{ old('country', $facility->country) }}"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 @error('country') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror"
+                            placeholder="Country"
+                            required>
+                    </div>
+                    @error('country')
+                    <div class="flex items-center mt-2 text-red-600 text-sm">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span>{{ $message }}</span>
+                    </div>
+                    @enderror
+                </div>
+
+                <!-- Postal Code (if different from ZIP) -->
+                <div class="group">
+                    <label for="postal_code" class="block text-sm font-medium text-gray-700 mb-2">
+                        Postal Code
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-mail-bulk text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                            id="postal_code"
+                            name="postal_code"
+                            value="{{ old('postal_code', $facility->postal_code) }}"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 @error('postal_code') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror"
+                            placeholder="Postal code">
+                    </div>
+                    @error('postal_code')
                     <div class="flex items-center mt-2 text-red-600 text-sm">
                         <i class="fas fa-exclamation-circle mr-2"></i>
                         <span>{{ $message }}</span>
@@ -585,14 +660,17 @@
                                 <p class="font-medium text-red-700">Delete Facility</p>
                             </div>
                             <p class="text-sm text-red-600">
-                                This will permanently delete <span class="font-semibold">{{ $facility->name }}</span> and all associated data including users, requests, and records. This action cannot be undone.
+                                This will permanently delete <span class="font-semibold">{{ $facility->name }}</span> and all associated data. This action cannot be undone.
                             </p>
                         </div>
-                        <button type="button"
-                            onclick="confirmDelete('{{ $facility->id }}', '{{ $facility->name }}')"
-                            class="mt-4 md:mt-0 px-6 py-3 bg-white border border-red-300 text-red-700 font-medium rounded-lg hover:bg-red-50 hover:border-red-400 transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center justify-center">
-                            <i class="fas fa-trash-alt mr-2"></i> Delete Facility
-                        </button>
+                        <form action="{{ route('admin.facilities.destroy', $facility) }}" method="POST" onsubmit="return confirmDelete(event, '{{ $facility->name }}')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                class="mt-4 md:mt-0 px-6 py-3 bg-white border border-red-300 text-red-700 font-medium rounded-lg hover:bg-red-50 hover:border-red-400 transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center justify-center">
+                                <i class="fas fa-trash-alt mr-2"></i> Delete Facility
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -609,11 +687,13 @@
                                 Suspended facilities cannot access the system, create new requests, or receive services. All existing active requests will be paused.
                             </p>
                         </div>
-                        <button type="button"
-                            onclick="confirmSuspend('{{ $facility->id }}', '{{ $facility->name }}')"
-                            class="mt-4 md:mt-0 px-6 py-3 bg-white border border-orange-300 text-orange-700 font-medium rounded-lg hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center justify-center">
-                            <i class="fas fa-pause mr-2"></i> Suspend Facility
-                        </button>
+                        <form action="{{ route('admin.facilities.suspend', $facility) }}" method="POST" onsubmit="return confirmSuspend(event, '{{ $facility->name }}')">
+                            @csrf
+                            <button type="submit"
+                                class="mt-4 md:mt-0 px-6 py-3 bg-white border border-orange-300 text-orange-700 font-medium rounded-lg hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center justify-center">
+                                <i class="fas fa-pause mr-2"></i> Suspend Facility
+                            </button>
+                        </form>
                     </div>
                 </div>
                 @endif
@@ -639,7 +719,7 @@
                         class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors duration-200 inline-flex items-center justify-center">
                         <i class="fas fa-redo mr-2"></i> Reset Changes
                     </button>
-                    <button type="submit"
+                    <button type="submit" id="submitBtn"
                         class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 inline-flex items-center justify-center">
                         <i class="fas fa-save mr-2"></i> Save Changes
                     </button>
@@ -655,6 +735,9 @@
         </div>
     </form>
 </div>
+
+<!-- Debug Info -->
+<div style="display: none;" id="debug-info"></div>
 @endsection
 
 @push('styles')
@@ -699,167 +782,278 @@
     button:active {
         transform: translateY(0);
     }
+
+    /* Fix for button clickability */
+    button[type="submit"],
+    button[type="reset"],
+    a.btn-primary,
+    .btn-primary {
+        cursor: pointer;
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 10;
+    }
+
+    /* Ensure form is above other elements */
+    form {
+        position: relative;
+        z-index: 5;
+    }
 </style>
 @endpush
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Enhance form inputs
-        const formInputs = document.querySelectorAll('input, select, textarea');
+// Debug flag - set to true to see console logs
+const DEBUG = true;
 
-        formInputs.forEach(input => {
-            // Add focus/blur effects
-            input.addEventListener('focus', function() {
-                this.parentElement.classList.add('ring-2', 'ring-opacity-50');
-            });
+function debugLog(...args) {
+    if (DEBUG) {
+        console.log('[DEBUG]', ...args);
+    }
+}
 
-            input.addEventListener('blur', function() {
-                this.parentElement.classList.remove('ring-2', 'ring-opacity-50');
-            });
+// Make sure SweetAlert2 is available
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('DOM loaded - initializing form');
+    
+    // Check if Swal is defined
+    if (typeof Swal === 'undefined') {
+        console.error('SweetAlert2 is not loaded!');
+        // Load SweetAlert2 if not available
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+        script.onload = function() {
+            debugLog('SweetAlert2 loaded successfully');
+            initializeForm();
+        };
+        script.onerror = function() {
+            console.error('Failed to load SweetAlert2');
+        };
+        document.head.appendChild(script);
+    } else {
+        debugLog('SweetAlert2 already loaded');
+        initializeForm();
+    }
+});
 
-            // Real-time validation
-            input.addEventListener('input', function() {
-                if (this.checkValidity()) {
-                    this.classList.remove('border-red-500');
-                    this.classList.add('border-green-500');
-                } else {
-                    this.classList.remove('border-green-500');
-                }
-            });
-        });
-
-        // Reset button functionality
-        document.querySelector('button[type="reset"]').addEventListener('click', function() {
-            formInputs.forEach(input => {
-                input.classList.remove('border-red-500', 'border-green-500');
-            });
-        });
-
-        // Phone number formatting
-        const phoneInputs = document.querySelectorAll('input[type="tel"]');
-        phoneInputs.forEach(input => {
-            input.addEventListener('input', function(e) {
-                let value = e.target.value.replace(/\D/g, '');
-                if (value.length > 0) {
-                    if (value.length <= 3) {
-                        value = value;
-                    } else if (value.length <= 6) {
-                        value = `(${value.substring(0,3)}) ${value.substring(3)}`;
-                    } else {
-                        value = `(${value.substring(0,3)}) ${value.substring(3,6)}-${value.substring(6,10)}`;
-                    }
-                }
-                e.target.value = value;
-            });
-        });
+function initializeForm() {
+    debugLog('Initializing form...');
+    
+    // Get the form
+    const form = document.getElementById('editFacilityForm');
+    if (!form) {
+        console.error('Form not found!');
+        return;
+    }
+    
+    debugLog('Form found:', form);
+    debugLog('Form action:', form.action);
+    debugLog('Form method:', form.method);
+    
+    // Remove any existing submit handlers and add our debug one
+    form.removeEventListener('submit', handleFormSubmit);
+    form.addEventListener('submit', handleFormSubmit);
+    debugLog('Submit handler attached to form');
+    
+    // Enhance form inputs
+    const formInputs = document.querySelectorAll('input, select, textarea');
+    debugLog('Found', formInputs.length, 'form inputs');
+    
+    formInputs.forEach(input => {
+        // Remove existing listeners
+        input.removeEventListener('focus', handleFocus);
+        input.removeEventListener('blur', handleBlur);
+        input.removeEventListener('input', handleInput);
+        
+        // Add new listeners
+        input.addEventListener('focus', handleFocus);
+        input.addEventListener('blur', handleBlur);
+        input.addEventListener('input', handleInput);
     });
 
-    function confirmDelete(facilityId, facilityName) {
-        Swal.fire({
-            title: 'Delete Facility?',
-            html: `<div class="text-left">
-                <p class="text-red-600 font-semibold">WARNING: This action cannot be undone!</p>
-                <p class="mt-2">You are about to permanently delete:</p>
-                <p class="font-bold text-lg mt-1">${facilityName}</p>
-                <div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
-                    <p class="text-sm text-red-700">
-                        <i class="fas fa-exclamation-circle mr-2"></i>
-                        This will delete all associated data including:
-                    </p>
-                    <ul class="text-sm text-red-600 mt-2 space-y-1 ml-6 list-disc">
-                        <li>All facility users and their accounts</li>
-                        <li>All specimen requests and test records</li>
-                        <li>All billing and payment records</li>
-                        <li>All activity logs and audit trails</li>
-                    </ul>
-                </div>
-                <p class="mt-4 text-sm text-gray-600">
-                    To confirm deletion, type <span class="font-mono font-bold">DELETE</span> below:
-                </p>
-                <input type="text" id="delete-confirmation" 
-                       class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                       placeholder="Type DELETE to confirm">
-            </div>`,
-            icon: 'error',
-            showCancelButton: true,
-            confirmButtonText: 'Delete Facility',
-            confirmButtonColor: '#dc2626',
-            cancelButtonText: 'Cancel',
-            showLoaderOnConfirm: true,
-            preConfirm: () => {
-                const confirmation = document.getElementById('delete-confirmation').value;
-                if (confirmation !== 'DELETE') {
-                    Swal.showValidationMessage('Please type DELETE to confirm');
-                }
-                return {
-                    confirmation: confirmation
-                };
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = `/admin/facilities/${facilityId}/delete`;
-            }
-        });
+    // Reset button functionality
+    const resetBtn = document.querySelector('button[type="reset"]');
+    if (resetBtn) {
+        resetBtn.removeEventListener('click', handleReset);
+        resetBtn.addEventListener('click', handleReset);
+        debugLog('Reset button handler attached');
     }
 
-    function confirmSuspend(facilityId, facilityName) {
-        Swal.fire({
-            title: 'Suspend Facility?',
-            html: `<div class="text-left">
-                <p class="font-semibold">You are about to suspend:</p>
-                <p class="font-bold text-lg mt-1 text-orange-600">${facilityName}</p>
-                <div class="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <p class="text-sm text-orange-700">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                        When suspended, this facility will:
-                    </p>
-                    <ul class="text-sm text-orange-600 mt-2 space-y-1 ml-6 list-disc">
-                        <li>Not be able to access the system</li>
-                        <li>Not be able to create new specimen requests</li>
-                        <li>Have all active requests paused</li>
-                        <li>Not receive new notifications or updates</li>
-                    </ul>
-                </div>
-                <p class="mt-4 text-sm text-gray-600">
-                    Existing data will be preserved. You can reactivate the facility at any time.
-                </p>
-            </div>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Suspend Facility',
-            confirmButtonColor: '#f97316',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Add AJAX call here
-                fetch(`/admin/facilities/${facilityId}/suspend`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                title: 'Facility Suspended!',
-                                text: `${facilityName} has been suspended successfully.`,
-                                icon: 'success',
-                                confirmButtonText: 'OK'
-                            }).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire('Error!', data.message || 'Failed to suspend facility.', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        Swal.fire('Error!', 'An error occurred while suspending the facility.', 'error');
-                    });
-            }
-        });
+    // Phone number formatting
+    const phoneInputs = document.querySelectorAll('input[type="tel"]');
+    debugLog('Found', phoneInputs.length, 'phone inputs');
+    phoneInputs.forEach(input => {
+        input.removeEventListener('input', handlePhoneInput);
+        input.addEventListener('input', handlePhoneInput);
+    });
+    
+    // Check submit button
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        debugLog('Submit button found:', submitBtn);
+        debugLog('Submit button is enabled:', !submitBtn.disabled);
+        debugLog('Submit button type:', submitBtn.type);
+    } else {
+        console.error('Submit button not found!');
     }
+    
+    debugLog('Form initialization complete');
+}
+
+function handleFormSubmit(event) {
+    debugLog('Form submit handler triggered');
+    
+    const form = event.target;
+    debugLog('Form action:', form.action);
+    debugLog('Form method:', form.method);
+    
+    // Check form validity
+    if (!form.checkValidity()) {
+        debugLog('Form is invalid - showing validation errors');
+        event.preventDefault();
+        form.reportValidity();
+        return false;
+    }
+    
+    // Log all form data
+    const formData = new FormData(form);
+    debugLog('Form data being submitted:');
+    for (let [key, value] of formData.entries()) {
+        debugLog(key + ':', value);
+    }
+    
+    debugLog('Form is valid - submitting to:', form.action);
+    
+    // Allow the form to submit normally
+    return true;
+}
+
+function handleFocus() {
+    this.parentElement.classList.add('ring-2', 'ring-opacity-50');
+}
+
+function handleBlur() {
+    this.parentElement.classList.remove('ring-2', 'ring-opacity-50');
+}
+
+function handleInput() {
+    if (this.checkValidity()) {
+        this.classList.remove('border-red-500');
+        this.classList.add('border-green-500');
+    } else {
+        this.classList.remove('border-green-500');
+    }
+}
+
+function handleReset(e) {
+    debugLog('Reset button clicked');
+    e.preventDefault();
+    const formInputs = document.querySelectorAll('input, select, textarea');
+    formInputs.forEach(input => {
+        input.classList.remove('border-red-500', 'border-green-500');
+    });
+    document.getElementById('editFacilityForm').reset();
+}
+
+function handlePhoneInput(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 0) {
+        if (value.length <= 3) {
+            value = value;
+        } else if (value.length <= 6) {
+            value = `(${value.substring(0,3)}) ${value.substring(3)}`;
+        } else {
+            value = `(${value.substring(0,3)}) ${value.substring(3,6)}-${value.substring(6,10)}`;
+        }
+    }
+    e.target.value = value;
+}
+
+function confirmDelete(event, facilityName) {
+    debugLog('confirmDelete called for:', facilityName);
+    event.preventDefault();
+
+    Swal.fire({
+        title: 'Delete Facility?',
+        html: `<div class="text-left">
+            <p class="text-red-600 font-semibold">WARNING: This action cannot be undone!</p>
+            <p class="mt-2">You are about to permanently delete:</p>
+            <p class="font-bold text-lg mt-1">${facilityName}</p>
+            <div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p class="text-sm text-red-700">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    This will delete all associated data.
+                </p>
+            </div>
+            <p class="mt-4 text-sm text-gray-600">
+                To confirm deletion, type <span class="font-mono font-bold">DELETE</span> below:
+            </p>
+            <input type="text" id="delete-confirmation" 
+                   class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                   placeholder="Type DELETE to confirm">
+        </div>`,
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonText: 'Delete Facility',
+        confirmButtonColor: '#dc2626',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+            const confirmation = document.getElementById('delete-confirmation').value;
+            if (confirmation !== 'DELETE') {
+                Swal.showValidationMessage('Please type DELETE to confirm');
+                return false;
+            }
+            return true;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            debugLog('Delete confirmed, submitting form');
+            event.target.submit();
+        }
+    });
+
+    return false;
+}
+
+function confirmSuspend(event, facilityName) {
+    debugLog('confirmSuspend called for:', facilityName);
+    event.preventDefault();
+
+    Swal.fire({
+        title: 'Suspend Facility?',
+        html: `<div class="text-left">
+            <p class="font-semibold">You are about to suspend:</p>
+            <p class="font-bold text-lg mt-1 text-orange-600">${facilityName}</p>
+            <div class="mt-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <p class="text-sm text-orange-700">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    When suspended, this facility will not be able to access the system.
+                </p>
+            </div>
+            <p class="mt-4 text-sm text-gray-600">
+                Existing data will be preserved. You can reactivate the facility at any time.
+            </p>
+        </div>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Suspend Facility',
+        confirmButtonColor: '#f97316',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            debugLog('Suspend confirmed, submitting form');
+            event.target.submit();
+        }
+    });
+
+    return false;
+}
+
+// Also check if there are any JavaScript errors on the page
+window.onerror = function(msg, url, line, col, error) {
+    console.error('JavaScript Error:', msg, 'at', url, 'line', line);
+    return false;
+};
 </script>
 @endpush

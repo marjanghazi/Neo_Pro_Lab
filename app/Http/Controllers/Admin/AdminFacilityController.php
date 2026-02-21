@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // Fixed the import
 
 class AdminFacilityController extends Controller
 {
@@ -61,6 +62,9 @@ class AdminFacilityController extends Controller
             'postal_code' => 'nullable|string|max:20',
             'phone' => 'required|string|max:20',
             'email' => 'required|email|max:255',
+            'website' => 'nullable|url|max:255',
+            'operating_hours' => 'nullable|string|max:255',
+            'zip_code' => 'nullable|string|max:20',
             'contact_person_name' => 'required|string|max:255',
             'contact_person_phone' => 'required|string|max:20',
             'contact_person_email' => 'required|email|max:255',
@@ -68,6 +72,9 @@ class AdminFacilityController extends Controller
             'status' => 'required|in:pending,active,suspended,rejected',
             'notes' => 'nullable|string|max:1000',
         ]);
+
+        // Handle boolean checkbox
+        $validated['is_approved'] = $request->has('is_approved');
 
         $facility = Facility::create($validated);
 
@@ -112,29 +119,73 @@ class AdminFacilityController extends Controller
 
     public function update(Request $request, Facility $facility)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'facility_type' => 'required|in:hospital,clinic,lab,research_center,other',
-            'license_number' => 'required|string|max:100|unique:facilities,license_number,' . $facility->id,
-            'address' => 'required|string|max:500',
-            'city' => 'required|string|max:100',
-            'state' => 'required|string|max:100',
-            'country' => 'required|string|max:100',
-            'postal_code' => 'nullable|string|max:20',
-            'phone' => 'required|string|max:20',
-            'email' => 'required|email|max:255',
-            'contact_person_name' => 'required|string|max:255',
-            'contact_person_phone' => 'required|string|max:20',
-            'contact_person_email' => 'required|email|max:255',
-            'is_approved' => 'boolean',
-            'status' => 'required|in:pending,active,suspended,rejected',
-            'notes' => 'nullable|string|max:1000',
+        // Debug: Log the incoming request
+        Log::info('=== FACILITY UPDATE ATTEMPT ===', [
+            'facility_id' => $facility->id,
+            'facility_name' => $facility->name,
+            'request_method' => $request->method(),
+            'request_url' => $request->fullUrl(),
+            'all_data' => $request->except(['_token', '_method'])
         ]);
 
-        $facility->update($validated);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'facility_type' => 'required|in:hospital,clinic,lab,research_center,other',
+                'license_number' => 'required|string|max:100|unique:facilities,license_number,' . $facility->id,
+                'address' => 'required|string|max:500',
+                'city' => 'required|string|max:100',
+                'state' => 'required|string|max:100',
+                'country' => 'required|string|max:100',
+                'postal_code' => 'nullable|string|max:20',
+                'phone' => 'required|string|max:20',
+                'email' => 'required|email|max:255',
+                'website' => 'nullable|url|max:255',
+                'operating_hours' => 'nullable|string|max:255',
+                'zip_code' => 'nullable|string|max:20',
+                'contact_person_name' => 'required|string|max:255',
+                'contact_person_phone' => 'required|string|max:20',
+                'contact_person_email' => 'required|email|max:255',
+                'is_approved' => 'sometimes|boolean',
+                'status' => 'required|in:pending,active,suspended,rejected',
+                'notes' => 'nullable|string|max:1000',
+            ]);
 
-        return redirect()->route('admin.facilities.show', $facility)
-            ->with('success', 'Facility updated successfully!');
+            // Handle boolean checkbox
+            $validated['is_approved'] = $request->has('is_approved');
+
+            Log::info('Validation passed', ['validated_data' => $validated]);
+
+            $updateResult = $facility->update($validated);
+            
+            Log::info('Update result', [
+                'success' => $updateResult,
+                'facility_id' => $facility->id
+            ]);
+
+            // Add a success message to the session
+            session()->flash('success', 'Facility updated successfully!');
+
+            return redirect()->route('admin.facilities.show', $facility);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed', [
+                'errors' => $e->errors(),
+                'facility_id' => $facility->id
+            ]);
+            
+            // Return back with validation errors and input
+            return back()->withErrors($e->errors())->withInput();
+            
+        } catch (\Exception $e) {
+            Log::error('Error updating facility', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'facility_id' => $facility->id
+            ]);
+            
+            return back()->with('error', 'Failed to update facility: ' . $e->getMessage())->withInput();
+        }
     }
 
     public function approve(Facility $facility)
@@ -159,22 +210,47 @@ class AdminFacilityController extends Controller
         return back()->with('success', 'Facility rejected successfully.');
     }
 
+    public function suspend(Request $request, Facility $facility)
+    {
+        $facility->update([
+            'status' => 'suspended',
+            'is_approved' => false,
+        ]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Facility suspended successfully.']);
+        }
+
+        return back()->with('success', 'Facility suspended successfully.');
+    }
+
     public function destroy(Facility $facility)
     {
-        // Check if facility has any users or requests
-        if ($facility->users()->count() > 0) {
-            return back()->with('error', 'Cannot delete facility with assigned users. Remove users first.');
+        try {
+            // Check if facility has any users or requests
+            if ($facility->users()->count() > 0) {
+                return back()->with('error', 'Cannot delete facility with assigned users. Remove users first.');
+            }
+
+            if ($facility->specimenRequests()->count() > 0) {
+                return back()->with('error', 'Cannot delete facility with associated specimen requests.');
+            }
+
+            $facility->delete();
+
+            return redirect()->route('admin.facilities.index')
+                ->with('success', 'Facility deleted successfully.');
+                
+        } catch (\Exception $e) {
+            Log::error('Error deleting facility', [
+                'error' => $e->getMessage(),
+                'facility_id' => $facility->id
+            ]);
+            
+            return back()->with('error', 'Failed to delete facility: ' . $e->getMessage());
         }
-
-        if ($facility->specimenRequests()->count() > 0) {
-            return back()->with('error', 'Cannot delete facility with associated specimen requests.');
-        }
-
-        $facility->delete();
-
-        return redirect()->route('admin.facilities.index')
-            ->with('success', 'Facility deleted successfully.');
     }
+    
     public function users(Facility $facility)
     {
         $facility->load(['users' => function ($query) {
