@@ -47,6 +47,7 @@
             --danger: #EF4444;
             --info: #3B82F6;
             --sidebar-width: 280px;
+            --sidebar-collapsed-width: 80px;
         }
 
         * {
@@ -69,23 +70,36 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Scrollbar Styling */
-        ::-webkit-scrollbar {
+        /* Scrollbar Styling - Only show when sidebar is expanded */
+        .sidebar-desktop:not(.collapsed)::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
 
-        ::-webkit-scrollbar-track {
+        .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-track {
             background: transparent;
         }
 
-        ::-webkit-scrollbar-thumb {
+        .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-thumb {
             background: #CBD5E1;
             border-radius: 8px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
+        .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-thumb:hover {
             background: #94A3B8;
+        }
+
+        /* Hide scrollbar when collapsed */
+        .sidebar-desktop.collapsed {
+            scrollbar-width: none;
+            /* Firefox */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+        }
+
+        .sidebar-desktop.collapsed::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari, Opera */
         }
 
         /* Layout */
@@ -107,6 +121,11 @@
             flex-shrink: 0;
             position: relative;
             z-index: 30;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar-desktop.collapsed {
+            width: var(--sidebar-collapsed-width);
         }
 
         /* Sidebar - Mobile */
@@ -153,6 +172,7 @@
             height: 100vh;
             overflow: hidden;
             background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+            transition: margin-left 0.3s ease;
         }
 
         /* Navbar */
@@ -221,6 +241,22 @@
             position: relative;
             overflow: hidden;
             cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .collapsed .sidebar-item {
+            padding: 12px;
+            justify-content: center;
+            gap: 0;
+        }
+
+        .collapsed .sidebar-item span {
+            display: none;
+        }
+
+        .collapsed .sidebar-item i {
+            margin: 0;
+            font-size: 1.4rem;
         }
 
         .sidebar-item:before {
@@ -245,6 +281,10 @@
             transform: translateX(4px);
         }
 
+        .collapsed .sidebar-item:hover {
+            transform: scale(1.1);
+        }
+
         .sidebar-item.active {
             background: var(--teal);
             color: white;
@@ -254,6 +294,51 @@
         .sidebar-item i {
             width: 24px;
             font-size: 1.2rem;
+        }
+
+        /* Logo Section Styles */
+        .logo-section {
+            transition: all 0.3s ease;
+        }
+
+        .collapsed .logo-section .logo-text {
+            display: none;
+        }
+
+        .collapsed .logo-section .logo-wrapper {
+            margin: 0 auto;
+        }
+
+        .collapsed .logo-section .flex {
+            justify-content: center;
+        }
+
+        .collapsed .user-profile-section {
+            justify-content: center;
+            padding: 0.75rem;
+        }
+
+        .collapsed .user-profile-section .user-info {
+            display: none;
+        }
+
+        .collapsed .user-profile-section img {
+            margin: 0;
+        }
+
+        .collapsed .user-profile-section .status-dot {
+            display: none;
+        }
+
+        /* Desktop hamburger button */
+        .desktop-menu-btn {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .desktop-menu-btn {
+                display: flex;
+            }
         }
 
         /* Cards */
@@ -565,10 +650,10 @@
 <body>
     <div class="app-wrapper">
         <!-- Desktop Sidebar -->
-        <aside class="sidebar-desktop">
+        <aside class="sidebar-desktop" id="desktopSidebar">
             <div class="p-6 h-full flex flex-col">
                 <!-- Logo Section -->
-                <div class="mb-8">
+                <div class="mb-8 logo-section">
                     <div class="flex items-center space-x-3">
                         <div class="logo-container">
                             <div class="logo-wrapper w-14 h-14 flex items-center justify-center">
@@ -578,7 +663,7 @@
                                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA1NiA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHJ4PSIxNCIgZmlsbD0iIzAwQjhBOSIvPjxwYXRoIGQ9Ik0yOCAxNEwzNSAyOEwyOCA0MkwyMSAyOEwyOCAxNFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyOCIgY3k9IjI4IiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
                             </div>
                         </div>
-                        <div>
+                        <div class="logo-text">
                             <h1 class="font-bold text-xl tracking-tight">NeoProLab</h1>
                             <p class="text-xs text-gray-400 mt-0.5">Courier Management</p>
                         </div>
@@ -591,12 +676,12 @@
                 </nav>
 
                 <!-- User Profile Section -->
-                <div class="mt-6 pt-6 border-t border-gray-700/30">
+                <div class="mt-6 pt-6 border-t border-gray-700/30 user-profile-section">
                     <div class="flex items-center space-x-3 p-3 rounded-xl bg-white/5">
                         <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=40"
                             alt="User"
                             class="w-10 h-10 rounded-xl object-cover border-2 border-teal-400/30">
-                        <div class="flex-1 min-w-0">
+                        <div class="flex-1 min-w-0 user-info">
                             <p class="font-semibold text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
                             <p class="text-xs text-gray-400">
                                 @if(auth()->user()->isAdmin())
@@ -608,7 +693,7 @@
                                 @endif
                             </p>
                         </div>
-                        <div class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></div>
+                        <div class="w-2 h-2 rounded-full bg-teal-400 animate-pulse status-dot"></div>
                     </div>
                 </div>
             </div>
@@ -664,7 +749,12 @@
             <header class="navbar">
                 <div class="flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
                     <div class="flex items-center space-x-3">
+                        <!-- Mobile menu button -->
                         <button id="mobileMenuButton" class="md:hidden w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+                        <!-- Desktop menu button (hamburger) -->
+                        <button id="desktopMenuButton" class="desktop-menu-btn w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
                             <i class="fas fa-bars text-lg"></i>
                         </button>
                         <h1 class="text-lg md:text-2xl font-bold text-gray-800 tracking-tight truncate">@yield('page-title', 'Dashboard')</h1>
@@ -679,7 +769,7 @@
     loading: false,
     fetchNotifications() {
         this.loading = true;
-        fetch('/notifications/json')  // Changed from '/notifications' to '/notifications/json'
+        fetch('/notifications/json')
             .then(response => response.json())
             .then(data => {
                 this.notifications = data.notifications;
@@ -836,10 +926,30 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuButton = document.getElementById('mobileMenuButton');
+            const desktopMenuButton = document.getElementById('desktopMenuButton');
             const mobileSidebar = document.getElementById('mobileSidebar');
+            const desktopSidebar = document.getElementById('desktopSidebar');
             const mobileOverlay = document.getElementById('mobileOverlay');
             const closeButton = document.getElementById('closeMobileSidebar');
 
+            // Check if sidebar state is saved in localStorage
+            const savedState = localStorage.getItem('desktopSidebarCollapsed');
+            if (savedState === 'true' && window.innerWidth >= 768) {
+                desktopSidebar.classList.add('collapsed');
+            }
+
+            // Desktop hamburger button functionality
+            if (desktopMenuButton) {
+                desktopMenuButton.addEventListener('click', function() {
+                    if (window.innerWidth >= 768) {
+                        desktopSidebar.classList.toggle('collapsed');
+                        // Save state to localStorage
+                        localStorage.setItem('desktopSidebarCollapsed', desktopSidebar.classList.contains('collapsed'));
+                    }
+                });
+            }
+
+            // Mobile sidebar functions
             function openMobileSidebar() {
                 mobileSidebar.classList.add('open');
                 mobileOverlay.classList.add('active');
@@ -873,8 +983,15 @@
 
             // Handle resize
             window.addEventListener('resize', function() {
+                // Close mobile sidebar when resizing to desktop
                 if (window.innerWidth >= 768 && mobileSidebar.classList.contains('open')) {
                     closeMobileSidebar();
+                }
+
+                // Reset desktop sidebar if needed
+                if (window.innerWidth < 768 && desktopSidebar.classList.contains('collapsed')) {
+                    // We keep the collapsed state but it's hidden on mobile anyway
+                    // This is fine as it will be hidden
                 }
             });
         });
