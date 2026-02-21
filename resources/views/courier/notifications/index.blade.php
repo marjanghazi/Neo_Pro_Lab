@@ -1,5 +1,5 @@
-{{-- resources/views/client/notifications/index.blade.php --}}
-@extends('layouts.client')
+{{-- resources/views/courier/notifications/index.blade.php --}}
+@extends('layouts.courier')
 
 @section('page-title', 'Notifications')
 @section('title', 'Notifications - NeoProLab')

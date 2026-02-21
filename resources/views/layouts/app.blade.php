@@ -673,36 +673,50 @@
                     <div class="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
                         <!-- Notifications -->
                         <div class="dropdown-container" x-data="{ 
-                            open: false, 
-                            notifications: [], 
-                            unreadCount: 0,
-                            loading: false,
-                            fetchNotifications() {
-                                this.loading = true;
-                                fetch('/notifications')
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        this.notifications = data.notifications;
-                                        this.unreadCount = data.unread_count;
-                                    })
-                                    .catch(error => console.error('Error fetching notifications:', error))
-                                    .finally(() => this.loading = false);
-                            },
-                            markAsRead(id) {
-                                fetch(`/notifications/${id}/read`, { method: 'POST' })
-                                    .then(() => {
-                                        this.fetchNotifications();
-                                    })
-                                    .catch(error => console.error('Error marking notification as read:', error));
-                            },
-                            markAllAsRead() {
-                                fetch('/notifications/read-all', { method: 'POST' })
-                                    .then(() => {
-                                        this.fetchNotifications();
-                                    })
-                                    .catch(error => console.error('Error marking all notifications as read:', error));
-                            }
-                        }" x-init="fetchNotifications(); setInterval(() => fetchNotifications(), 30000)" @click.away="open = false">
+    open: false, 
+    notifications: [], 
+    unreadCount: 0,
+    loading: false,
+    fetchNotifications() {
+        this.loading = true;
+        fetch('/notifications/json')  // Changed from '/notifications' to '/notifications/json'
+            .then(response => response.json())
+            .then(data => {
+                this.notifications = data.notifications;
+                this.unreadCount = data.unread_count;
+            })
+            .catch(error => console.error('Error fetching notifications:', error))
+            .finally(() => this.loading = false);
+    },
+    markAsRead(id) {
+        fetch(`/notifications/${id}/read`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(() => {
+            this.fetchNotifications();
+        })
+        .catch(error => console.error('Error marking notification as read:', error));
+    },
+    markAllAsRead() {
+        fetch('/notifications/read-all', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(() => {
+            this.fetchNotifications();
+        })
+        .catch(error => console.error('Error marking all notifications as read:', error));
+    }
+}" x-init="fetchNotifications(); setInterval(() => fetchNotifications(), 30000)" @click.away="open = false">
                             <button @click="open = !open" class="relative w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
                                 <i class="fas fa-bell text-base md:text-lg"></i>
                                 <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
@@ -731,10 +745,14 @@
                                     <template x-for="notification in notifications" :key="notification.id">
                                         <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
                                             <div class="flex items-start gap-3">
-                                                <i :class="notification.data.icon || 'fas fa-info-circle'" class="text-teal-500 mt-1"></i>
+                                                <!-- Icon based on notification type -->
+                                                <i :class="notification.icon || 'fas fa-bell'"
+                                                    :class="'text-' + (notification.color || 'teal') + '-500'"
+                                                    class="mt-1 text-lg"></i>
                                                 <div class="flex-1 min-w-0">
-                                                    <p class="text-sm text-gray-800" x-text="notification.data.message"></p>
-                                                    <p class="text-xs text-gray-500 mt-1" x-text="new Date(notification.created_at).toLocaleString()"></p>
+                                                    <p class="text-sm font-medium text-gray-800" x-text="notification.title"></p>
+                                                    <p class="text-xs text-gray-600 mt-0.5 line-clamp-2" x-text="notification.message"></p>
+                                                    <p class="text-xs text-gray-400 mt-1" x-text="notification.created_at_human"></p>
                                                 </div>
                                                 <span x-show="!notification.read_at" class="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0 mt-2"></span>
                                             </div>
@@ -742,7 +760,7 @@
                                     </template>
                                 </div>
                                 <div class="border-t border-gray-200 p-3 text-center bg-gray-50">
-                                    <a href="/notifications" class="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                                    <a href="{{ route('notifications.index') }}" class="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
                                         View all notifications
                                     </a>
                                 </div>

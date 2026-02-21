@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.client')
 
 @section('page-title', 'Notification Details')
 @section('title', 'Notification - NeoProLab')

@@ -168,4 +168,5 @@ class User extends Authenticatable
             $this->courierVerification &&
             $this->courierVerification->isApproved();
     }
+    
 }

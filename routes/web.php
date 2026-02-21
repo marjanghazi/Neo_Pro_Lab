@@ -22,6 +22,7 @@ use App\Http\Controllers\FormsController;
 use App\Http\Controllers\Client\DocumentController;
 use App\Http\Controllers\Client\FacilityController;
 use App\Http\Controllers\Public\PickupRequestController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,12 +67,31 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
+
 // Shared Profile Routes - Works for all authenticated users
 Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function () {
     Route::get('/', [App\Http\Controllers\ProfileController::class, 'index'])->name('index');
     Route::get('/edit', [App\Http\Controllers\ProfileController::class, 'edit'])->name('edit');
     Route::put('/update', [App\Http\Controllers\ProfileController::class, 'update'])->name('update');
 });
+
+/*
+|--------------------------------------------------------------------------
+| UNIFIED NOTIFICATION ROUTES (For all authenticated users)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    // Notifications - Unified for all roles
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/recent', [NotificationController::class, 'getRecent'])->name('notifications.recent');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::post('/notifications/clear-all', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+    Route::get('/notifications/{notification}', [NotificationController::class, 'show'])->name('notifications.show');
+        Route::get('/notifications/json', [App\Http\Controllers\NotificationController::class, 'getRecent'])->name('notifications.json');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Admin Routes
@@ -85,24 +105,6 @@ Route::prefix('admin')
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
-
-        // Notifications
-        Route::get('/notifications', [App\Http\Controllers\Admin\AdminNotificationController::class, 'index'])
-            ->name('notifications.index');
-        Route::get('/notifications/recent', [App\Http\Controllers\Admin\AdminNotificationController::class, 'getRecent'])
-            ->name('notifications.recent');
-        Route::get('/notifications/unread-count', [App\Http\Controllers\Admin\AdminNotificationController::class, 'getUnreadCount'])
-            ->name('notifications.unread-count');
-        Route::get('/notifications/{notification}', [App\Http\Controllers\Admin\AdminNotificationController::class, 'show'])
-            ->name('notifications.show');
-        Route::post('/notifications/{notification}/read', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAsRead'])
-            ->name('notifications.read');
-        Route::post('/notifications/read-all', [App\Http\Controllers\Admin\AdminNotificationController::class, 'markAllAsRead'])
-            ->name('notifications.read-all');
-        Route::delete('/notifications/{notification}', [App\Http\Controllers\Admin\AdminNotificationController::class, 'destroy'])
-            ->name('notifications.destroy');
-        Route::delete('/notifications/clear-all', [App\Http\Controllers\Admin\AdminNotificationController::class, 'clearAll'])
-            ->name('notifications.clear-all');
 
         // Admin pricing routes
         Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
@@ -129,7 +131,8 @@ Route::prefix('admin')
         Route::get('/reports/facilities', [AdminReportsController::class, 'facilities'])->name('reports.facilities');
         Route::get('/reports/payments', [AdminReportsController::class, 'payments'])->name('reports.payments');
         Route::post('/reports/export', [AdminReportsController::class, 'export'])->name('reports.export');
-        // Admin Courier Verification Routes ✅
+
+        // Admin Courier Verification Routes
         Route::get('/couriers/{courier}/verification', [AdminCourierController::class, 'verification'])
             ->name('couriers.verification');
 
@@ -220,10 +223,10 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
     Route::get('/profile', [ClientController::class, 'profile'])->name('profile');
     Route::post('/profile', [ClientController::class, 'updateProfile'])->name('profile.update');
 
-    // Notifications
-    Route::get('/notifications', [ClientController::class, 'notifications'])->name('notifications');
-    Route::post('/notifications/{notification}/read', [ClientController::class, 'markNotificationAsRead'])->name('notifications.read');
-    Route::post('/notifications/mark-all-read', [ClientController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
+    // Notifications - Redirect to unified notifications
+    Route::get('/notifications', function () {
+        return redirect()->route('notifications.index');
+    })->name('notifications');
 
     // Requests
     Route::get('/requests', [ClientController::class, 'requests'])->name('requests.index');
@@ -300,6 +303,11 @@ Route::prefix('courier')
         // Dashboard
         Route::get('/dashboard', [CourierController::class, 'dashboard'])->name('dashboard');
 
+        // Notifications - Redirect to unified notifications
+        Route::get('/notifications', function () {
+            return redirect()->route('notifications.index');
+        })->name('notifications');
+
         // Assignments
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
         Route::post('/assignments/{requestId}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
@@ -313,7 +321,7 @@ Route::prefix('courier')
         Route::get('/requests', [CourierController::class, 'requests'])->name('requests.index');
         Route::get('/requests/{requestId}', [CourierController::class, 'viewRequest'])->name('requests.show');
 
-        // Proof Workflow Routes - ADDED MISSING ROUTES
+        // Proof Workflow Routes
         Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{requestId}/transit-proof', [CourierController::class, 'submitTransitProof'])->name('requests.transit-proof');
         Route::post('/requests/{requestId}/skip-proof', [CourierController::class, 'skipProofRequirement'])->name('requests.skip-proof');
@@ -323,7 +331,7 @@ Route::prefix('courier')
         Route::post('/requests/{requestId}/decline-quote', [CourierController::class, 'declineQuote'])->name('courier.requests.decline-quote');
         Route::get('/requests/{requestId}/quote', [CourierController::class, 'viewQuote'])->name('courier.requests.quote');
 
-        // ADD THE MISSING ARRIVAL PROOF ROUTE
+        // Arrival Proof Route
         Route::post('/requests/{requestId}/arrival-proof', [CourierController::class, 'submitArrivalProof'])->name('requests.arrival-proof');
 
         // Delivery Workflow
@@ -347,11 +355,6 @@ Route::prefix('courier')
         // Profile
         Route::get('/profile', [CourierController::class, 'profile'])->name('profile');
         Route::post('/profile', [CourierController::class, 'updateProfile'])->name('profile.update');
-
-        // Notifications
-        Route::get('/notifications', [CourierController::class, 'notifications'])->name('notifications');
-        Route::post('/notifications/{notification}/read', [CourierController::class, 'markNotificationAsRead'])->name('notifications.read');
-        Route::post('/notifications/mark-all-read', [CourierController::class, 'markAllNotificationsAsRead'])->name('notifications.mark-all-read');
 
         // API Endpoints for real-time updates
         Route::post('/api/cache-location', function (Request $request) {

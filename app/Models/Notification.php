@@ -1,4 +1,5 @@
 <?php
+// app/Models/Notification.php
 
 namespace App\Models;
 
@@ -19,6 +20,7 @@ class Notification extends Model
         'data',
         'is_read',
         'read_at',
+        'for_role', // Add this column
     ];
 
     protected $casts = [
@@ -35,5 +37,26 @@ class Notification extends Model
     public function request(): BelongsTo
     {
         return $this->belongsTo(SpecimenRequest::class);
+    }
+
+    // Scope for unread notifications
+    public function scopeUnread($query)
+    {
+        return $query->where('is_read', false);
+    }
+
+    // Scope for specific role
+    public function scopeForRole($query, $role)
+    {
+        return $query->where('for_role', $role);
+    }
+
+    // Mark as read
+    public function markAsRead()
+    {
+        $this->update([
+            'is_read' => true,
+            'read_at' => now()
+        ]);
     }
 }
