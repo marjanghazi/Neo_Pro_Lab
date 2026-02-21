@@ -29,9 +29,7 @@
     <span>Reports</span>
 </a>
 
-<div class="pt-4 mt-4 border-t border-gray-700">
-    <p class="px-4 text-xs text-gray-400 uppercase tracking-wider mb-2">System</p>
-    
+<div class="pt-4 mt-4 border-t border-gray-700">    
     <a href="{{ route('admin.settings.index') }}" class="sidebar-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
         <i class="fas fa-cog w-5"></i>
         <span>Settings</span>

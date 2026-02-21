@@ -671,7 +671,7 @@
                 </div>
 
                 <!-- Navigation -->
-                <nav class="flex-1 overflow-y-auto space-y-1">
+                <nav class="flex-1 space-y-1">
                     @yield('sidebar')
                 </nav>
 
