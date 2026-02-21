@@ -632,248 +632,348 @@
 
 @push('scripts')
 <script>
-function showSendQuoteModal() {
-    document.getElementById('sendQuoteModal').classList.remove('hidden');
-}
+    // Helper functions for safe number parsing
+    function safeParseFloat(value, defaultValue = 0) {
+        if (value === null || value === undefined) return defaultValue;
+        if (typeof value === 'number' && !isNaN(value)) return value;
 
-function closeSendQuoteModal() {
-    document.getElementById('sendQuoteModal').classList.add('hidden');
-}
+        // If it's a string, clean it and parse
+        const strValue = String(value).replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(strValue);
+        return isNaN(parsed) ? defaultValue : parsed;
+    }
 
-function calculatePrice() {
-    const btn = document.getElementById('calculatePriceBtn');
-    const loading = document.getElementById('calculationLoading');
-    const calculationSection = document.getElementById('priceCalculationSection');
-    
-    // Show loading, disable button
-    btn.classList.add('hidden');
-    loading.classList.remove('hidden');
-    
-    // Create form data
-    const formData = new FormData();
-    formData.append('_token', '{{ csrf_token() }}');
-    
-    // Send AJAX request
-    fetch('{{ route("admin.requests.calculate-price", $request) }}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message
-            showToast('success', data.message || 'Price calculated successfully!');
-            
-            // Update the price section with new data
-            updatePriceSection(data);
-            
-            // Hide loading, show updated content
-            loading.classList.add('hidden');
-            calculationSection.innerHTML = `
+    function safeParseInt(value, defaultValue = 0) {
+        if (value === null || value === undefined) return defaultValue;
+        if (typeof value === 'number' && !isNaN(value)) return Math.floor(value);
+
+        const strValue = String(value).replace(/[^0-9-]/g, '');
+        const parsed = parseInt(strValue, 10);
+        return isNaN(parsed) ? defaultValue : parsed;
+    }
+
+    function formatNumber(value, decimals = 2) {
+        const num = safeParseFloat(value);
+        return num.toFixed(decimals);
+    }
+
+    function showSendQuoteModal() {
+        document.getElementById('sendQuoteModal').classList.remove('hidden');
+    }
+
+    function closeSendQuoteModal() {
+        document.getElementById('sendQuoteModal').classList.add('hidden');
+    }
+
+    function calculatePrice() {
+        const btn = document.getElementById('calculatePriceBtn');
+        const loading = document.getElementById('calculationLoading');
+        const calculationSection = document.getElementById('priceCalculationSection');
+
+        // Show loading, disable button
+        btn.classList.add('hidden');
+        loading.classList.remove('hidden');
+
+        // Create form data
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+
+        // Send AJAX request
+        fetch('{{ route("admin.requests.calculate-price", $request) }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showToast('success', data.message || 'Price calculated successfully!');
+
+                    // Extract price data (could be in data.data or directly in data)
+                    const priceData = data.data || data;
+
+                    // Safely parse all numeric values
+                    const basePrice = safeParseFloat(priceData.base_price, 50.00);
+                    const distanceMiles = safeParseFloat(priceData.distance_miles);
+                    const distanceCharge = safeParseFloat(priceData.distance_charge);
+                    const statUrgentCharge = safeParseFloat(priceData.stat_urgent_charge);
+                    const nightHoursCharge = safeParseFloat(priceData.night_hours_charge);
+                    const weekendCharge = safeParseFloat(priceData.weekend_charge);
+                    const coldChainCharge = safeParseFloat(priceData.cold_chain_charge);
+                    const additionalStopCharge = safeParseFloat(priceData.additional_stop_charge);
+                    const totalPrice = safeParseFloat(priceData.total_price);
+                    const courierFee = safeParseFloat(priceData.courier_fee);
+                    const adminFee = safeParseFloat(priceData.admin_fee);
+                    const profitMargin = safeParseFloat(priceData.profit_margin);
+
+                    const hasStatUrgent = priceData.has_stat_urgent || false;
+                    const hasNightService = priceData.has_night_service || false;
+                    const hasWeekendService = priceData.has_weekend_service || false;
+                    const hasColdChain = priceData.has_cold_chain || false;
+                    const additionalStops = safeParseInt(priceData.additional_stops);
+
+                    // Build HTML with properly formatted numbers
+                    let html = `
                 <div class="space-y-3">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Base Price (0-15 miles):</span>
-                        <span class="font-medium">$${data.base_price ? parseFloat(data.base_price).toFixed(2) : '50.00'}</span>
+                        <span class="font-medium">$${formatNumber(basePrice)}</span>
                     </div>
-                    ${data.distance_charge > 0 ? `
+            `;
+
+                    if (distanceCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Distance Charge (${parseFloat(data.distance_miles).toFixed(1)} miles):</span>
-                        <span class="font-medium">$${parseFloat(data.distance_charge).toFixed(2)}</span>
+                        <span class="text-gray-600">Distance Charge (${formatNumber(distanceMiles, 1)} miles):</span>
+                        <span class="font-medium">$${formatNumber(distanceCharge)}</span>
                     </div>
-                    ` : ''}
-                    ${data.has_stat_urgent ? `
+                `;
+                    }
+
+                    if (hasStatUrgent && statUrgentCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
                         <span class="text-gray-600">STAT/Urgent Delivery:</span>
-                        <span class="font-medium">$${parseFloat(data.stat_urgent_charge).toFixed(2)}</span>
+                        <span class="font-medium">$${formatNumber(statUrgentCharge)}</span>
                     </div>
-                    ` : ''}
-                    ${data.has_night_service ? `
+                `;
+                    }
+
+                    if (hasNightService && nightHoursCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
                         <span class="text-gray-600">Night After-Hours Service:</span>
-                        <span class="font-medium">$${parseFloat(data.night_hours_charge).toFixed(2)}</span>
+                        <span class="font-medium">$${formatNumber(nightHoursCharge)}</span>
                     </div>
-                    ` : ''}
-                    ${data.has_weekend_service ? `
+                `;
+                    }
+
+                    if (hasWeekendService && weekendCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
                         <span class="text-gray-600">Weekend Delivery:</span>
-                        <span class="font-medium">$${parseFloat(data.weekend_charge).toFixed(2)}</span>
+                        <span class="font-medium">$${formatNumber(weekendCharge)}</span>
                     </div>
-                    ` : ''}
-                    ${data.has_cold_chain ? `
+                `;
+                    }
+
+                    if (hasColdChain && coldChainCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
                         <span class="text-gray-600">Cold-Chain Handling:</span>
-                        <span class="font-medium">$${parseFloat(data.cold_chain_charge).toFixed(2)}</span>
+                        <span class="font-medium">$${formatNumber(coldChainCharge)}</span>
                     </div>
-                    ` : ''}
-                    ${data.additional_stops > 0 ? `
+                `;
+                    }
+
+                    if (additionalStops > 0 && additionalStopCharge > 0) {
+                        html += `
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Additional Stops (${data.additional_stops}):</span>
-                        <span class="font-medium">$${parseFloat(data.additional_stop_charge).toFixed(2)}</span>
+                        <span class="text-gray-600">Additional Stops (${additionalStops}):</span>
+                        <span class="font-medium">$${formatNumber(additionalStopCharge)}</span>
                     </div>
-                    ` : ''}
+                `;
+                    }
+
+                    html += `
                     <div class="pt-3 border-t border-gray-200">
                         <div class="flex justify-between font-bold text-lg">
                             <span>Total Price:</span>
-                            <span class="text-teal-600">$${parseFloat(data.total_price).toFixed(2)}</span>
+                            <span class="text-teal-600">$${formatNumber(totalPrice)}</span>
                         </div>
                     </div>
+                    
                     <div class="pt-3 space-y-2">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Courier Fee:</span>
-                            <span class="font-medium text-blue-600">$${parseFloat(data.courier_fee).toFixed(2)}</span>
+                            <span class="font-medium text-blue-600">$${formatNumber(courierFee)}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Admin Fee:</span>
-                            <span class="font-medium">$${parseFloat(data.admin_fee).toFixed(2)}</span>
+                            <span class="font-medium">$${formatNumber(adminFee)}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Profit Margin:</span>
-                            <span class="font-medium text-green-600">$${parseFloat(data.profit_margin).toFixed(2)}</span>
+                            <span class="font-medium text-green-600">$${formatNumber(profitMargin)}</span>
                         </div>
                     </div>
                 </div>
+                
                 <div class="mt-4">
                     <button type="button" onclick="showSendQuoteModal()" class="w-full btn-primary">
                         <i class="fas fa-paper-plane mr-2"></i> Send Quote to Courier
                     </button>
                 </div>
             `;
-            
-            // Update form values in modal
-            updateQuoteFormValues(data);
-            
-        } else {
-            // Show error
-            showToast('error', data.message || 'Error calculating price');
-            btn.classList.remove('hidden');
-            loading.classList.add('hidden');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('error', 'Error calculating price. Please try again.');
-        btn.classList.remove('hidden');
-        loading.classList.add('hidden');
-    });
-}
 
-function updatePriceSection(data) {
-    // This function updates the price details section with new data
-    const priceDetails = document.getElementById('priceDetails');
-    if (priceDetails) {
-        // Update the price details if they exist
-        priceDetails.innerHTML = `
+                    // Hide loading and update the section
+                    loading.classList.add('hidden');
+                    calculationSection.innerHTML = html;
+
+                    // Update form values in modal
+                    updateQuoteFormValues({
+                        courier_fee: courierFee,
+                        total_price: totalPrice
+                    });
+
+                } else {
+                    // Show error
+                    showToast('error', data.message || 'Error calculating price');
+                    btn.classList.remove('hidden');
+                    loading.classList.add('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('error', 'Error calculating price. Please try again.');
+                btn.classList.remove('hidden');
+                loading.classList.add('hidden');
+            });
+    }
+
+    function updatePriceSection(data) {
+        // This function updates the price details section with new data
+        const priceDetails = document.getElementById('priceDetails');
+        if (priceDetails) {
+            const priceData = data.data || data;
+
+            // Safely parse all numeric values
+            const basePrice = safeParseFloat(priceData.base_price);
+            const distanceMiles = safeParseFloat(priceData.distance_miles);
+            const distanceCharge = safeParseFloat(priceData.distance_charge);
+            const statUrgentCharge = safeParseFloat(priceData.stat_urgent_charge);
+            const nightHoursCharge = safeParseFloat(priceData.night_hours_charge);
+            const weekendCharge = safeParseFloat(priceData.weekend_charge);
+            const coldChainCharge = safeParseFloat(priceData.cold_chain_charge);
+            const additionalStopCharge = safeParseFloat(priceData.additional_stop_charge);
+            const totalPrice = safeParseFloat(priceData.total_price);
+            const courierFee = safeParseFloat(priceData.courier_fee);
+            const adminFee = safeParseFloat(priceData.admin_fee);
+            const profitMargin = safeParseFloat(priceData.profit_margin);
+
+            const hasStatUrgent = priceData.has_stat_urgent || false;
+            const hasNightService = priceData.has_night_service || false;
+            const hasWeekendService = priceData.has_weekend_service || false;
+            const hasColdChain = priceData.has_cold_chain || false;
+            const additionalStops = safeParseInt(priceData.additional_stops);
+
+            // Update the price details
+            priceDetails.innerHTML = `
             <div class="space-y-3">
                 <div class="flex justify-between">
                     <span class="text-gray-600">Base Price (0-15 miles):</span>
-                    <span class="font-medium">$${parseFloat(data.base_price).toFixed(2)}</span>
+                    <span class="font-medium">$${formatNumber(basePrice)}</span>
                 </div>
-                ${data.distance_charge > 0 ? `
+                ${distanceCharge > 0 ? `
                 <div class="flex justify-between">
-                    <span class="text-gray-600">Distance Charge (${parseFloat(data.distance_miles).toFixed(1)} miles):</span>
-                    <span class="font-medium">$${parseFloat(data.distance_charge).toFixed(2)}</span>
+                    <span class="text-gray-600">Distance Charge (${formatNumber(distanceMiles, 1)} miles):</span>
+                    <span class="font-medium">$${formatNumber(distanceCharge)}</span>
                 </div>
                 ` : ''}
-                ${data.has_stat_urgent ? `
+                ${hasStatUrgent && statUrgentCharge > 0 ? `
                 <div class="flex justify-between">
                     <span class="text-gray-600">STAT/Urgent Delivery:</span>
-                    <span class="font-medium">$${parseFloat(data.stat_urgent_charge).toFixed(2)}</span>
+                    <span class="font-medium">$${formatNumber(statUrgentCharge)}</span>
                 </div>
                 ` : ''}
-                ${data.has_night_service ? `
+                ${hasNightService && nightHoursCharge > 0 ? `
                 <div class="flex justify-between">
                     <span class="text-gray-600">Night After-Hours Service:</span>
-                    <span class="font-medium">$${parseFloat(data.night_hours_charge).toFixed(2)}</span>
+                    <span class="font-medium">$${formatNumber(nightHoursCharge)}</span>
                 </div>
                 ` : ''}
-                ${data.has_weekend_service ? `
+                ${hasWeekendService && weekendCharge > 0 ? `
                 <div class="flex justify-between">
                     <span class="text-gray-600">Weekend Delivery:</span>
-                    <span class="font-medium">$${parseFloat(data.weekend_charge).toFixed(2)}</span>
+                    <span class="font-medium">$${formatNumber(weekendCharge)}</span>
                 </div>
                 ` : ''}
-                ${data.has_cold_chain ? `
+                ${hasColdChain && coldChainCharge > 0 ? `
                 <div class="flex justify-between">
                     <span class="text-gray-600">Cold-Chain Handling:</span>
-                    <span class="font-medium">$${parseFloat(data.cold_chain_charge).toFixed(2)}</span>
+                    <span class="font-medium">$${formatNumber(coldChainCharge)}</span>
                 </div>
                 ` : ''}
-                ${data.additional_stops > 0 ? `
+                ${additionalStops > 0 && additionalStopCharge > 0 ? `
                 <div class="flex justify-between">
-                    <span class="text-gray-600">Additional Stops (${data.additional_stops}):</span>
-                    <span class="font-medium">$${parseFloat(data.additional_stop_charge).toFixed(2)}</span>
+                    <span class="text-gray-600">Additional Stops (${additionalStops}):</span>
+                    <span class="font-medium">$${formatNumber(additionalStopCharge)}</span>
                 </div>
                 ` : ''}
                 <div class="pt-3 border-t border-gray-200">
                     <div class="flex justify-between font-bold text-lg">
                         <span>Total Price:</span>
-                        <span class="text-teal-600">$${parseFloat(data.total_price).toFixed(2)}</span>
+                        <span class="text-teal-600">$${formatNumber(totalPrice)}</span>
                     </div>
                 </div>
                 <div class="pt-3 space-y-2">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Courier Fee:</span>
-                        <span class="font-medium text-blue-600">$${parseFloat(data.courier_fee).toFixed(2)}</span>
+                        <span class="font-medium text-blue-600">$${formatNumber(courierFee)}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Admin Fee:</span>
-                        <span class="font-medium">$${parseFloat(data.admin_fee).toFixed(2)}</span>
+                        <span class="font-medium">$${formatNumber(adminFee)}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Profit Margin:</span>
-                        <span class="font-medium text-green-600">$${parseFloat(data.profit_margin).toFixed(2)}</span>
+                        <span class="font-medium text-green-600">$${formatNumber(profitMargin)}</span>
                     </div>
                 </div>
             </div>
         `;
+        }
     }
-}
 
-function updateQuoteFormValues(data) {
-    // Update form values in the send quote modal
-    const courierFeeInput = document.querySelector('input[name="courier_fee"]');
-    const totalPriceInput = document.querySelector('input[name="total_price"]');
-    
-    if (courierFeeInput) {
-        courierFeeInput.value = parseFloat(data.courier_fee).toFixed(2);
-    }
-    if (totalPriceInput) {
-        totalPriceInput.value = parseFloat(data.total_price).toFixed(2);
-    }
-}
+    function updateQuoteFormValues(data) {
+        // Update form values in the send quote modal
+        const courierFeeInput = document.querySelector('input[name="courier_fee"]');
+        const totalPriceInput = document.querySelector('input[name="total_price"]');
 
-function showToast(type, message) {
-    // Create toast notification
-    const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 animate-fade-in-down ${
+        const priceData = data.data || data;
+        const courierFee = safeParseFloat(priceData.courier_fee);
+        const totalPrice = safeParseFloat(priceData.total_price);
+
+        if (courierFeeInput) {
+            courierFeeInput.value = formatNumber(courierFee);
+        }
+        if (totalPriceInput) {
+            totalPriceInput.value = formatNumber(totalPrice);
+        }
+    }
+
+    function showToast(type, message) {
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 animate-fade-in-down ${
         type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 
         'bg-red-100 text-red-700 border border-red-200'
     }`;
-    toast.innerHTML = `
+        toast.innerHTML = `
         <div class="flex items-center">
             <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
             <span>${message}</span>
         </div>
     `;
-    
-    document.body.appendChild(toast);
-    
-    // Remove toast after 5 seconds
-    setTimeout(() => {
-        toast.classList.add('animate-fade-out');
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 300);
-    }, 5000);
-}
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
+        document.body.appendChild(toast);
+
+        // Remove toast after 5 seconds
+        setTimeout(() => {
+            toast.classList.add('animate-fade-out');
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 5000);
+    }
+
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
     @keyframes fadeInDown {
         from {
             opacity: 0;
@@ -904,110 +1004,110 @@ style.textContent = `
         animation: fadeOut 0.3s ease-in;
     }
 `;
-document.head.appendChild(style);
+    document.head.appendChild(style);
 
-// Handle send quote form submission with AJAX
-document.addEventListener('DOMContentLoaded', function() {
-    const sendQuoteForm = document.getElementById('sendQuoteForm');
-    if (sendQuoteForm) {
-        sendQuoteForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            const submitBtn = document.getElementById('sendQuoteBtn');
-            const originalText = submitBtn.innerHTML;
-            
-            // Disable button and show loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showToast('success', data.message || 'Quote sent successfully!');
-                    
-                    // Close modal after delay
-                    setTimeout(() => {
-                        closeSendQuoteModal();
-                        // Reload page to show updated quote status
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    showToast('error', data.message || 'Failed to send quote');
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('error', 'Error sending quote. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
-        });
-    }
-    
-    // Handle assign with quote form submission with AJAX
-    const assignWithQuoteForm = document.getElementById('assignWithQuoteForm');
-    if (assignWithQuoteForm) {
-        assignWithQuoteForm.addEventListener('submit', function(e) {
-            if (!confirm('Are you sure you want to assign this courier with a price quote?')) {
+    // Handle send quote form submission with AJAX
+    document.addEventListener('DOMContentLoaded', function() {
+        const sendQuoteForm = document.getElementById('sendQuoteForm');
+        if (sendQuoteForm) {
+            sendQuoteForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                return;
-            }
-            
-            const formData = new FormData(this);
-            const submitBtn = document.getElementById('assignWithQuoteBtn');
-            const originalText = submitBtn.innerHTML;
-            
-            // Disable button and show loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Assigning...';
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showToast('success', data.message || 'Courier assigned with price quote!');
-                    
-                    // Reload page after delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
-                } else {
-                    showToast('error', data.message || 'Failed to assign courier');
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('error', 'Error assigning courier. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+
+                const formData = new FormData(this);
+                const submitBtn = document.getElementById('sendQuoteBtn');
+                const originalText = submitBtn.innerHTML;
+
+                // Disable button and show loading
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+                fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message
+                            showToast('success', data.message || 'Quote sent successfully!');
+
+                            // Close modal after delay
+                            setTimeout(() => {
+                                closeSendQuoteModal();
+                                // Reload page to show updated quote status
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            showToast('error', data.message || 'Failed to send quote');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('error', 'Error sending quote. Please try again.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    });
             });
-            
-            e.preventDefault();
-        });
-    }
-});
+        }
+
+        // Handle assign with quote form submission with AJAX
+        const assignWithQuoteForm = document.getElementById('assignWithQuoteForm');
+        if (assignWithQuoteForm) {
+            assignWithQuoteForm.addEventListener('submit', function(e) {
+                if (!confirm('Are you sure you want to assign this courier with a price quote?')) {
+                    e.preventDefault();
+                    return;
+                }
+
+                const formData = new FormData(this);
+                const submitBtn = document.getElementById('assignWithQuoteBtn');
+                const originalText = submitBtn.innerHTML;
+
+                // Disable button and show loading
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Assigning...';
+
+                fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message
+                            showToast('success', data.message || 'Courier assigned with price quote!');
+
+                            // Reload page after delay
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            showToast('error', data.message || 'Failed to assign courier');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('error', 'Error assigning courier. Please try again.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    });
+
+                e.preventDefault();
+            });
+        }
+    });
 </script>
 @endpush
 @endsection
