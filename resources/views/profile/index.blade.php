@@ -212,52 +212,7 @@
             @endif
         </div>
 
-        <!-- Recent Activity -->
-        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold flex items-center">
-                    <i class="fas fa-history text-teal-600 mr-2"></i>
-                    Recent Activity
-                </h3>
-                <a href="#" class="text-sm text-teal-600 hover:text-teal-800 font-medium">View All</a>
-            </div>
-            <div class="space-y-3">
-                @php
-                if(auth()->user()->isAdmin()) {
-                $activities = [
-                ['icon' => 'fa-building', 'text' => 'New facility registered', 'time' => '2 hours ago', 'color' => 'blue'],
-                ['icon' => 'fa-user-plus', 'text' => 'New courier account created', 'time' => '5 hours ago', 'color' => 'green'],
-                ['icon' => 'fa-box', 'text' => 'Request #REQ-2024-001 approved', 'time' => '1 day ago', 'color' => 'purple'],
-                ];
-                } elseif(auth()->user()->isCourier()) {
-                $activities = [
-                ['icon' => 'fa-check-circle', 'text' => 'Delivery completed for #REQ-2024-015', 'time' => '1 hour ago', 'color' => 'green'],
-                ['icon' => 'fa-box-open', 'text' => 'Pickup completed at City Hospital', 'time' => '3 hours ago', 'color' => 'blue'],
-                ['icon' => 'fa-map-marker-alt', 'text' => 'Started transit to destination', 'time' => '5 hours ago', 'color' => 'orange'],
-                ];
-                } else {
-                $activities = [
-                ['icon' => 'fa-file-alt', 'text' => 'New request #REQ-2024-028 created', 'time' => '2 hours ago', 'color' => 'blue'],
-                ['icon' => 'fa-check-circle', 'text' => 'Request #REQ-2024-027 completed', 'time' => '1 day ago', 'color' => 'green'],
-                ['icon' => 'fa-credit-card', 'text' => 'Payment processed for request', 'time' => '2 days ago', 'color' => 'purple'],
-                ];
-                }
-                @endphp
-                @foreach($activities as $activity)
-                <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-{{ $activity['color'] }}-100 flex items-center justify-center">
-                            <i class="fas {{ $activity['icon'] }} text-{{ $activity['color'] }}-600"></i>
-                        </div>
-                        <div>
-                            <p class="font-medium text-gray-800">{{ $activity['text'] }}</p>
-                            <p class="text-sm text-gray-500">{{ $activity['time'] }}</p>
-                        </div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
+       
     </div>
 
     <!-- Right Column -->
