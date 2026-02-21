@@ -50,7 +50,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
             width: 100%;
             overflow: hidden;
@@ -193,6 +194,7 @@
             .sidebar-mobile {
                 display: none;
             }
+
             .mobile-overlay {
                 display: none !important;
             }
@@ -382,6 +384,7 @@
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -402,13 +405,33 @@
             box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
         }
 
-        .status-pending { background: var(--warning); }
-        .status-approved { background: var(--success); }
-        .status-assigned { background: var(--info); }
-        .status-picked-up { background: #8B5CF6; }
-        .status-delivered { background: var(--success); }
-        .status-completed { background: #059669; }
-        .status-cancelled { background: var(--danger); }
+        .status-pending {
+            background: var(--warning);
+        }
+
+        .status-approved {
+            background: var(--success);
+        }
+
+        .status-assigned {
+            background: var(--info);
+        }
+
+        .status-picked-up {
+            background: #8B5CF6;
+        }
+
+        .status-delivered {
+            background: var(--success);
+        }
+
+        .status-completed {
+            background: #059669;
+        }
+
+        .status-cancelled {
+            background: var(--danger);
+        }
 
         /* Line Clamp */
         .line-clamp-2 {
@@ -519,13 +542,16 @@
                 opacity: 0;
                 transform: translateY(-10px) scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
             }
         }
 
-        [x-cloak] { display: none !important; }
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
 
     @stack('styles')
@@ -733,7 +759,7 @@
                                     <p class="font-semibold text-gray-800">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
                                     <p class="text-xs text-gray-500 mt-1 truncate">{{ auth()->user()->email }}</p>
                                 </div>
-                                <a href="{{ route('admin.profile.index') }}" class="user-menu-item">
+                                <a href="{{ route('profile.index') }}" class="user-menu-item">
                                     <i class="fas fa-user"></i>
                                     <span>My Profile</span>
                                 </a>
@@ -741,7 +767,7 @@
                                     <i class="fas fa-cog"></i>
                                     <span>Settings</span>
                                 </a>
-                                
+
                                 <div class="border-t border-gray-200 my-1"></div>
                                 <form method="POST" action="{{ route('logout') }}" id="logout-form">
                                     @csrf

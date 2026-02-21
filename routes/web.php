@@ -66,7 +66,12 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
-
+// Shared Profile Routes - Works for all authenticated users
+Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function () {
+    Route::get('/', [App\Http\Controllers\ProfileController::class, 'index'])->name('index');
+    Route::get('/edit', [App\Http\Controllers\ProfileController::class, 'edit'])->name('edit');
+    Route::put('/update', [App\Http\Controllers\ProfileController::class, 'update'])->name('update');
+});
 /*
 |--------------------------------------------------------------------------
 | Admin Routes

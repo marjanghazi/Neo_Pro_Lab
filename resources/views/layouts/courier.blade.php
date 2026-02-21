@@ -10,7 +10,7 @@
     <i class="fas fa-tasks w-5"></i>
     <span>My Assignments</span>
     @php
-        $pendingCount = auth()->user()->assignedRequests()->where('status', 'assigned')->count();
+    $pendingCount = auth()->user()->assignedRequests()->where('status', 'assigned')->count();
     @endphp
     @if($pendingCount > 0)
     <span class="ml-auto bg-blue-500 text-white text-xs rounded-full px-2 py-1">{{ $pendingCount }}</span>
@@ -21,7 +21,7 @@
     <i class="fas fa-box-open w-5"></i>
     <span>Active Pickups</span>
     @php
-        $activePickups = auth()->user()->assignedRequests()->whereIn('status', ['accepted_by_courier', 'at_stop'])->count();
+    $activePickups = auth()->user()->assignedRequests()->whereIn('status', ['accepted_by_courier', 'at_stop'])->count();
     @endphp
     @if($activePickups > 0)
     <span class="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-1">{{ $activePickups }}</span>
@@ -32,7 +32,7 @@
     <i class="fas fa-truck-loading w-5"></i>
     <span>Active Deliveries</span>
     @php
-        $activeDeliveries = auth()->user()->assignedRequests()->whereIn('status', ['picked_up', 'in_transit', 'arrived_at_destination'])->count();
+    $activeDeliveries = auth()->user()->assignedRequests()->whereIn('status', ['picked_up', 'in_transit', 'arrived_at_destination'])->count();
     @endphp
     @if($activeDeliveries > 0)
     <span class="ml-auto bg-purple-500 text-white text-xs rounded-full px-2 py-1">{{ $activeDeliveries }}</span>
@@ -46,7 +46,7 @@
 
 <div class="pt-4 mt-4 border-t border-gray-700">
     <p class="px-4 text-xs text-gray-400 uppercase tracking-wider mb-2">Tools</p>
-    
+
     <a href="#" id="toggle-tracking" class="sidebar-item">
         <i class="fas fa-map-marker-alt w-5"></i>
         <span>Live Tracking</span>
@@ -55,7 +55,7 @@
             <span class="text-xs">Active</span>
         </span>
     </a>
-    
+
     <a href="{{ route('courier.proofs.index') }}" class="sidebar-item {{ request()->routeIs('courier.proofs.*') ? 'active' : '' }}">
         <i class="fas fa-camera w-5"></i>
         <span>Proofs Gallery</span>
@@ -65,7 +65,7 @@
         <i class="fas fa-bell w-5"></i>
         <span>Notifications</span>
         @php
-            $unreadCount = auth()->user()->notifications()->where('is_read', false)->count();
+        $unreadCount = auth()->user()->notifications()->where('is_read', false)->count();
         @endphp
         @if($unreadCount > 0)
         <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">{{ $unreadCount }}</span>
@@ -75,8 +75,8 @@
 
 <div class="pt-4 mt-4 border-t border-gray-700">
     <p class="px-4 text-xs text-gray-400 uppercase tracking-wider mb-2">Account</p>
-    
-    <a href="{{ route('courier.profile') }}" class="sidebar-item {{ request()->routeIs('courier.profile') ? 'active' : '' }}">
+
+    <a href="{{ route('profile.index') }}" class="sidebar-item {{ request()->routeIs('profile.*') ? 'active' : '' }}">
         <i class="fas fa-user w-5"></i>
         <span>My Profile</span>
     </a>
@@ -108,17 +108,17 @@
         font-size: 12px;
         font-weight: 600;
     }
-    
+
     .status-online {
         background: #dcfce7;
         color: #166534;
     }
-    
+
     .status-offline {
         background: #f1f5f9;
         color: #64748b;
     }
-    
+
     .status-busy {
         background: #fef3c7;
         color: #92400e;
@@ -229,7 +229,9 @@
     }
 
     @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     /* Progress Bar */
@@ -289,19 +291,57 @@
         margin-right: 6px;
     }
 
-    .status-draft { background: #9ca3af; }
-    .status-pending_approval { background: #f59e0b; }
-    .status-approved { background: #10b981; }
-    .status-assigned { background: #3b82f6; }
-    .status-accepted_by_courier { background: #8b5cf6; }
-    .status-at_stop { background: #f59e0b; }
-    .status-picked_up { background: #8b5cf6; }
-    .status-in_transit { background: #0ea5e9; }
-    .status-arrived_at_destination { background: #f59e0b; }
-    .status-delivered { background: #10b981; }
-    .status-completed { background: #059669; }
-    .status-cancelled { background: #ef4444; }
-    .status-rejected { background: #dc2626; }
+    .status-draft {
+        background: #9ca3af;
+    }
+
+    .status-pending_approval {
+        background: #f59e0b;
+    }
+
+    .status-approved {
+        background: #10b981;
+    }
+
+    .status-assigned {
+        background: #3b82f6;
+    }
+
+    .status-accepted_by_courier {
+        background: #8b5cf6;
+    }
+
+    .status-at_stop {
+        background: #f59e0b;
+    }
+
+    .status-picked_up {
+        background: #8b5cf6;
+    }
+
+    .status-in_transit {
+        background: #0ea5e9;
+    }
+
+    .status-arrived_at_destination {
+        background: #f59e0b;
+    }
+
+    .status-delivered {
+        background: #10b981;
+    }
+
+    .status-completed {
+        background: #059669;
+    }
+
+    .status-cancelled {
+        background: #ef4444;
+    }
+
+    .status-rejected {
+        background: #dc2626;
+    }
 
     /* Location Status */
     #location-status {
@@ -321,7 +361,7 @@
 
 @section('breadcrumbs')
 @hasSection('courier-breadcrumbs')
-    @yield('courier-breadcrumbs')
+@yield('courier-breadcrumbs')
 @endif
 @endsection
 
@@ -375,7 +415,7 @@
         if (e.target.id === 'photo-input') {
             const preview = document.getElementById('photo-preview');
             const previewImage = document.getElementById('preview-image');
-            
+
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -394,21 +434,21 @@
         if (canvas && typeof SignaturePad !== 'undefined') {
             canvas.width = canvas.offsetWidth;
             canvas.height = 200;
-            
+
             signaturePad = new SignaturePad(canvas, {
                 backgroundColor: 'rgb(255, 255, 255)',
                 penColor: 'rgb(0, 0, 0)'
             });
-            
+
             // Make signature pad responsive
             window.addEventListener('resize', function() {
                 const canvas = document.getElementById('signature-canvas');
                 if (canvas && signaturePad) {
                     const data = signaturePad.toData();
-                    
+
                     canvas.width = canvas.offsetWidth;
                     canvas.height = 200;
-                    
+
                     signaturePad.clear();
                     signaturePad.fromData(data);
                 }
@@ -440,41 +480,41 @@
                     altitude: position.coords.altitude || 0,
                     request_id: requestId
                 };
-                
+
                 // Send to server
                 fetch('{{ route("courier.location.update") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Location updated:', data);
-                    
-                    // Also cache location for real-time access
-                    fetch('/courier/api/cache-location', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude,
-                            accuracy: position.coords.accuracy
-                        })
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Location updated:', data);
+
+                        // Also cache location for real-time access
+                        fetch('/courier/api/cache-location', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy
+                            })
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error updating location:', error);
                     });
-                })
-                .catch(error => {
-                    console.error('Error updating location:', error);
-                });
             }, function(error) {
                 console.error('Geolocation error:', error);
                 // Handle different error cases
-                switch(error.code) {
+                switch (error.code) {
                     case error.PERMISSION_DENIED:
                         showAlert('Location permission denied. Please enable location services.', 'error');
                         break;
@@ -498,19 +538,19 @@
         if (locationUpdateInterval) {
             clearInterval(locationUpdateInterval);
         }
-        
+
         // Update immediately
         updateCourierLocation(requestId);
-        
+
         // Then update every 30 seconds
         locationUpdateInterval = setInterval(() => {
             updateCourierLocation(requestId);
         }, 30000);
-        
+
         // Update status display
         const locationStatus = document.getElementById('location-status');
         if (locationStatus) locationStatus.classList.remove('hidden');
-        
+
         const trackingStatus = document.getElementById('tracking-status');
         if (trackingStatus) {
             trackingStatus.innerHTML = `
@@ -527,11 +567,11 @@
             clearInterval(locationUpdateInterval);
             locationUpdateInterval = null;
         }
-        
+
         // Update status display
         const locationStatus = document.getElementById('location-status');
         if (locationStatus) locationStatus.classList.add('hidden');
-        
+
         const trackingStatus = document.getElementById('tracking-status');
         if (trackingStatus) {
             trackingStatus.innerHTML = `
@@ -546,39 +586,43 @@
     document.addEventListener('click', function(e) {
         if (e.target.closest('#toggle-tracking')) {
             e.preventDefault();
-            
+
             if (isTrackingActive) {
                 fetch('{{ route("courier.location.toggle") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ active: false })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        stopLocationUpdates();
-                        showAlert('Location tracking stopped.', 'info');
-                    }
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            active: false
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            stopLocationUpdates();
+                            showAlert('Location tracking stopped.', 'info');
+                        }
+                    });
             } else {
                 fetch('{{ route("courier.location.toggle") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ active: true })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        startLocationUpdates();
-                        showAlert('Location tracking started.', 'success');
-                    }
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            active: true
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            startLocationUpdates();
+                            showAlert('Location tracking started.', 'success');
+                        }
+                    });
             }
         }
     });
@@ -608,7 +652,7 @@
                             navbarRight.insertAdjacentHTML('afterbegin', alertHtml);
                         }
                     }
-                    
+
                     // Start location updates for this request
                     startLocationUpdates(data.request.id);
                 } else {
@@ -635,21 +679,21 @@
     function showAlert(message, type = 'info') {
         // Remove any existing alerts
         document.querySelectorAll('.custom-alert').forEach(alert => alert.remove());
-        
+
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} custom-alert`;
         alertDiv.innerHTML = `
             <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
             <span>${message}</span>
         `;
-        
+
         const mainContent = document.querySelector('main .content-container .space-y-4');
         if (mainContent) {
             mainContent.prepend(alertDiv);
         } else {
             document.querySelector('main').prepend(alertDiv);
         }
-        
+
         // Remove after 5 seconds
         setTimeout(() => {
             alertDiv.remove();
@@ -660,13 +704,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Check for active request
         checkActiveRequest();
-        
+
         // Check location status
         checkLocationStatus();
-        
+
         // Check active request every minute
         setInterval(checkActiveRequest, 60000);
-        
+
         // Check location status every 2 minutes
         setInterval(checkLocationStatus, 120000);
     });
@@ -675,76 +719,76 @@
     document.addEventListener('submit', function(e) {
         if (e.target.id === 'photo-form') {
             e.preventDefault();
-            
+
             const formData = new FormData(e.target);
             const requestId = document.getElementById('photo-request-id').value;
             const type = document.getElementById('photo-type').value;
-            
+
             let url = '';
             if (type === 'pickup') {
                 url = `/courier/requests/${requestId}/pickup-proof`;
             } else if (type === 'delivery') {
                 url = `/courier/requests/${requestId}/submit-delivery`;
             }
-            
+
             fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Upload failed');
-                    });
-                }
-            })
-            .catch(error => {
-                showAlert(error.message, 'error');
-            });
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            throw new Error(data.message || 'Upload failed');
+                        });
+                    }
+                })
+                .catch(error => {
+                    showAlert(error.message, 'error');
+                });
         }
 
         // Handle signature form submission
         if (e.target.id === 'signature-form') {
             e.preventDefault();
-            
+
             if (signaturePad && signaturePad.isEmpty()) {
                 showAlert('Please provide a signature', 'error');
                 return;
             }
-            
+
             // Get signature data
             if (signaturePad) {
                 const signatureData = signaturePad.toDataURL();
                 document.getElementById('signature-data').value = signatureData;
             }
-            
+
             const formData = new FormData(e.target);
             const requestId = document.getElementById('signature-request-id').value;
-            
+
             fetch(`/courier/requests/${requestId}/submit-delivery`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Submission failed');
-                    });
-                }
-            })
-            .catch(error => {
-                showAlert(error.message, 'error');
-            });
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            throw new Error(data.message || 'Submission failed');
+                        });
+                    }
+                })
+                .catch(error => {
+                    showAlert(error.message, 'error');
+                });
         }
     });
 
@@ -752,10 +796,10 @@
     window.openPhotoModal = function(requestId, type) {
         const photoRequestId = document.getElementById('photo-request-id');
         const photoType = document.getElementById('photo-type');
-        
+
         if (photoRequestId) photoRequestId.value = requestId;
         if (photoType) photoType.value = type;
-        
+
         openModal('photo-modal');
     }
 
@@ -763,12 +807,12 @@
     window.openSignatureModal = function(requestId) {
         const signatureRequestId = document.getElementById('signature-request-id');
         if (signatureRequestId) signatureRequestId.value = requestId;
-        
+
         // Clear previous signature
         if (signaturePad) {
             signaturePad.clear();
         }
-        
+
         openModal('signature-modal');
     }
 
@@ -776,8 +820,8 @@
     window.handleWorkflowAction = function(action, requestId) {
         let url = '';
         let confirmMessage = '';
-        
-        switch(action) {
+
+        switch (action) {
             case 'start-pickup':
                 url = `/courier/requests/${requestId}/start-pickup`;
                 confirmMessage = 'Are you sure you want to start the pickup process?';
@@ -795,27 +839,27 @@
                 confirmMessage = 'Are you sure you want to mark this request as completed?';
                 break;
         }
-        
+
         if (confirm(confirmMessage)) {
             fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    return response.json().then(data => {
-                        throw new Error(data.message || 'Action failed');
-                    });
-                }
-            })
-            .catch(error => {
-                showAlert(error.message, 'error');
-            });
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        return response.json().then(data => {
+                            throw new Error(data.message || 'Action failed');
+                        });
+                    }
+                })
+                .catch(error => {
+                    showAlert(error.message, 'error');
+                });
         }
     }
 </script>
@@ -838,25 +882,25 @@
                 @csrf
                 <input type="hidden" name="request_id" id="photo-request-id">
                 <input type="hidden" name="type" id="photo-type">
-                
+
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Select Photo</label>
                         <input type="file" name="photo" id="photo-input" accept="image/*" capture="environment" class="w-full" required>
                         <p class="text-xs text-gray-500 mt-1">Take a photo or select from gallery</p>
                     </div>
-                    
+
                     <div id="photo-preview" class="hidden">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Preview</label>
                         <img id="preview-image" class="w-full h-48 object-cover rounded-lg border">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
                         <textarea name="notes" rows="3" class="w-full border rounded-lg p-2" placeholder="Add any notes..."></textarea>
                     </div>
                 </div>
-                
+
                 <div class="flex justify-end space-x-3 mt-6">
                     <button type="button" onclick="closeModal('photo-modal')" class="px-4 py-2 border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50">
                         Cancel
@@ -882,18 +926,18 @@
             <form id="signature-form">
                 @csrf
                 <input type="hidden" name="request_id" id="signature-request-id">
-                
+
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Recipient Name</label>
                         <input type="text" name="recipient_name" class="w-full border rounded-lg p-2" required>
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Relationship to Patient</label>
                         <input type="text" name="recipient_relationship" class="w-full border rounded-lg p-2" required placeholder="e.g., Nurse, Family Member, etc.">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Signature</label>
                         <div class="signature-container" id="signature-pad">
@@ -906,18 +950,18 @@
                         </div>
                         <input type="hidden" name="signature" id="signature-data">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Delivery Photo (Optional)</label>
                         <input type="file" name="delivery_photo" accept="image/*" capture="environment" class="w-full">
                     </div>
-                    
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
                         <textarea name="delivery_notes" rows="2" class="w-full border rounded-lg p-2" placeholder="Add any delivery notes..."></textarea>
                     </div>
                 </div>
-                
+
                 <div class="flex justify-end space-x-3 mt-6">
                     <button type="button" onclick="closeModal('signature-modal')" class="px-4 py-2 border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50">
                         Cancel
