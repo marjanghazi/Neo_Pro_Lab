@@ -75,17 +75,11 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-20">
                 <!-- Logo -->
-                <div class="flex items-center space-x-3"> <!-- Increased space -->
-                    <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center"> <!-- Increased background size -->
-                        <div class="h-32 w-32 md:h-36 md:w-36 flex items-center justify-center"> <!-- Much larger -->
-                            <img src="{{ asset('images/logo.png') }}"
-                                alt="NeoPro Lab Logo"
-                                class="h-full w-full object-contain">
-                        </div>
-                    </div>
-                    <div>
-                        <span class="font-bold text-xl text-gray-900">NeoProLab</span>
-                        <span class="text-sm text-gray-600 block -mt-1">Couriers</span>
+                <div class="flex items-center justify-center"> <!-- Centered container -->
+                    <div class="h-32 w-32 md:h-36 md:w-36 flex items-center justify-center"> <!-- Large logo container -->
+                        <img src="{{ asset('images/logo.png') }}"
+                            alt="NeoPro Lab Logo"
+                            class="h-full w-full object-contain">
                     </div>
                 </div>
 
