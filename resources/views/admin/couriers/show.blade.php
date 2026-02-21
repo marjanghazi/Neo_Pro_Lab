@@ -134,8 +134,37 @@
     <div class="space-y-6">
         <!-- Performance Chart -->
         <div class="card p-6">
-            <h3 class="font-bold mb-4">Weekly Performance</h3>
-            <div id="performanceChart" style="min-height: 200px;"></div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold">Weekly Performance</h3>
+                <span class="text-sm text-gray-500">Last 7 days</span>
+            </div>
+            
+            @if($weeklyData['total_deliveries'] > 0)
+                <!-- Simple Chart Container -->
+                <div id="performanceChart" style="height: 200px; width: 100%;"></div>
+                
+                <!-- Mini Stats -->
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Total</p>
+                        <p class="font-bold text-teal-600">{{ $weeklyData['total_deliveries'] }}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Avg/Day</p>
+                        <p class="font-bold text-blue-600">{{ $weeklyData['average_per_day'] }}</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500">Peak</p>
+                        <p class="font-bold text-purple-600">{{ $weeklyData['peak_day'] }}</p>
+                    </div>
+                </div>
+            @else
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-chart-line text-3xl mb-2"></i>
+                    <p>No delivery data available for this week</p>
+                    <p class="text-xs mt-2">Assignments completed in the last 7 days will appear here</p>
+                </div>
+            @endif
         </div>
 
         <!-- Certifications -->
@@ -192,90 +221,84 @@
                    class="flex items-center justify-center px-4 py-2 bg-teal-100 text-teal-700 rounded-lg hover:bg-teal-200">
                     <i class="fas fa-envelope mr-2"></i> Send Email
                 </a>
-                
-                <a href="#" 
-                   class="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                    <i class="fas fa-sms mr-2"></i> Send SMS
-                </a>
             </div>
         </div>
 
         <!-- Verification Status -->
-<div class="card p-6">
-    <h3 class="font-bold mb-4">Verification Status</h3>
-    
-    @if($courier->courierVerification)
-        <div class="space-y-4">
-            <div class="flex items-center justify-between p-3 {{ 
-                $courier->courierVerification->isApproved() ? 'bg-green-50' : 
-                ($courier->courierVerification->isPending() ? 'bg-yellow-50' : 'bg-red-50') 
-            }} rounded-lg">
-                <div class="flex items-center">
-                    <i class="fas fa-{{ 
-                        $courier->courierVerification->isApproved() ? 'check-circle text-green-600' : 
-                        ($courier->courierVerification->isPending() ? 'clock text-yellow-600' : 'times-circle text-red-600') 
-                    }} mr-3"></i>
-                    <div>
-                        <p class="font-medium">Verification Status</p>
-                        <p class="text-sm text-gray-600">
-                            {{ ucfirst($courier->courierVerification->verification_status) }}
-                        </p>
+        <div class="card p-6">
+            <h3 class="font-bold mb-4">Verification Status</h3>
+            
+            @if($courier->courierVerification)
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 {{ 
+                        $courier->courierVerification->isApproved() ? 'bg-green-50' : 
+                        ($courier->courierVerification->isPending() ? 'bg-yellow-50' : 'bg-red-50') 
+                    }} rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-{{ 
+                                $courier->courierVerification->isApproved() ? 'check-circle text-green-600' : 
+                                ($courier->courierVerification->isPending() ? 'clock text-yellow-600' : 'times-circle text-red-600') 
+                            }} mr-3"></i>
+                            <div>
+                                <p class="font-medium">Verification Status</p>
+                                <p class="text-sm text-gray-600">
+                                    {{ ucfirst($courier->courierVerification->verification_status) }}
+                                </p>
+                            </div>
+                        </div>
+                        @if($courier->courierVerification->isPending())
+                        <a href="{{ route('admin.couriers.verification', $courier) }}" 
+                           class="text-sm text-teal-600 hover:underline">
+                            Review Now
+                        </a>
+                        @endif
+                    </div>
+                    
+                    @if($courier->courierVerification->verified_at)
+                    <p class="text-sm text-gray-600">
+                        <strong>Verified on:</strong> {{ $courier->courierVerification->verified_at->format('M d, Y h:i A') }}
+                    </p>
+                    @endif
+                    
+                    @if($courier->courierVerification->rejection_reason)
+                    <div class="p-3 bg-red-50 rounded-lg">
+                        <p class="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
+                        <p class="text-sm text-red-700">{{ $courier->courierVerification->rejection_reason }}</p>
+                    </div>
+                    @endif
+                    
+                    <div class="mt-3">
+                        <a href="{{ route('admin.couriers.verification', $courier) }}" 
+                           class="text-sm text-teal-600 hover:underline flex items-center">
+                            <i class="fas fa-clipboard-check mr-2"></i>
+                            View All Documents
+                        </a>
                     </div>
                 </div>
-                @if($courier->courierVerification->isPending())
-                <a href="{{ route('admin.couriers.verification', $courier) }}" 
-                   class="text-sm text-teal-600 hover:underline">
-                    Review Now
-                </a>
-                @endif
-            </div>
-            
-            @if($courier->courierVerification->verified_at)
-            <p class="text-sm text-gray-600">
-                <strong>Verified on:</strong> {{ $courier->courierVerification->verified_at->format('M d, Y h:i A') }}
-            </p>
+            @else
+                <div class="text-center py-4 text-gray-500">
+                    <i class="fas fa-hourglass text-3xl mb-2"></i>
+                    <p>No verification documents submitted yet</p>
+                </div>
             @endif
-            
-            @if($courier->courierVerification->rejection_reason)
-            <div class="p-3 bg-red-50 rounded-lg">
-                <p class="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
-                <p class="text-sm text-red-700">{{ $courier->courierVerification->rejection_reason }}</p>
-            </div>
-            @endif
-            
-            <div class="mt-3">
-                <a href="{{ route('admin.couriers.verification', $courier) }}" 
-                   class="text-sm text-teal-600 hover:underline flex items-center">
-                    <i class="fas fa-clipboard-check mr-2"></i>
-                    View All Documents
-                </a>
-            </div>
         </div>
-    @else
-        <div class="text-center py-4 text-gray-500">
-            <i class="fas fa-hourglass text-3xl mb-2"></i>
-            <p>No verification documents submitted yet</p>
-        </div>
-    @endif
-</div>
     </div>
 </div>
+@endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Performance Chart
-    const options = {
+    @if($weeklyData['total_deliveries'] > 0)
+    // Simple chart configuration
+    var chartOptions = {
         series: [{
             name: 'Deliveries',
-            data: [30, 40, 35, 50, 49, 60, 70]
+            data: @json($weeklyData['deliveries'])
         }],
         chart: {
             height: 200,
             type: 'line',
-            zoom: {
-                enabled: false
-            },
             toolbar: {
                 show: false
             }
@@ -283,22 +306,17 @@ document.addEventListener('DOMContentLoaded', function() {
         colors: ['#00A9A5'],
         stroke: {
             curve: 'smooth',
-            width: 3
-        },
-        grid: {
-            row: {
-                colors: ['#f3f3f3', 'transparent'],
-                opacity: 0.5
-            }
+            width: 2
         },
         xaxis: {
-            categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            categories: @json($weeklyData['labels'])
         }
     };
 
-    const chart = new ApexCharts(document.querySelector("#performanceChart"), options);
+    // Create and render chart
+    var chart = new ApexCharts(document.querySelector("#performanceChart"), chartOptions);
     chart.render();
+    @endif
 });
 </script>
 @endpush
-@endsection

@@ -10,9 +10,11 @@ use App\Models\CourierVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail; // Add this
-use App\Mail\CourierApprovedMail; // Add this
-use Illuminate\Support\Facades\Log; // Add this
+use Illuminate\Support\Facades\Mail;
+use App\Mail\CourierApprovedMail;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Twilio\Rest\Client; // Add this for SMS
 
 class AdminCourierController extends Controller
 {
@@ -105,7 +107,67 @@ class AdminCourierController extends Controller
             'on_time_rate' => $this->calculateOnTimeRate($courier),
         ];
 
-        return view('admin.couriers.show', compact('courier', 'stats'));
+        // Get weekly performance data
+        $weeklyData = $this->getWeeklyPerformanceData($courier);
+
+        return view('admin.couriers.show', compact('courier', 'stats', 'weeklyData'));
+    }
+
+    public function sendSms(Request $request, User $courier)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $request->validate([
+            'message' => 'required|string|max:160'
+        ]);
+
+        // Check if courier has phone number
+        if (!$courier->phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Courier does not have a phone number'
+            ], 400);
+        }
+
+        try {
+            // Initialize Twilio client
+            $twilio = new Client(
+                config('services.twilio.sid'),
+                config('services.twilio.token')
+            );
+
+            // Send SMS
+            $twilio->messages->create(
+                $courier->phone,
+                [
+                    'from' => config('services.twilio.from'),
+                    'body' => $request->message
+                ]
+            );
+
+            // Log the SMS
+            Log::info('SMS sent to courier', [
+                'courier_id' => $courier->id,
+                'phone' => $courier->phone,
+                'message' => $request->message
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'SMS sent successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send SMS: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send SMS: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function verification(User $courier)
@@ -241,6 +303,72 @@ class AdminCourierController extends Controller
         return round(($onTime / $completedRequests->count()) * 100, 1);
     }
 
+    private function getWeeklyPerformanceData($courier)
+    {
+        // Get the last 7 days
+        $startDate = Carbon::now()->subDays(6)->startOfDay();
+        $endDate = Carbon::now()->endOfDay();
+
+        // Get all assignments for the courier in the last 7 days
+        $assignments = $courier->assignedRequests()
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->created_at->format('Y-m-d');
+            });
+
+        // Initialize array with all 7 days
+        $dates = [];
+        $deliveries = [];
+        $labels = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $dateKey = $date->format('Y-m-d');
+            $dayLabel = $date->format('D'); // Mon, Tue, etc.
+            
+            $labels[] = $dayLabel;
+            $dates[] = $dateKey;
+            
+            // Count deliveries for this date
+            if (isset($assignments[$dateKey])) {
+                $deliveries[] = $assignments[$dateKey]->count();
+            } else {
+                $deliveries[] = 0;
+            }
+        }
+
+        // Calculate completion times for on-time rate
+        $completionData = [];
+        foreach ($dates as $date) {
+            $dayAssignments = $courier->assignedRequests()
+                ->whereDate('created_at', $date)
+                ->where('status', 'completed')
+                ->whereNotNull('estimated_delivery_time')
+                ->whereNotNull('delivered_at')
+                ->get();
+            
+            if ($dayAssignments->count() > 0) {
+                $onTimeCount = $dayAssignments->filter(function ($request) {
+                    return $request->delivered_at->lte($request->estimated_delivery_time);
+                })->count();
+                
+                $completionData[] = round(($onTimeCount / $dayAssignments->count()) * 100);
+            } else {
+                $completionData[] = 0;
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'deliveries' => $deliveries,
+            'completion_rates' => $completionData,
+            'total_deliveries' => array_sum($deliveries),
+            'average_per_day' => count($deliveries) > 0 ? round(array_sum($deliveries) / count($deliveries), 1) : 0,
+            'peak_day' => !empty($deliveries) ? max($deliveries) : 0,
+        ];
+    }
+
     public function create()
     {
         return view('admin.couriers.create');
@@ -323,6 +451,7 @@ class AdminCourierController extends Controller
         return redirect()->route('admin.couriers.index')
             ->with('success', 'Courier created successfully with uploaded documents!');
     }
+    
     public function edit(User $courier)
     {
         // Verify the user is a courier
