@@ -24,6 +24,31 @@
         </div>
     </section>
 
+    <!-- GALLERY SECTION - ADD YOUR PICTURES HERE -->
+    <section class="gallery-section">
+        <div class="gallery-grid">
+            <!-- Add your images in the public/images folder and update the src paths below -->
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-1.png') }}" alt="Medical courier delivery" class="gallery-image">
+            </div>
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-2.jpeg') }}" alt="Specimen transport" class="gallery-image">
+            </div>
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-3.png') }}" alt="Temperature controlled transport" class="gallery-image">
+            </div>
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-4.png') }}" alt="Lab sample delivery" class="gallery-image">
+            </div>
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-5.PNG') }}" alt="Medical supplies transport" class="gallery-image">
+            </div>
+            <div class="gallery-item">
+                <img src="{{ asset('images/HomeGallery/Courier-6.png') }}" alt="Professional courier service" class="gallery-image">
+            </div>
+        </div>
+    </section>
+
     <!-- WHY CHOOSE US SECTION -->
     <section class="section">
         <h2 class="section-title">Why Choose NeoProlab Couriers?</h2>
@@ -53,7 +78,7 @@
             <div class="feature-card">
                 <div class="feature-icon">❄️</div>
                 <h3 class="feature-title">Temperature Control</h3>
-                <p class="feature-description">Refrigerated & non-refrigerated transport for all specimen types.</p>
+                <p class="feature-description">Refrigerated & non-refrigerated transport for all specimen types.</</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📱</div>
@@ -169,6 +194,43 @@
         margin-right: auto;
         font-weight: 500;
         line-height: 1.6;
+    }
+
+    /* GALLERY SECTION - NEW STYLES */
+    .gallery-section {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 60px 30px;
+    }
+
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+    }
+
+    .gallery-item {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .gallery-item:hover {
+        transform: translateY(-8px);
+    }
+
+    .gallery-image {
+        width: 100%;
+        height: 280px;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.5s ease;
+    }
+
+    .gallery-item:hover .gallery-image {
+        transform: scale(1.05);
     }
 
     /* SECTIONS */
@@ -443,6 +505,15 @@
             font-size: 18px;
         }
         
+        .gallery-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .gallery-image {
+            height: 200px;
+        }
+        
         .section {
             padding: 60px 20px;
         }
@@ -464,6 +535,12 @@
         .contact-info {
             flex-direction: column;
             gap: 20px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .gallery-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
