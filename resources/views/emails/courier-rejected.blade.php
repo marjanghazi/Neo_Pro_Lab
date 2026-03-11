@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Courier Account Approved</title>
+    <title>Courier Account Verification Update</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -40,18 +40,18 @@
             padding: 40px 30px;
             background: #fff;
         }
-        .success-icon {
+        .warning-icon {
             width: 80px;
             height: 80px;
-            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 30px;
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
         }
-        .success-icon svg {
+        .warning-icon svg {
             width: 40px;
             height: 40px;
             fill: white;
@@ -72,39 +72,55 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(10, 147, 150, 0.4);
         }
-        .feature-box {
+        .rejection-box {
+            background: #FEE2E2;
+            border-left: 4px solid #EF4444;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .rejection-box h4 {
+            color: #991B1B;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .rejection-box p {
+            color: #7F1D1D;
+            margin: 0;
+            font-size: 15px;
+        }
+        .tips-box {
             background: #F1F5F9;
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
         }
-        .feature-box h4 {
+        .tips-box h4 {
             color: #0B1E33;
             margin: 0 0 15px 0;
             font-size: 18px;
         }
-        .feature-list {
+        .tips-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
-        .feature-list li {
+        .tips-list li {
             padding: 8px 0;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
         }
-        .feature-list li:last-child {
+        .tips-list li:last-child {
             border-bottom: none;
         }
-        .feature-list li svg {
+        .tips-list li svg {
             width: 18px;
             height: 18px;
             margin-right: 10px;
+            margin-top: 2px;
             color: #0A9396;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
+            flex-shrink: 0;
         }
         .footer {
             background: #f8f9fa;
@@ -125,69 +141,74 @@
     <div class="container">
         <div class="header">
             <div class="logo">Neo<span>ProLab</span></div>
-            <p style="opacity: 0.9; margin: 10px 0 0;">Account Verification Status</p>
+            <p style="opacity: 0.9; margin: 10px 0 0;">Account Verification Update</p>
         </div>
         
         <div class="content">
-            <div class="success-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
-                    <path d="M20 6L9 17L4 12" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+            <div class="warning-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <circle cx="12" cy="16" r="1" fill="white" />
                 </svg>
             </div>
             
             <h2 style="color: #0B1E33; text-align: center; margin-bottom: 20px;">
-                Congratulations, {{ $courier->first_name }}!
+                Hello {{ $courier->first_name }},
             </h2>
             
             <p style="font-size: 16px; margin-bottom: 20px; text-align: center;">
-                Your courier account has been <strong style="color: #10B981;">approved</strong> and verified.
+                We've reviewed your courier application and noticed some issues with your submitted documents.
             </p>
             
-            <p style="font-size: 15px; margin-bottom: 25px; text-align: center;">
-                You can now start accepting delivery requests and earning money with NeoProLab.
+            <div class="rejection-box">
+                <h4>📋 Reason for Rejection:</h4>
+                <p>{{ $rejectionReason }}</p>
+            </div>
+            
+            <p style="font-size: 15px; margin-bottom: 20px;">
+                Don't worry! You can resubmit your documents after making the necessary corrections.
             </p>
             
             <div style="text-align: center;">
                 <a href="{{ $loginUrl }}" class="button">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 8px; display: inline-block; vertical-align: middle;">
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                        <polyline points="10 17 15 12 10 7" />
-                        <line x1="15" y1="12" x2="3" y2="12" />
+                        <path d="M12 4v16M4 12h16" />
                     </svg>
-                    Login to Your Account
+                    Resubmit Documents
                 </a>
             </div>
             
-            <div class="feature-box">
-                <h4>What you can do now:</h4>
-                <ul class="feature-list">
+            <div class="tips-box">
+                <h4>💡 Tips for Successful Verification:</h4>
+                <ul class="tips-list">
                     <li>
-                        <svg viewBox="0 0 24 24">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4M12 8h.01" />
                         </svg>
-                        Browse and accept delivery requests
+                        Ensure all documents are clear and legible (no blurry images)
                     </li>
                     <li>
-                        <svg viewBox="0 0 24 24">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4M12 8h.01" />
                         </svg>
-                        Track your earnings and deliveries
+                        Documents must be valid and not expired
                     </li>
                     <li>
-                        <svg viewBox="0 0 24 24">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4M12 8h.01" />
                         </svg>
-                        Manage your delivery schedule
+                        Make sure all information matches your profile
                     </li>
                     <li>
-                        <svg viewBox="0 0 24 24">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4M12 8h.01" />
                         </svg>
-                        Receive payments directly
+                        Upload color copies when possible
                     </li>
                 </ul>
             </div>
@@ -195,9 +216,8 @@
             <hr>
             
             <p style="font-size: 14px; color: #64748B; text-align: center;">
-                If you have any questions about being a courier, check out our 
-                <a href="#" style="color: #0A9396; text-decoration: none;">Courier Guide</a> or 
-                <a href="#" style="color: #0A9396; text-decoration: none;">contact support</a>.
+                Need help? Our support team is here for you. 
+                <a href="#" style="color: #0A9396; text-decoration: none;">Contact Support</a>
             </p>
         </div>
         

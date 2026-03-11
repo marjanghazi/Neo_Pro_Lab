@@ -159,10 +159,9 @@ class AdminCourierController extends Controller
                 'success' => true,
                 'message' => 'SMS sent successfully'
             ]);
-
         } catch (\Exception $e) {
             Log::error('Failed to send SMS: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send SMS: ' . $e->getMessage()
@@ -252,10 +251,20 @@ class AdminCourierController extends Controller
             'is_approved' => false
         ]);
 
-        return redirect()->route('admin.couriers.show', $courier)
-            ->with('success', 'Courier verification rejected. The courier has been notified.');
-    }
+        // Send rejection email to the courier
+        try {
+            Mail::to($courier->email)->send(new \App\Mail\CourierRejectedMail($courier, $request->rejection_reason));
 
+            return redirect()->route('admin.couriers.show', $courier)
+                ->with('success', 'Courier verification rejected. An email notification with the reason has been sent to the courier.');
+        } catch (\Exception $e) {
+            // Log the error but don't fail the rejection
+            Log::error('Failed to send rejection email to courier: ' . $e->getMessage());
+
+            return redirect()->route('admin.couriers.show', $courier)
+                ->with('success', 'Courier verification rejected. Note: Email notification could not be sent.');
+        }
+    }
     public function viewDocument(User $courier, $documentType)
     {
         // Verify the user is a courier
@@ -326,10 +335,10 @@ class AdminCourierController extends Controller
             $date = Carbon::now()->subDays($i);
             $dateKey = $date->format('Y-m-d');
             $dayLabel = $date->format('D'); // Mon, Tue, etc.
-            
+
             $labels[] = $dayLabel;
             $dates[] = $dateKey;
-            
+
             // Count deliveries for this date
             if (isset($assignments[$dateKey])) {
                 $deliveries[] = $assignments[$dateKey]->count();
@@ -347,12 +356,12 @@ class AdminCourierController extends Controller
                 ->whereNotNull('estimated_delivery_time')
                 ->whereNotNull('delivered_at')
                 ->get();
-            
+
             if ($dayAssignments->count() > 0) {
                 $onTimeCount = $dayAssignments->filter(function ($request) {
                     return $request->delivered_at->lte($request->estimated_delivery_time);
                 })->count();
-                
+
                 $completionData[] = round(($onTimeCount / $dayAssignments->count()) * 100);
             } else {
                 $completionData[] = 0;
@@ -451,7 +460,7 @@ class AdminCourierController extends Controller
         return redirect()->route('admin.couriers.index')
             ->with('success', 'Courier created successfully with uploaded documents!');
     }
-    
+
     public function edit(User $courier)
     {
         // Verify the user is a courier
