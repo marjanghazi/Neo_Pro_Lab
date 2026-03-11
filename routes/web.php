@@ -43,6 +43,22 @@ Route::get('/insurance', [PagesController::class, 'insurance'])->name('insurance
 Route::get('/privacy', [PagesController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PagesController::class, 'terms'])->name('terms');
 
+/*
+|--------------------------------------------------------------------------
+| UNIFIED NOTIFICATION ROUTES (For all authenticated users)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    // Notifications - Unified for all roles
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/recent', [NotificationController::class, 'getRecent'])->name('notifications.recent');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::post('/notifications/clear-all', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
+    Route::get('/notifications/{notification}', [NotificationController::class, 'show'])->name('notifications.show');
+});
+
 // Password Reset Routes
 Route::get('/forgot-password', [App\Http\Controllers\Auth\PasswordResetController::class, 'showForgotForm'])
     ->middleware('guest')
@@ -59,6 +75,7 @@ Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\PasswordResetCo
 Route::post('/reset-password', [App\Http\Controllers\Auth\PasswordResetController::class, 'resetPassword'])
     ->middleware('guest')
     ->name('password.update');
+
 /*
 |--------------------------------------------------------------------------
 | Pickup & Forms (Public)
@@ -89,23 +106,6 @@ Route::middleware(['auth'])->prefix('profile')->name('profile.')->group(function
     Route::get('/', [App\Http\Controllers\ProfileController::class, 'index'])->name('index');
     Route::get('/edit', [App\Http\Controllers\ProfileController::class, 'edit'])->name('edit');
     Route::put('/update', [App\Http\Controllers\ProfileController::class, 'update'])->name('update');
-});
-
-/*
-|--------------------------------------------------------------------------
-| UNIFIED NOTIFICATION ROUTES (For all authenticated users)
-|--------------------------------------------------------------------------
-*/
-Route::middleware(['auth'])->group(function () {
-    // Notifications - Unified for all roles
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-    Route::get('/notifications/recent', [NotificationController::class, 'getRecent'])->name('notifications.recent');
-    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
-    Route::delete('/notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
-    Route::post('/notifications/clear-all', [NotificationController::class, 'clearAll'])->name('notifications.clear-all');
-    Route::get('/notifications/{notification}', [NotificationController::class, 'show'])->name('notifications.show');
-    Route::get('/notifications/json', [App\Http\Controllers\NotificationController::class, 'getRecent'])->name('notifications.json');
 });
 
 /*

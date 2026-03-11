@@ -46,7 +46,10 @@ class AdminController extends Controller
             ->get()
             ->pluck('count', 'status');
 
-        return view('admin.dashboard', compact('stats', 'recentRequests', 'recentActivities', 'requestsByStatus'));
+        // Get unread notifications for admin
+        $unreadNotifications = auth()->user()->unreadNotifications()->count();
+
+        return view('admin.dashboard', compact('stats', 'recentRequests', 'recentActivities', 'requestsByStatus', 'unreadNotifications'));
     }
 
     private function getActivityIcon($action)
@@ -81,6 +84,9 @@ class AdminController extends Controller
         ]);
 
         $user->update($validated);
+
+        // Notify about profile update
+        notify()->userAccountUpdated($user, $user->id);
 
         return back()->with('success', 'Profile updated successfully.');
     }

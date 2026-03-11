@@ -165,22 +165,8 @@ class CourierController extends Controller
             'proof_uploaded' => false,
         ]);
 
-        // Create notification for admin and client
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Courier Accepted Assignment',
-            'message' => "Courier {$specimenRequest->courier->full_name} has accepted assignment #{$specimenRequest->request_number}",
-            'type' => 'request_assigned',
-            'is_read' => false,
-        ]);
-
-        Notification::create([
-            'user_id' => 1, // Assuming admin ID is 1
-            'title' => 'Courier Accepted Assignment',
-            'message' => "Courier {$specimenRequest->courier->full_name} has accepted assignment #{$specimenRequest->request_number}",
-            'type' => 'request_assigned',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -245,33 +231,8 @@ class CourierController extends Controller
             'status' => 'assigned',
         ]);
 
-        // Create notification for admin
-        Notification::create([
-            'user_id' => $specimenRequest->assigned_by,
-            'request_id' => $specimenRequest->id,
-            'type' => 'quote_accepted',
-            'title' => 'Quote Accepted',
-            'message' => "Courier {$specimenRequest->courier->full_name} accepted the quote for request #{$specimenRequest->request_number}",
-            'data' => json_encode([
-                'request_id' => $specimenRequest->id,
-                'request_number' => $specimenRequest->request_number,
-                'courier_id' => $specimenRequest->assigned_to,
-                'quote_id' => $quote->id,
-            ]),
-        ]);
-
-        // Also notify client
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'request_id' => $specimenRequest->id,
-            'type' => 'quote_accepted',
-            'title' => 'Courier Accepted Assignment',
-            'message' => "Courier has accepted the assignment for your request #{$specimenRequest->request_number}",
-            'data' => json_encode([
-                'request_id' => $specimenRequest->id,
-                'request_number' => $specimenRequest->request_number,
-            ]),
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -330,21 +291,8 @@ class CourierController extends Controller
             'status' => 'approved', // Go back to approved status
         ]);
 
-        // Create notification for admin
-        Notification::create([
-            'user_id' => $specimenRequest->assigned_by,
-            'request_id' => $specimenRequest->id,
-            'type' => 'quote_declined',
-            'title' => 'Quote Declined',
-            'message' => "Courier {$specimenRequest->courier->full_name} declined the quote for request #{$specimenRequest->request_number}",
-            'data' => json_encode([
-                'request_id' => $specimenRequest->id,
-                'request_number' => $specimenRequest->request_number,
-                'courier_id' => $specimenRequest->assigned_to,
-                'quote_id' => $quote->id,
-                'reason' => $validated['reason'],
-            ]),
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -737,14 +685,8 @@ class CourierController extends Controller
             'pickup_started_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Pickup Started - Proof Required',
-            'message' => "Courier is ready to pickup for request #{$specimenRequest->request_number}. Proof upload required.",
-            'type' => 'pickup_started',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -823,14 +765,8 @@ class CourierController extends Controller
             'pickup_completed_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Pickup Completed',
-            'message' => "Specimen picked up for request #{$specimenRequest->request_number}. Proof uploaded and status updated.",
-            'type' => 'pickup_completed',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -879,14 +815,8 @@ class CourierController extends Controller
             'transit_started_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Transit Started - Proof Required',
-            'message' => "Transit started for request #{$specimenRequest->request_number}. Proof upload required.",
-            'type' => 'transit_started',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -961,14 +891,8 @@ class CourierController extends Controller
             'proof_required_at_status' => null,
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'In Transit',
-            'message' => "Specimen #{$specimenRequest->request_number} is now in transit to delivery location. Proof uploaded.",
-            'type' => 'in_transit',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -1016,14 +940,8 @@ class CourierController extends Controller
             'arrived_at_destination_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Arrived at Destination - Proof Required',
-            'message' => "Courier has arrived at delivery location for request #{$specimenRequest->request_number}. Proof upload required.",
-            'type' => 'arrived_at_destination',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -1133,14 +1051,8 @@ class CourierController extends Controller
             'delivered_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Delivery Completed',
-            'message' => "Specimen #{$specimenRequest->request_number} has been delivered. Signature captured.",
-            'type' => 'delivery_completed',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -1186,14 +1098,8 @@ class CourierController extends Controller
         // Stop location tracking for this request
         cache()->forget("tracking_start_{$specimenRequest->id}");
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Request Completed',
-            'message' => "Request #{$specimenRequest->request_number} has been marked as completed.",
-            'type' => 'request_completed',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
@@ -1484,6 +1390,9 @@ class CourierController extends Controller
 
         $user->update($validated);
 
+        // Notify about profile update
+        notify()->userAccountUpdated($user, $user->id);
+
         return redirect()->back()->with('success', 'Profile updated successfully!');
     }
 
@@ -1737,14 +1646,8 @@ class CourierController extends Controller
             'arrived_at_destination_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'user_id' => $specimenRequest->client_id,
-            'title' => 'Arrived at Destination',
-            'message' => "Courier has arrived at delivery location for request #{$specimenRequest->request_number}. Proof uploaded.",
-            'type' => 'arrived_at_destination',
-            'is_read' => false,
-        ]);
+        // Notifications will be handled by the observer automatically
+        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([

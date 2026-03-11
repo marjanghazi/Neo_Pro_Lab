@@ -667,31 +667,8 @@ class ClientController extends Controller
             $paymentService->createPayment($specimenRequest, $user);
         }
 
-        // CREATE NOTIFICATION FOR ADMINS
-        $adminUsers = \App\Models\User::whereHas('role', function ($query) {
-            $query->where('slug', 'admin');
-        })->get();
-
-        foreach ($adminUsers as $admin) {
-            Notification::create([
-                'user_id' => $admin->id,
-                'request_id' => $specimenRequest->id,
-                'type' => 'new_request',
-                'title' => 'New Specimen Request',
-                'message' => "New specimen request submitted by {$user->first_name} {$user->last_name}. Request ID: {$specimenRequest->request_number}",
-                'data' => json_encode(['request_id' => $specimenRequest->id, 'client_id' => $user->id]),
-            ]);
-        }
-
-        // Send notification to client about payment
-        Notification::create([
-            'user_id' => $user->id,
-            'request_id' => $specimenRequest->id,
-            'type' => 'payment_required',
-            'title' => 'Payment Required',
-            'message' => "Payment is required for your request #{$specimenRequest->request_number}. Please complete payment to schedule pickup.",
-            'data' => json_encode(['request_id' => $specimenRequest->id]),
-        ]);
+        // Use notification service instead of manual creation
+        notify()->newRequestCreated($specimenRequest);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
@@ -833,14 +810,8 @@ class ClientController extends Controller
             'cancellation_reason' => $validated['cancellation_reason'],
         ]);
 
-        // Create notification
-        Notification::create([
-            'type' => 'request_cancelled',
-            'title' => 'Request Cancelled',
-            'message' => "Request {$specimenRequest->request_number} has been cancelled by the client.",
-            'data' => json_encode(['request_id' => $specimenRequest->id]),
-            'user_role' => 'admin',
-        ]);
+        // Use notification service instead of manual creation
+        notify()->requestCancelled($specimenRequest, Auth::id(), $validated['cancellation_reason']);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Request cancelled successfully. ' .
@@ -889,14 +860,8 @@ class ClientController extends Controller
             'completed_at' => now(),
         ]);
 
-        // Create notification
-        Notification::create([
-            'type' => 'request_completed',
-            'title' => 'Request Completed',
-            'message' => "Request {$specimenRequest->request_number} has been completed and receipt confirmed.",
-            'data' => json_encode(['request_id' => $specimenRequest->id]),
-            'user_role' => 'admin',
-        ]);
+        // Notifications will be handled by the Signature observer automatically
+        // No need to manually create notifications here
 
         return redirect()->route('client.requests.track', $specimenRequest)
             ->with('success', 'Delivery confirmed successfully! Request completed.');
@@ -1187,6 +1152,9 @@ class ClientController extends Controller
         }
 
         $user->update($updateData);
+
+        // Notify about profile update
+        notify()->userAccountUpdated($user, $user->id);
 
         return back()->with('success', 'Profile updated successfully.');
     }
@@ -1801,31 +1769,8 @@ class ClientController extends Controller
                 'payment_status' => $validated['payment_method'] === 'card' ? 'paid' : 'pending',
             ]);
 
-            // Create notification
-            Notification::create([
-                'user_id' => Auth::id(),
-                'request_id' => $request->id,
-                'type' => 'payment_completed',
-                'title' => 'Payment Completed',
-                'message' => "Payment of $" . number_format($payment->amount, 2) . " completed for request #{$request->request_number}",
-                'data' => json_encode(['request_id' => $request->id, 'payment_id' => $payment->id]),
-            ]);
-
-            // Notify admin
-            $adminUsers = \App\Models\User::whereHas('role', function ($query) {
-                $query->where('slug', 'admin');
-            })->get();
-
-            foreach ($adminUsers as $admin) {
-                Notification::create([
-                    'user_id' => $admin->id,
-                    'request_id' => $request->id,
-                    'type' => 'payment_received',
-                    'title' => 'Payment Received',
-                    'message' => "Payment received for request #{$request->request_number} from " . Auth::user()->full_name,
-                    'data' => json_encode(['request_id' => $request->id, 'payment_id' => $payment->id]),
-                ]);
-            }
+            // Notifications will be handled by the Payment observer automatically
+            // No need to manually create notifications here
 
             return redirect()->route('client.payments.success', $payment->id)
                 ->with('success', $result['message'] ?? 'Payment processed successfully.');
