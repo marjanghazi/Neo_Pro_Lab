@@ -82,7 +82,7 @@
                 <div class="space-y-2">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Uploaded By:</span>
-                        <span class="font-medium">{{ $document->user->full_name }}</span>
+                        <span class="font-medium"></span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Upload Date:</span>
