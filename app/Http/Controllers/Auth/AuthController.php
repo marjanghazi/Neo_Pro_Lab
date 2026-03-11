@@ -119,35 +119,35 @@ class AuthController extends Controller
         // Handle courier document uploads
         if ($request->role === 'courier') {
             $documentPaths = [];
-            
+
             // Upload profile image
             if ($request->hasFile('profile_image')) {
                 $path = $request->file('profile_image')->store('courier-documents/profile-images', 'public');
                 $documentPaths['profile_image'] = $path;
-                
+
                 // Also update user's profile image
                 $user->profile_image = $path;
                 $user->save();
             }
-            
+
             // Upload government ID
             if ($request->hasFile('government_id')) {
                 $path = $request->file('government_id')->store('courier-documents/government-ids', 'public');
                 $documentPaths['government_id'] = $path;
             }
-            
+
             // Upload proof of residency
             if ($request->hasFile('proof_of_residency')) {
                 $path = $request->file('proof_of_residency')->store('courier-documents/proof-of-residency', 'public');
                 $documentPaths['proof_of_residency'] = $path;
             }
-            
+
             // Upload driver's license
             if ($request->hasFile('drivers_license')) {
                 $path = $request->file('drivers_license')->store('courier-documents/drivers-licenses', 'public');
                 $documentPaths['drivers_license'] = $path;
             }
-            
+
             // Upload medical transport certificate (optional)
             if ($request->hasFile('medical_transport_cert')) {
                 $path = $request->file('medical_transport_cert')->store('courier-documents/medical-certs', 'public');
@@ -165,28 +165,15 @@ class AuthController extends Controller
                 'verification_status' => 'pending',
                 'submitted_at' => now(),
             ]);
+
+            // Log the user out immediately for couriers (don't auto-login)
+            return redirect()->route('login')
+                ->with('info', 'Registration successful! Your documents have been submitted for verification. You will receive an email notification once your account is approved. Please wait for admin approval before logging in.');
         }
 
-        // Send notification to admin about new registration
-        $this->notifyAdminAboutNewRegistration($user);
-
-        // Log the user in after registration
-        Auth::login($user);
-
-        // Check if there's a pending pickup request
-        if (Session::has('pending_pickup_request')) {
-            return redirect()->route('client.requests.create-with-data')
-                ->with('info', 'Please complete your pickup request.');
-        }
-
-        // Show different success message for couriers
-        if ($request->role === 'courier') {
-            return redirect()->route('courier.dashboard')
-                ->with('info', 'Registration successful! Your documents have been submitted for verification. You will be able to accept deliveries once your account is approved.');
-        }
-
+        // For regular clients, also don't auto-login
         return redirect()->route('login')
-            ->with('success', 'Registration successful! Your account is pending admin approval. You will be notified once approved.');
+            ->with('success', 'Registration successful! Your account is pending admin approval. You will receive an email notification once your account is approved. Please check back later.');
     }
 
     public function logout(Request $request)

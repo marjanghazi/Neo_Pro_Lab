@@ -15,6 +15,8 @@
         --danger-light: #FEE2E2;
         --success: #10B981;
         --success-light: #D1FAE5;
+        --warning: #F59E0B;
+        --warning-light: #FEF3C7;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
         --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         --shadow-lg: 0 10px 40px -3px rgba(10, 147, 150, 0.2);
@@ -256,6 +258,39 @@
         color: var(--teal);
     }
 
+    .alert-pending {
+        background: var(--warning-light);
+        color: #92400E;
+        border-left: 4px solid var(--warning);
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        animation: slideIn 0.3s ease;
+    }
+
+    .alert-pending svg {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        stroke: currentColor;
+        fill: none;
+    }
+
+    .alert-pending strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert-pending p {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
     .error-message {
         display: flex;
         align-items: center;
@@ -412,6 +447,85 @@
         padding-left: 1.25rem;
     }
 
+    .info-box {
+        background: linear-gradient(135deg, rgba(10, 147, 150, 0.05) 0%, transparent 100%);
+        border: 1px solid rgba(10, 147, 150, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .info-box h3 {
+        color: var(--navy);
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .info-box p {
+        color: var(--gray);
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .info-box ul {
+        text-align: left;
+        color: var(--gray-dark);
+        margin: 1rem 0;
+        padding-left: 1.5rem;
+    }
+
+    .info-box li {
+        margin-bottom: 0.5rem;
+    }
+
+    .info-box li::marker {
+        color: var(--teal);
+    }
+
+    details {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px dashed var(--gray-light);
+    }
+
+    summary {
+        color: var(--gray);
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    summary:hover {
+        color: var(--teal);
+    }
+
+    details[open] summary {
+        color: var(--teal);
+    }
+
+    details div {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--gray-light);
+        border-radius: 8px;
+    }
+
+    details ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: var(--gray-dark);
+        font-size: 0.9rem;
+    }
+
+    details li {
+        margin-bottom: 0.5rem;
+    }
+
     @keyframes slideIn {
         from {
             opacity: 0;
@@ -461,13 +575,38 @@
         </div>
 
         <div class="auth-body">
-            @if (session('status'))
+            @if (session('success'))
             <div class="alert alert-success">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M8 12L11 15L16 9" />
                 </svg>
-                {{ session('status') }}
+                {{ session('success') }}
+            </div>
+            @endif
+
+            @if (session('info'))
+            <div class="alert-pending">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div>
+                    <strong>Account Pending Approval</strong>
+                    <p>{{ session('info') }}</p>
+                </div>
+            </div>
+            @endif
+
+            @if (session('error'))
+            <div class="alert alert-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {{ session('error') }}
             </div>
             @endif
 
@@ -483,6 +622,19 @@
                     <li>{{ $error }}</li>
                     @endforeach
                 </ul>
+            </div>
+            @endif
+
+            @if(session('hasPendingPickup'))
+            <div class="info-box">
+                <h3>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <polyline points="16 2 12 6 8 2" />
+                    </svg>
+                    Complete Your Pickup Request
+                </h3>
+                <p>You have a pending pickup request. Sign in to continue where you left off.</p>
             </div>
             @endif
 
@@ -582,6 +734,18 @@
                     <a href="{{ route('register') }}">Create an account</a>
                 </div>
             </form>
+
+            <details>
+                <summary>Having trouble signing in?</summary>
+                <div>
+                    <ul>
+                        <li>If you just registered, your account may still be pending admin approval</li>
+                        <li>Approval usually takes 24-48 hours</li>
+                        <li>You'll receive an email once your account is approved</li>
+                        <li>Contact support if you need immediate assistance</li>
+                    </ul>
+                </div>
+            </details>
         </div>
     </div>
 </div>
