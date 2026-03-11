@@ -43,6 +43,22 @@ Route::get('/insurance', [PagesController::class, 'insurance'])->name('insurance
 Route::get('/privacy', [PagesController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [PagesController::class, 'terms'])->name('terms');
 
+// Password Reset Routes
+Route::get('/forgot-password', [App\Http\Controllers\Auth\PasswordResetController::class, 'showForgotForm'])
+    ->middleware('guest')
+    ->name('password.request');
+
+Route::post('/forgot-password', [App\Http\Controllers\Auth\PasswordResetController::class, 'sendResetLink'])
+    ->middleware('guest')
+    ->name('password.email');
+
+Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\PasswordResetController::class, 'showResetForm'])
+    ->middleware('guest')
+    ->name('password.reset');
+
+Route::post('/reset-password', [App\Http\Controllers\Auth\PasswordResetController::class, 'resetPassword'])
+    ->middleware('guest')
+    ->name('password.update');
 /*
 |--------------------------------------------------------------------------
 | Pickup & Forms (Public)
