@@ -814,7 +814,7 @@
                     <div class="input-wrapper {{ $errors->has('role') ? 'error' : '' }}">
                         <select id="role" name="role" required onchange="toggleCourierFields(this.value)">
                             <option value="">Select your role...</option>
-                            <option value="client" {{ old('role') == 'client' ? 'selected' : '' }}>Healthcare Facility Staff</option>
+                            <option value="client" {{ old('role') == 'client' ? 'selected' : '' }}>User</option>
                             <option value="courier" {{ old('role') == 'courier' ? 'selected' : '' }}>Courier/Driver</option>
                         </select>
                     </div>
