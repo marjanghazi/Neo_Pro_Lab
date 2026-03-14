@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\CourierVerification;
+use App\Traits\HasNotifications;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasNotifications;
 
     protected $fillable = [
         'role_id',
@@ -38,7 +39,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
         'is_active' => 'boolean',
-        'is_approved' => 'boolean', // 👈 ADD THIS TOO
+        'is_approved' => 'boolean',
     ];
 
     /*
@@ -71,16 +72,24 @@ class User extends Authenticatable
         return $this->hasMany(SpecimenRequest::class, 'assigned_to');
     }
 
-    // Notifications
-    public function notifications(): HasMany
+    // REMOVED: public function notifications() - This was causing the conflict
+
+    // Use the trait's method for our custom notifications
+    public function modelNotifications()
     {
-        return $this->hasMany(Notification::class);
+        return $this->morphMany(Notification::class, 'notifiable');
     }
 
-    // Unread notifications helper
-    public function unreadNotifications(): HasMany
+    // Helper method to get custom notifications (for backward compatibility)
+    public function getCustomNotifications()
     {
-        return $this->notifications()->where('is_read', false);
+        return $this->modelNotifications()->orderBy('created_at', 'desc');
+    }
+
+    // Unread notifications helper using our custom method
+    public function getUnreadNotificationsCount()
+    {
+        return $this->modelNotifications()->where('is_read', false)->count();
     }
 
     /*
@@ -119,9 +128,7 @@ class User extends Authenticatable
     {
         return $this->hasOne(CourierLocation::class, 'courier_id')->latest();
     }
-    // In App\Models\User.php
 
-    // Add these to the relationships section
     public function courierLocations(): HasMany
     {
         return $this->hasMany(CourierLocation::class, 'courier_id');
@@ -132,7 +139,6 @@ class User extends Authenticatable
         return $this->hasMany(LocationHistory::class, 'courier_id');
     }
 
-    // Add a helper method to check if courier is online
     public function isOnline(): bool
     {
         if (!$this->isCourier()) {
@@ -145,28 +151,24 @@ class User extends Authenticatable
             return false;
         }
 
-        // Consider online if location was updated in last 5 minutes
         return $lastLocation->is_online &&
             $lastLocation->created_at->diffInMinutes(now()) <= 5;
     }
 
-    // Get courier's last known location
     public function getLastLocationAttribute()
     {
         return $this->currentLocation;
     }
-    // Add this in the relationships section
+
     public function courierVerification()
     {
         return $this->hasOne(CourierVerification::class);
     }
 
-    // Helper method to check if courier is verified
     public function isVerifiedCourier(): bool
     {
         return $this->isCourier() &&
             $this->courierVerification &&
             $this->courierVerification->isApproved();
     }
-    
 }

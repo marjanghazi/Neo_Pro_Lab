@@ -60,6 +60,7 @@ class NotificationController extends Controller
 
     /**
      * Get recent notifications for dropdown (AJAX)
+     * Route: GET /notifications/recent
      */
     public function getRecent()
     {
@@ -83,6 +84,10 @@ class NotificationController extends Controller
                 $data = json_decode($data, true) ?: [];
             }
 
+            // Get icon and color from notification service if available
+            $icon = $this->getNotificationIcon($notification->type);
+            $color = $this->getNotificationColor($notification->type);
+
             return [
                 'id' => $notification->id,
                 'title' => $notification->title,
@@ -97,8 +102,8 @@ class NotificationController extends Controller
                     'id' => $notification->request->id,
                     'request_number' => $notification->request->request_number,
                 ] : null,
-                'icon' => $this->getNotificationIcon($notification->type),
-                'color' => $this->getNotificationColor($notification->type),
+                'icon' => $icon,
+                'color' => $color,
             ];
         });
 
@@ -110,6 +115,7 @@ class NotificationController extends Controller
 
     /**
      * Mark a single notification as read
+     * Route: POST /notifications/{notification}/read
      */
     public function markAsRead(Notification $notification)
     {
@@ -126,6 +132,7 @@ class NotificationController extends Controller
 
     /**
      * Mark all notifications as read
+     * Route: POST /notifications/read-all
      */
     public function markAllAsRead()
     {
@@ -141,6 +148,7 @@ class NotificationController extends Controller
 
     /**
      * Delete a notification
+     * Route: DELETE /notifications/{notification}
      */
     public function destroy(Notification $notification)
     {
@@ -155,6 +163,7 @@ class NotificationController extends Controller
 
     /**
      * Clear all notifications
+     * Route: POST /notifications/clear-all (changed from DELETE to POST to match route)
      */
     public function clearAll()
     {
@@ -165,6 +174,7 @@ class NotificationController extends Controller
 
     /**
      * Get unread count for the authenticated user (AJAX)
+     * Route: GET /notifications/unread-count
      */
     public function getUnreadCount()
     {
@@ -182,24 +192,37 @@ class NotificationController extends Controller
     {
         $icons = [
             'new_request' => 'fas fa-file-circle-plus',
+            'request_submitted' => 'fas fa-check-circle',
+            'request_approved' => 'fas fa-check-circle',
+            'request_rejected' => 'fas fa-times-circle',
+            'request_status_change' => 'fas fa-sync-alt',
+            'request_assigned' => 'fas fa-truck-fast',
+            'courier_assigned' => 'fas fa-user-plus',
+            'courier_accepted' => 'fas fa-check-circle',
+            'courier_declined' => 'fas fa-times-circle',
             'payment_required' => 'fas fa-credit-card',
             'payment_received' => 'fas fa-circle-check',
             'payment_completed' => 'fas fa-circle-check',
             'payment_failed' => 'fas fa-circle-exclamation',
-            'request_assigned' => 'fas fa-truck-fast',
+            'payment_refunded' => 'fas fa-rotate-left',
             'request_cancelled' => 'fas fa-ban',
             'request_completed' => 'fas fa-circle-check',
             'pickup_started' => 'fas fa-cube',
             'pickup_completed' => 'fas fa-check-circle',
             'in_transit' => 'fas fa-truck',
+            'transit_started' => 'fas fa-truck',
             'arrived_at_destination' => 'fas fa-location-dot',
             'delivery_completed' => 'fas fa-check-double',
+            'quote_created' => 'fas fa-file-invoice',
             'quote_accepted' => 'fas fa-file-signature',
             'quote_declined' => 'fas fa-file-excel',
             'proof_uploaded' => 'fas fa-camera',
             'signature_captured' => 'fas fa-pen',
+            'new_user' => 'fas fa-user-plus',
+            'account_updated' => 'fas fa-user-edit',
             'admin_note' => 'fas fa-note-sticky',
             'system' => 'fas fa-gear',
+            'test' => 'fas fa-vial',
         ];
 
         return $icons[$type] ?? 'fas fa-bell';
@@ -212,24 +235,37 @@ class NotificationController extends Controller
     {
         $colors = [
             'new_request' => 'blue',
+            'request_submitted' => 'green',
+            'request_approved' => 'green',
+            'request_rejected' => 'red',
+            'request_status_change' => 'teal',
+            'request_assigned' => 'purple',
+            'courier_assigned' => 'purple',
+            'courier_accepted' => 'green',
+            'courier_declined' => 'red',
             'payment_required' => 'orange',
             'payment_received' => 'green',
             'payment_completed' => 'green',
             'payment_failed' => 'red',
-            'request_assigned' => 'purple',
+            'payment_refunded' => 'yellow',
             'request_cancelled' => 'red',
             'request_completed' => 'green',
             'pickup_started' => 'yellow',
             'pickup_completed' => 'green',
             'in_transit' => 'blue',
+            'transit_started' => 'blue',
             'arrived_at_destination' => 'green',
             'delivery_completed' => 'green',
+            'quote_created' => 'blue',
             'quote_accepted' => 'green',
             'quote_declined' => 'red',
             'proof_uploaded' => 'blue',
             'signature_captured' => 'green',
+            'new_user' => 'teal',
+            'account_updated' => 'gray',
             'admin_note' => 'gray',
             'system' => 'gray',
+            'test' => 'purple',
         ];
 
         return $colors[$type] ?? 'blue';
@@ -238,7 +274,7 @@ class NotificationController extends Controller
     /**
      * Get notification URL based on type and user role
      */
-    private function getNotificationUrl($notification)
+    public function getNotificationUrl($notification)
     {
         $user = Auth::user();
 
