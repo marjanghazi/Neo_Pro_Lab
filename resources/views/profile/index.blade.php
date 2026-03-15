@@ -233,13 +233,13 @@
                         <i class="fas fa-check"></i>
                     </span>
                 </div>
-                <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                <!-- <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
                     <div class="flex items-center">
                         <i class="fas fa-shield-alt text-blue-600 mr-2"></i>
                         <span class="text-gray-700">Two-Factor Auth</span>
                     </div>
                     <span class="text-gray-600 text-sm">Disabled</span>
-                </div>
+                </div> -->
                 <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                     <div class="flex items-center">
                         <i class="fas fa-clock text-purple-600 mr-2"></i>
@@ -263,16 +263,16 @@
                     <span class="text-gray-700 group-hover:text-teal-600">Change Password</span>
                     <i class="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-teal-600"></i>
                 </a>
-                <a href="#" class="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition group">
+                <!-- <a href="#" class="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition group">
                     <i class="fas fa-shield-alt text-gray-600 group-hover:text-teal-600 mr-3"></i>
                     <span class="text-gray-700 group-hover:text-teal-600">Two-Factor Authentication</span>
                     <i class="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-teal-600"></i>
-                </a>
-                <a href="#" class="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition group">
+                </a> -->
+                <!-- <a href="#" class="flex items-center p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition group">
                     <i class="fas fa-history text-gray-600 group-hover:text-teal-600 mr-3"></i>
                     <span class="text-gray-700 group-hover:text-teal-600">Login History</span>
                     <i class="fas fa-chevron-right ml-auto text-gray-400 group-hover:text-teal-600"></i>
-                </a>
+                </a> -->
             </div>
         </div>
 
@@ -289,9 +289,9 @@
                     <span class="text-gray-700 group-hover:text-blue-600">Dashboard</span>
                     <i class="fas fa-arrow-right ml-auto text-blue-600"></i>
                 </a>
-                <a href="{{ route('admin.reports.index') }}" class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition group">
+                <a href="{{ route('admin.users.index') }}" class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition group">
                     <i class="fas fa-chart-bar text-green-600 mr-3"></i>
-                    <span class="text-gray-700 group-hover:text-green-600">Reports</span>
+                    <span class="text-gray-700 group-hover:text-green-600">Users</span>
                     <i class="fas fa-arrow-right ml-auto text-green-600"></i>
                 </a>
                 @elseif(auth()->user()->isCourier())
