@@ -180,23 +180,35 @@ class ClientController extends Controller
     {
         try {
             $validated = $httpRequest->validate([
-                'pickup_address' => 'required|string',
-                'delivery_address' => 'required|string',
-                'pickup_date' => 'required|date',
-                'pickup_time' => 'required|string',
-                'priority_level' => 'required|string',
-                'specimen_type' => 'required|string',
+                'pickup_address'          => 'required|string',
+                'pickup_latitude'         => 'nullable|numeric',
+                'pickup_longitude'        => 'nullable|numeric',
+                'delivery_address'        => 'required|string',
+                'delivery_latitude'       => 'nullable|numeric',
+                'delivery_longitude'      => 'nullable|numeric',
+                'pickup_date'             => 'required|date',
+                'pickup_time'             => 'required|string',
+                'priority_level'          => 'required|string',
+                'specimen_type'           => 'required|string',
                 'temperature_requirement' => 'required|string',
-                'stops' => 'nullable|array',
-                'stops.*.type' => 'nullable|string',
-                'stops.*.address' => 'nullable|string',
+                'stops'                   => 'nullable|array',
+                'stops.*.type'            => 'nullable|string',
+                'stops.*.address'         => 'nullable|string',
             ]);
 
+            // If lat/lng provided by Google Maps picker, use them as origin/destination
+            // for Distance Matrix — this is more accurate than an address string.
+            if (!empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude']) &&
+                !empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])) {
+                $origin      = $validated['pickup_latitude']  . ',' . $validated['pickup_longitude'];
+                $destination = $validated['delivery_latitude'] . ',' . $validated['delivery_longitude'];
+            } else {
+                $origin      = $validated['pickup_address'];
+                $destination = $validated['delivery_address'];
+            }
+
             // Calculate distance using Google Maps Distance Matrix API
-            $distanceMiles = $this->calculateDistanceWithGoogleMaps(
-                $validated['pickup_address'],
-                $validated['delivery_address']
-            );
+            $distanceMiles = $this->calculateDistanceWithGoogleMaps($origin, $destination);
 
             // Base price
             $basePrice = 50.00;
@@ -495,9 +507,13 @@ class ClientController extends Controller
             'recipient_name' => 'required|string|max:200',
             'contact_phone' => 'required|string|max:20',
             'pickup_address' => 'required|string',
+            'pickup_latitude' => 'nullable|numeric|between:-90,90',
+            'pickup_longitude' => 'nullable|numeric|between:-180,180',
             'pickup_date' => 'required|date',
             'pickup_time' => 'required|string',
             'delivery_address' => 'required|string',
+            'delivery_latitude' => 'nullable|numeric|between:-90,90',
+            'delivery_longitude' => 'nullable|numeric|between:-180,180',
             'delivery_instructions' => 'nullable|string',
             'specimen_type' => 'required|string',
             'temperature_requirement' => 'required|string',
@@ -508,6 +524,8 @@ class ClientController extends Controller
             'stops.*.type' => 'nullable|string',
             'stops.*.contact_name' => 'nullable|string',
             'stops.*.address' => 'nullable|string',
+            'stops.*.latitude' => 'nullable|numeric',
+            'stops.*.longitude' => 'nullable|numeric',
             'stops.*.instructions' => 'nullable|string',
         ]);
 
@@ -555,9 +573,13 @@ class ClientController extends Controller
                 'recipient_name' => 'required|string|max:200',
                 'contact_phone' => 'required|string|max:20',
                 'pickup_address' => 'required|string',
+                'pickup_latitude' => 'nullable|numeric|between:-90,90',
+                'pickup_longitude' => 'nullable|numeric|between:-180,180',
                 'pickup_date' => 'required|date',
                 'pickup_time' => 'required|string',
                 'delivery_address' => 'required|string',
+                'delivery_latitude' => 'nullable|numeric|between:-90,90',
+                'delivery_longitude' => 'nullable|numeric|between:-180,180',
                 'delivery_instructions' => 'nullable|string',
                 'specimen_type' => 'required|string',
                 'temperature_requirement' => 'required|string',
@@ -568,6 +590,8 @@ class ClientController extends Controller
                 'stops.*.type' => 'required|string',
                 'stops.*.contact_name' => 'nullable|string',
                 'stops.*.address' => 'required|string',
+                'stops.*.latitude' => 'nullable|numeric',
+                'stops.*.longitude' => 'nullable|numeric',
                 'stops.*.instructions' => 'nullable|string',
                 'documents' => 'nullable|array',
                 'documents.*' => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
@@ -590,9 +614,25 @@ class ClientController extends Controller
         $user = Auth::user();
         $facility = $user->facilities()->first();
 
-        // Geocode addresses to get coordinates
-        $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
-        $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
+        // Use coordinates from form (set via Google Maps picker) if available,
+        // otherwise fall back to server-side geocoding
+        if (!empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude'])) {
+            $pickupCoords = [
+                'latitude'  => (float) $validated['pickup_latitude'],
+                'longitude' => (float) $validated['pickup_longitude'],
+            ];
+        } else {
+            $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
+        }
+
+        if (!empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])) {
+            $deliveryCoords = [
+                'latitude'  => (float) $validated['delivery_latitude'],
+                'longitude' => (float) $validated['delivery_longitude'],
+            ];
+        } else {
+            $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
+        }
 
         // Parse scheduled pickup time
         $scheduledPickup = $this->parsePickupDateTime(
@@ -628,11 +668,18 @@ class ClientController extends Controller
             'additional_stops' => $priceData ? $priceData['additional_stops'] : 0,
         ]);
 
-        // Add additional stops with geocoding
+        // Add additional stops — use coordinates from form if provided, else geocode
         if (!empty($validated['stops'])) {
             $stopOrder = 1;
             foreach ($validated['stops'] as $stop) {
-                $stopCoords = $this->geocodeAddress($stop['address']);
+                if (!empty($stop['latitude']) && !empty($stop['longitude'])) {
+                    $stopCoords = [
+                        'latitude'  => (float) $stop['latitude'],
+                        'longitude' => (float) $stop['longitude'],
+                    ];
+                } else {
+                    $stopCoords = $this->geocodeAddress($stop['address']);
+                }
                 $specimenRequest->stops()->create([
                     'stop_type' => $stop['type'],
                     'stop_order' => $stopOrder++,
