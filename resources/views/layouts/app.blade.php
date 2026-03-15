@@ -29,11 +29,10 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.35.0"></script>
 
     <!-- Alpine.js -->
-<!-- Alpine.js -->
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
         :root {
@@ -50,7 +49,7 @@
             --warning: #F59E0B;
             --danger: #EF4444;
             --info: #3B82F6;
-            --sidebar-width: 280px;
+            --sidebar-width: 260px;
             --sidebar-collapsed-width: 80px;
         }
 
@@ -60,8 +59,7 @@
             box-sizing: border-box;
         }
 
-        html,
-        body {
+        html, body {
             height: 100%;
             width: 100%;
             overflow: hidden;
@@ -74,10 +72,9 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Scrollbar Styling - Only show when sidebar is expanded */
+        /* Scrollbar Styling */
         .sidebar-desktop:not(.collapsed)::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 4px;
         }
 
         .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-track {
@@ -85,25 +82,21 @@
         }
 
         .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-thumb {
-            background: #CBD5E1;
-            border-radius: 8px;
+            background: rgba(203, 213, 225, 0.3);
+            border-radius: 4px;
         }
 
         .sidebar-desktop:not(.collapsed)::-webkit-scrollbar-thumb:hover {
-            background: #94A3B8;
+            background: rgba(148, 163, 184, 0.5);
         }
 
-        /* Hide scrollbar when collapsed */
         .sidebar-desktop.collapsed {
             scrollbar-width: none;
-            /* Firefox */
             -ms-overflow-style: none;
-            /* IE and Edge */
         }
 
         .sidebar-desktop.collapsed::-webkit-scrollbar {
             display: none;
-            /* Chrome, Safari, Opera */
         }
 
         /* Layout */
@@ -125,7 +118,7 @@
             flex-shrink: 0;
             position: relative;
             z-index: 30;
-            transition: width 0.3s ease;
+            transition: width 0.2s ease;
         }
 
         .sidebar-desktop.collapsed {
@@ -144,7 +137,7 @@
             overflow-y: auto;
             z-index: 50;
             transform: translateX(-100%);
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
         }
 
         .sidebar-mobile.open {
@@ -175,8 +168,7 @@
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
-            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-            transition: margin-left 0.3s ease;
+            background: #F8FAFC;
         }
 
         /* Navbar */
@@ -184,7 +176,6 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
             flex-shrink: 0;
             position: relative;
             z-index: 45;
@@ -195,7 +186,7 @@
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 1.5rem;
+            padding: 1.25rem;
         }
 
         @media (max-width: 640px) {
@@ -211,14 +202,12 @@
             margin: 0 auto;
         }
 
-        /* Hide desktop sidebar on mobile */
         @media (max-width: 767px) {
             .sidebar-desktop {
                 display: none;
             }
         }
 
-        /* Hide mobile sidebar on desktop */
         @media (min-width: 768px) {
             .sidebar-mobile {
                 display: none;
@@ -232,24 +221,22 @@
         /* Sidebar Items */
         .sidebar-item {
             color: rgba(255, 255, 255, 0.7);
-            padding: 12px 20px;
-            border-radius: 12px;
-            margin: 4px 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin: 2px 8px;
             transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             text-decoration: none;
             font-weight: 500;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             position: relative;
-            overflow: hidden;
-            cursor: pointer;
             white-space: nowrap;
         }
 
         .collapsed .sidebar-item {
-            padding: 12px;
+            padding: 10px;
             justify-content: center;
             gap: 0;
         }
@@ -260,49 +247,31 @@
 
         .collapsed .sidebar-item i {
             margin: 0;
-            font-size: 1.4rem;
-        }
-
-        .sidebar-item:before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 0;
-            background: linear-gradient(90deg, var(--teal), transparent);
-            transition: width 0.3s;
-            opacity: 0.2;
-        }
-
-        .sidebar-item:hover:before {
-            width: 100%;
+            font-size: 1.2rem;
         }
 
         .sidebar-item:hover {
             background: rgba(255, 255, 255, 0.08);
             color: white;
-            transform: translateX(4px);
         }
 
         .collapsed .sidebar-item:hover {
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
 
         .sidebar-item.active {
             background: var(--teal);
             color: white;
-            box-shadow: 0 8px 16px -4px rgba(0, 184, 169, 0.3);
         }
 
         .sidebar-item i {
-            width: 24px;
-            font-size: 1.2rem;
+            width: 20px;
+            font-size: 1.1rem;
         }
 
-        /* Logo Section Styles */
+        /* Logo Section */
         .logo-section {
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .collapsed .logo-section .logo-text {
@@ -319,22 +288,18 @@
 
         .collapsed .user-profile-section {
             justify-content: center;
-            padding: 0.75rem;
+            padding: 0.5rem;
         }
 
         .collapsed .user-profile-section .user-info {
             display: none;
         }
 
-        .collapsed .user-profile-section img {
-            margin: 0;
-        }
-
         .collapsed .user-profile-section .status-dot {
             display: none;
         }
 
-        /* Desktop hamburger button */
+        /* Desktop menu button */
         .desktop-menu-btn {
             display: none;
         }
@@ -347,12 +312,12 @@
 
         /* Cards */
         .stat-card {
-            background: linear-gradient(135deg, white 0%, #F8FAFC 100%);
-            border-left: 4px solid var(--teal);
-            border-radius: 16px;
-            padding: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
             height: 100%;
             width: 100%;
+            border: 1px solid #EDF2F7;
         }
 
         @media (max-width: 640px) {
@@ -364,37 +329,40 @@
         /* Tables */
         .table-container {
             background: white;
-            border-radius: 20px;
-            border: 1px solid rgba(226, 232, 240, 0.6);
+            border-radius: 12px;
+            border: 1px solid #EDF2F7;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
             width: 100%;
         }
 
         table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+            border-collapse: collapse;
             min-width: 600px;
         }
 
         th {
             background: #F8FAFC;
             font-weight: 600;
-            color: var(--navy);
-            padding: 16px 20px;
-            border-bottom: 2px solid #E2E8F0;
-            font-size: 0.85rem;
+            color: #1E293B;
+            padding: 12px 16px;
+            border-bottom: 1px solid #E2E8F0;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             white-space: nowrap;
         }
 
         td {
-            padding: 16px 20px;
+            padding: 12px 16px;
             border-bottom: 1px solid #F1F5F9;
             color: #475569;
+            font-size: 0.875rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
         }
 
         tr:hover td {
@@ -405,11 +373,11 @@
         .badge {
             display: inline-flex;
             align-items: center;
-            padding: 6px 14px;
-            border-radius: 100px;
-            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
             font-weight: 600;
-            gap: 6px;
+            gap: 4px;
             white-space: nowrap;
         }
 
@@ -441,14 +409,14 @@
         /* Notification Badge */
         .notification-badge {
             position: absolute;
-            top: -4px;
-            right: -4px;
-            background: linear-gradient(135deg, var(--danger), #DC2626);
+            top: -2px;
+            right: -2px;
+            background: var(--danger);
             color: white;
             border-radius: 50%;
-            min-width: 20px;
-            height: 20px;
-            font-size: 11px;
+            min-width: 18px;
+            height: 18px;
+            font-size: 10px;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -458,27 +426,19 @@
         }
 
         /* Logo */
-        .logo-container {
-            background: linear-gradient(135deg, rgba(0, 184, 169, 0.1) 0%, rgba(0, 139, 122, 0.1) 100%);
-            backdrop-filter: blur(4px);
-            border-radius: 16px;
-            padding: 2px;
-        }
-
         .logo-wrapper {
             background: white;
-            border-radius: 14px;
+            border-radius: 10px;
             padding: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* Animations */
         @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(5px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -486,7 +446,7 @@
         }
 
         .animate-slide-in {
-            animation: slideIn 0.3s ease-out forwards;
+            animation: slideIn 0.2s ease-out forwards;
         }
 
         /* Status Indicators */
@@ -495,37 +455,16 @@
             height: 8px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 6px;
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
         }
 
-        .status-pending {
-            background: var(--warning);
-        }
-
-        .status-approved {
-            background: var(--success);
-        }
-
-        .status-assigned {
-            background: var(--info);
-        }
-
-        .status-picked-up {
-            background: #8B5CF6;
-        }
-
-        .status-delivered {
-            background: var(--success);
-        }
-
-        .status-completed {
-            background: #059669;
-        }
-
-        .status-cancelled {
-            background: var(--danger);
-        }
+        .status-pending { background: var(--warning); }
+        .status-approved { background: var(--success); }
+        .status-assigned { background: var(--info); }
+        .status-picked-up { background: #8B5CF6; }
+        .status-delivered { background: var(--success); }
+        .status-completed { background: #059669; }
+        .status-cancelled { background: var(--danger); }
 
         /* Line Clamp */
         .line-clamp-2 {
@@ -540,103 +479,81 @@
             position: relative;
         }
 
-        /* Notification Dropdown */
         .notification-dropdown {
             position: absolute;
             top: 100%;
             right: 0;
-            width: 380px;
+            width: 320px;
             max-width: 90vw;
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(226, 232, 240, 0.6);
-            margin-top: 12px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid #EDF2F7;
+            margin-top: 8px;
             overflow: hidden;
             z-index: 9999;
             transform-origin: top right;
-            animation: dropdownFade 0.2s ease-out;
+            animation: dropdownFade 0.15s ease-out;
         }
 
         .notification-item {
-            padding: 16px;
+            padding: 12px;
             border-bottom: 1px solid #F1F5F9;
-            transition: all 0.2s;
+            transition: all 0.15s;
             cursor: pointer;
-            background: white;
         }
 
         .notification-item:hover {
             background: #F8FAFC;
-            transform: translateX(2px);
         }
 
         .notification-item.unread {
             background: #F0FDF9;
-            position: relative;
         }
 
-        .notification-item.unread::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: var(--teal);
-            border-radius: 3px 0 0 3px;
-        }
-
-        /* User Menu Dropdown */
         .user-menu-dropdown {
             position: absolute;
             top: 100%;
             right: 0;
-            width: 260px;
+            width: 220px;
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(226, 232, 240, 0.6);
-            margin-top: 12px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid #EDF2F7;
+            margin-top: 8px;
             overflow: hidden;
             z-index: 9999;
             transform-origin: top right;
-            animation: dropdownFade 0.2s ease-out;
+            animation: dropdownFade 0.15s ease-out;
         }
 
         .user-menu-item {
-            padding: 12px 18px;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             color: #1E293B;
-            transition: all 0.2s;
+            transition: all 0.15s;
             cursor: pointer;
             text-decoration: none;
-            background: white;
+            font-size: 0.875rem;
         }
 
         .user-menu-item:hover {
             background: #F8FAFC;
-            padding-left: 22px;
         }
 
         .user-menu-item i {
-            width: 20px;
+            width: 18px;
             color: var(--gray);
-            font-size: 1rem;
-        }
-
-        .user-menu-item.text-red-600 i {
-            color: var(--danger);
+            font-size: 0.9rem;
         }
 
         @keyframes dropdownFade {
             from {
                 opacity: 0;
-                transform: translateY(-10px) scale(0.95);
+                transform: translateY(-5px) scale(0.98);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -645,6 +562,24 @@
 
         [x-cloak] {
             display: none !important;
+        }
+
+        /* Custom scrollbar for content */
+        .content-wrapper::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .content-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content-wrapper::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+
+        .content-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
         }
     </style>
 
@@ -655,49 +590,47 @@
     <div class="app-wrapper">
         <!-- Desktop Sidebar -->
         <aside class="sidebar-desktop" id="desktopSidebar">
-            <div class="p-6 h-full flex flex-col">
+            <div class="p-4 h-full flex flex-col">
                 <!-- Logo Section -->
-                <div class="mb-8 logo-section">
+                <div class="mb-6 logo-section">
                     <div class="flex items-center space-x-3">
-                        <div class="logo-container">
-                            <div class="logo-wrapper w-14 h-14 flex items-center justify-center">
-                                <img src="{{ asset('images/logo.png') }}"
-                                    alt="NeoPro Lab"
-                                    class="w-12 h-12 object-contain"
-                                    onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA1NiA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHJ4PSIxNCIgZmlsbD0iIzAwQjhBOSIvPjxwYXRoIGQ9Ik0yOCAxNEwzNSAyOEwyOCA0MkwyMSAyOEwyOCAxNFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyOCIgY3k9IjI4IiByPSI2IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
-                            </div>
+                        <div class="logo-wrapper w-10 h-10 flex items-center justify-center">
+                            <img src="{{ asset('images/logo.png') }}"
+                                alt="NeoPro Lab"
+                                class="w-8 h-8 object-contain"
+                                onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSI4IiBmaWxsPSIjMDhCNEE5Ii8+PHBhdGggZD0iTTIwIDEwTDI1IDIwTDIwIDMwTDE1IDIwTDIwIDEwWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJ0cmFuc3BhcmVudCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjQiIGZpbGw9IndoaXRlIi8+PC9zdmc+'">
                         </div>
                         <div class="logo-text">
-                            <h1 class="font-bold text-xl tracking-tight">NeoProLab</h1>
-                            <p class="text-xs text-gray-400 mt-0.5">Courier Management</p>
+                            <h1 class="font-bold text-base tracking-tight">NeoProLab</h1>
+                            <p class="text-[10px] text-gray-400">Courier Management</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Navigation -->
-                <nav class="flex-1 space-y-1">
+                <nav class="flex-1 space-y-0.5">
                     @yield('sidebar')
                 </nav>
 
                 <!-- User Profile Section -->
-                <div class="mt-6 pt-6 border-t border-gray-700/30 user-profile-section">
-                    <div class="flex items-center space-x-3 p-3 rounded-xl bg-white/5">
-                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=40"
+                <div class="mt-4 pt-4 border-t border-gray-700/30 user-profile-section">
+                    <div class="flex items-center space-x-3 p-2 rounded-lg bg-white/5">
+                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=32"
                             alt="User"
-                            class="w-10 h-10 rounded-xl object-cover border-2 border-teal-400/30">
+                            class="w-8 h-8 rounded-lg object-cover">
                         <div class="flex-1 min-w-0 user-info">
-                            <p class="font-semibold text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
-                            <p class="text-xs text-gray-400">
+                            <p class="font-medium text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                            <p class="text-[10px] text-gray-400">
                                 @if(auth()->user()->isAdmin())
-                                <span class="flex items-center"><i class="fas fa-crown mr-1 text-xs"></i>Administrator</span>
+                                <span class="flex items-center"><i class="fas fa-crown mr-1 text-[8px]"></i>Admin</span>
                                 @elseif(auth()->user()->isCourier())
-                                <span class="flex items-center"><i class="fas fa-motorcycle mr-1 text-xs"></i>Courier</span>
+                                <span class="flex items-center"><i class="fas fa-motorcycle mr-1 text-[8px]"></i>Courier</span>
                                 @else
-                                <span class="flex items-center"><i class="fas fa-user mr-1 text-xs"></i>Client</span>
+                                <span class="flex items-center"><i class="fas fa-user mr-1 text-[8px]"></i>Client</span>
                                 @endif
                             </p>
                         </div>
-                        <div class="w-2 h-2 rounded-full bg-teal-400 animate-pulse status-dot"></div>
+                        <div class="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse status-dot"></div>
                     </div>
                 </div>
             </div>
@@ -705,35 +638,35 @@
 
         <!-- Mobile Sidebar -->
         <div id="mobileSidebar" class="sidebar-mobile">
-            <div class="p-6 h-full flex flex-col">
-                <div class="flex items-center justify-between mb-6">
+            <div class="p-4 h-full flex flex-col">
+                <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="logo-wrapper w-12 h-12 flex items-center justify-center">
+                        <div class="logo-wrapper w-10 h-10 flex items-center justify-center">
                             <img src="{{ asset('images/logo.png') }}"
                                 alt="NeoPro Lab"
-                                class="w-10 h-10 object-contain"
-                                onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSIxMCIgZmlsbD0iIzAwQjhBOSIvPjxwYXRoIGQ9Ik0yMCAxMEwyNSAyMEwyMCAzMEwxNSAyMEwyMCAxMFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI0IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=='">
+                                class="w-8 h-8 object-contain"
+                                onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHJ4PSI4IiBmaWxsPSIjMDhCNEE5Ii8+PHBhdGggZD0iTTIwIDEwTDI1IDIwTDIwIDMwTDE1IDIwTDIwIDEwWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJ0cmFuc3BhcmVudCIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjQiIGZpbGw9IndoaXRlIi8+PC9zdmc+'">
                         </div>
-                        <span class="font-bold text-lg">NeoProLab</span>
+                        <span class="font-bold text-sm">NeoProLab</span>
                     </div>
                     <button id="closeMobileSidebar" class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-                        <i class="fas fa-times"></i>
+                        <i class="fas fa-times text-sm"></i>
                     </button>
                 </div>
 
-                <nav class="flex-1 overflow-y-auto space-y-1">
+                <nav class="flex-1 overflow-y-auto space-y-0.5">
                     @yield('sidebar')
                 </nav>
 
-                <div class="mt-6 pt-6 border-t border-gray-700/30">
-                    <div class="flex items-center space-x-3 p-3 rounded-xl bg-white/5">
-                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=40"
+                <div class="mt-4 pt-4 border-t border-gray-700/30">
+                    <div class="flex items-center space-x-3 p-2 rounded-lg bg-white/5">
+                        <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=32"
                             alt="User"
-                            class="w-10 h-10 rounded-xl object-cover">
+                            class="w-8 h-8 rounded-lg object-cover">
                         <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
-                            <p class="text-xs text-gray-400">
-                                @if(auth()->user()->isAdmin()) Administrator
+                            <p class="font-medium text-sm truncate">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                            <p class="text-[10px] text-gray-400">
+                                @if(auth()->user()->isAdmin()) Admin
                                 @elseif(auth()->user()->isCourier()) Courier
                                 @else Client
                                 @endif
@@ -751,184 +684,160 @@
         <div class="main-content">
             <!-- Navbar -->
             <header class="navbar">
-                <div class="flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
-                    <div class="flex items-center space-x-3">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <div class="flex items-center space-x-2">
                         <!-- Mobile menu button -->
-                        <button id="mobileMenuButton" class="md:hidden w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
-                            <i class="fas fa-bars text-lg"></i>
+                        <button id="mobileMenuButton" class="md:hidden w-8 h-8 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                            <i class="fas fa-bars text-sm"></i>
                         </button>
-                        <!-- Desktop menu button (hamburger) -->
-                        <button id="desktopMenuButton" class="desktop-menu-btn w-10 h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
-                            <i class="fas fa-bars text-lg"></i>
+                        <!-- Desktop menu button -->
+                        <button id="desktopMenuButton" class="desktop-menu-btn w-8 h-8 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                            <i class="fas fa-bars text-sm"></i>
                         </button>
-                        <h1 class="text-lg md:text-2xl font-bold text-gray-800 tracking-tight truncate">@yield('page-title', 'Dashboard')</h1>
+                        <h1 class="text-base md:text-lg font-semibold text-gray-800 truncate">@yield('page-title', 'Dashboard')</h1>
                     </div>
 
-                    <div class="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
+                    <div class="flex items-center space-x-2 flex-shrink-0">
                         <!-- Notifications -->
-<div class="dropdown-container" 
-     x-data="{
-        open: false,
-        notifications: [],
-        unreadCount: 0,
-        loading: false,
-        fetchNotifications() {
-            this.loading = true;
-            fetch('/notifications/recent', {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                this.notifications = data.notifications || [];
-                this.unreadCount = data.unread_count || 0;
-            })
-            .catch(error => {
-                console.error('Error fetching notifications:', error);
-                // Don't show error to user, just set empty state
-                this.notifications = [];
-                this.unreadCount = 0;
-            })
-            .finally(() => {
-                this.loading = false;
-            });
-        },
-        markAsRead(id) {
-            // Get CSRF token safely
-            const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
-            if (!csrfToken) {
-                console.error('CSRF token not found');
-                return;
-            }
+                        <div class="dropdown-container" 
+                             x-data="{
+                                open: false,
+                                notifications: [],
+                                unreadCount: 0,
+                                loading: false,
+                                fetchNotifications() {
+                                    this.loading = true;
+                                    fetch('/notifications/recent', {
+                                        headers: {
+                                            'Accept': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        }
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        this.notifications = data.notifications || [];
+                                        this.unreadCount = data.unread_count || 0;
+                                    })
+                                    .catch(error => {
+                                        console.error('Error fetching notifications:', error);
+                                        this.notifications = [];
+                                        this.unreadCount = 0;
+                                    })
+                                    .finally(() => {
+                                        this.loading = false;
+                                    });
+                                },
+                                markAsRead(id) {
+                                    const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
+                                    if (!csrfToken) return;
 
-            fetch(`/notifications/${id}/read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(() => {
-                this.fetchNotifications();
-            })
-            .catch(error => console.error('Error marking notification as read:', error));
-        },
-        markAllAsRead() {
-            // Get CSRF token safely
-            const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
-            if (!csrfToken) {
-                console.error('CSRF token not found');
-                return;
-            }
+                                    fetch(`/notifications/${id}/read`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': csrfToken,
+                                            'Accept': 'application/json'
+                                        }
+                                    })
+                                    .then(() => this.fetchNotifications())
+                                    .catch(error => console.error('Error:', error));
+                                },
+                                markAllAsRead() {
+                                    const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
+                                    if (!csrfToken) return;
 
-            fetch('/notifications/read-all', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(() => {
-                this.fetchNotifications();
-            })
-            .catch(error => console.error('Error marking all notifications as read:', error));
-        }
-     }"
-     x-init="fetchNotifications(); setInterval(() => { if (open) fetchNotifications(); }, 30000)"
-     @click.away="open = false">
+                                    fetch('/notifications/read-all', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': csrfToken,
+                                            'Accept': 'application/json'
+                                        }
+                                    })
+                                    .then(() => this.fetchNotifications())
+                                    .catch(error => console.error('Error:', error));
+                                }
+                             }"
+                             x-init="fetchNotifications(); setInterval(() => { if (open) fetchNotifications(); }, 30000)"
+                             @click.away="open = false">
 
-    <button @click="open = !open" class="relative w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
-        <i class="fas fa-bell text-base md:text-lg"></i>
-        <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
-    </button>
+                            <button @click="open = !open" class="relative w-8 h-8 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center justify-center">
+                                <i class="fas fa-bell text-sm"></i>
+                                <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
+                            </button>
 
-    <!-- Notifications dropdown -->
-    <div x-show="open" class="notification-dropdown" x-cloak @click.stop>
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-            <h3 class="font-semibold text-gray-800">Notifications</h3>
-            <button x-show="unreadCount > 0" @click="markAllAsRead" class="text-xs text-teal-600 hover:text-teal-700 font-medium transition-colors">
-                Mark all as read
-            </button>
-        </div>
-        
-        <div class="max-h-96 overflow-y-auto">
-            <!-- Loading State -->
-            <template x-if="loading">
-                <div class="flex items-center justify-center py-8">
-                    <i class="fas fa-spinner fa-spin text-teal-500 text-xl"></i>
-                </div>
-            </template>
-
-            <!-- Empty State -->
-            <template x-if="!loading && (!notifications || notifications.length === 0)">
-                <div class="text-center py-8 px-4">
-                    <i class="far fa-bell-slash text-4xl text-gray-300 mb-3"></i>
-                    <p class="text-gray-500 text-sm">No notifications</p>
-                </div>
-            </template>
-
-            <!-- Notifications List -->
-            <template x-if="!loading && notifications && notifications.length > 0">
-                <div>
-                    <template x-for="notification in notifications" :key="notification.id">
-                        <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
-                            <div class="flex items-start gap-3">
-                                <i :class="notification.icon || 'fas fa-bell'" 
-                                   :class="'text-' + (notification.color || 'teal') + '-500'" 
-                                   class="mt-1 text-lg"></i>
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-800" x-text="notification.title || 'Notification'"></p>
-                                    <p class="text-xs text-gray-600 mt-0.5 line-clamp-2" x-text="notification.message || ''"></p>
-                                    <p class="text-xs text-gray-400 mt-1" x-text="notification.created_at_human || ''"></p>
+                            <!-- Notifications dropdown -->
+                            <div x-show="open" class="notification-dropdown" x-cloak @click.stop>
+                                <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                                    <h3 class="font-semibold text-xs text-gray-800">Notifications</h3>
+                                    <button x-show="unreadCount > 0" @click="markAllAsRead" class="text-[10px] text-teal-600 hover:text-teal-700 font-medium">
+                                        Mark all as read
+                                    </button>
                                 </div>
-                                <span x-show="!notification.read_at" class="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0 mt-2"></span>
+                                
+                                <div class="max-h-80 overflow-y-auto">
+                                    <template x-if="loading">
+                                        <div class="flex items-center justify-center py-6">
+                                            <i class="fas fa-spinner fa-spin text-teal-500 text-sm"></i>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!loading && (!notifications || notifications.length === 0)">
+                                        <div class="text-center py-6">
+                                            <i class="far fa-bell-slash text-2xl text-gray-300 mb-2"></i>
+                                            <p class="text-xs text-gray-500">No notifications</p>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!loading && notifications && notifications.length > 0">
+                                        <div>
+                                            <template x-for="notification in notifications" :key="notification.id">
+                                                <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
+                                                    <div class="flex items-start gap-2">
+                                                        <i :class="notification.icon || 'fas fa-bell'" class="text-teal-500 text-xs mt-1"></i>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="text-xs font-medium text-gray-800" x-text="notification.title || 'Notification'"></p>
+                                                            <p class="text-[10px] text-gray-600 mt-0.5 line-clamp-2" x-text="notification.message || ''"></p>
+                                                            <p class="text-[9px] text-gray-400 mt-1" x-text="notification.created_at_human || ''"></p>
+                                                        </div>
+                                                        <span x-show="!notification.read_at" class="w-1.5 h-1.5 bg-teal-500 rounded-full flex-shrink-0 mt-1.5"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="border-t border-gray-200 p-2 text-center bg-gray-50">
+                                    <a href="{{ route('notifications.index') }}" class="text-[10px] text-teal-600 hover:text-teal-700 font-medium">
+                                        View all notifications
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </template>
-                </div>
-            </template>
-        </div>
-
-        <!-- Footer Link -->
-        <div class="border-t border-gray-200 p-3 text-center bg-gray-50">
-            <a href="{{ route('notifications.index') }}" class="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
-                View all notifications
-            </a>
-        </div>
-    </div>
-</div>
 
                         <!-- User Menu -->
                         <div class="dropdown-container" x-data="{ open: false }" @click.away="open = false">
-                            <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none p-1.5 md:p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=32"
+                            <button @click="open = !open" class="flex items-center space-x-1 focus:outline-none p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                                <img src="https://ui-avatars.com/api/?name={{ auth()->user()->first_name }}+{{ auth()->user()->last_name }}&background=00B8A9&color=fff&bold=true&size=28"
                                     alt="User"
-                                    class="w-7 h-7 md:w-8 md:h-8 rounded-lg object-cover">
-                                <i class="fas fa-chevron-down text-xs text-gray-600 hidden md:inline"></i>
+                                    class="w-7 h-7 rounded-lg object-cover">
+                                <i class="fas fa-chevron-down text-[10px] text-gray-600 hidden md:inline"></i>
                             </button>
 
-                            <!-- User menu dropdown -->
                             <div x-show="open" class="user-menu-dropdown" x-cloak @click.stop>
-                                <div class="p-4 border-b border-gray-200 bg-gray-50">
-                                    <p class="font-semibold text-gray-800">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
-                                    <p class="text-xs text-gray-500 mt-1 truncate">{{ auth()->user()->email }}</p>
+                                <div class="p-3 border-b border-gray-200 bg-gray-50">
+                                    <p class="font-medium text-xs text-gray-800">{{ auth()->user()->first_name }} {{ auth()->user()->last_name }}</p>
+                                    <p class="text-[10px] text-gray-500 mt-0.5 truncate">{{ auth()->user()->email }}</p>
                                 </div>
                                 <a href="{{ route('profile.index') }}" class="user-menu-item">
                                     <i class="fas fa-user"></i>
-                                    <span>My Profile</span>
+                                    <span class="text-xs">My Profile</span>
                                 </a>
                                 @if(auth()->user()->isAdmin())
                                 <!-- <a href="{{ route('admin.settings.index') }}" class="user-menu-item">
                                     <i class="fas fa-cog"></i>
-                                    <span>Settings</span>
+                                    <span class="text-xs">Settings</span>
                                 </a> -->
                                 @endif
 
@@ -937,7 +846,7 @@
                                     @csrf
                                     <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="user-menu-item text-red-600 hover:bg-red-50">
                                         <i class="fas fa-sign-out-alt"></i>
-                                        <span>Logout</span>
+                                        <span class="text-xs">Logout</span>
                                     </a>
                                 </form>
                             </div>
@@ -950,12 +859,12 @@
             <main class="content-wrapper">
                 <div class="content-container">
                     @hasSection('breadcrumbs')
-                    <div class="mb-4 md:mb-6 animate-slide-in">
+                    <div class="mb-3 animate-slide-in">
                         <nav class="flex" aria-label="Breadcrumb">
-                            <ol class="inline-flex items-center flex-wrap space-x-1 md:space-x-2">
+                            <ol class="inline-flex items-center flex-wrap space-x-1">
                                 <li class="inline-flex items-center">
-                                    <a href="#" class="inline-flex items-center text-xs md:text-sm text-gray-600 hover:text-teal-600 transition-colors">
-                                        <i class="fas fa-home mr-1.5"></i>
+                                    <a href="#" class="inline-flex items-center text-xs text-gray-600 hover:text-teal-600 transition-colors">
+                                        <i class="fas fa-home mr-1"></i>
                                         Home
                                     </a>
                                 </li>
@@ -965,7 +874,7 @@
                     </div>
                     @endif
 
-                    <div class="space-y-4 md:space-y-6">
+                    <div class="space-y-4">
                         @yield('content')
                     </div>
                 </div>
@@ -983,18 +892,17 @@
             const mobileOverlay = document.getElementById('mobileOverlay');
             const closeButton = document.getElementById('closeMobileSidebar');
 
-            // Check if sidebar state is saved in localStorage
+            // Check if sidebar state is saved
             const savedState = localStorage.getItem('desktopSidebarCollapsed');
             if (savedState === 'true' && window.innerWidth >= 768) {
                 desktopSidebar.classList.add('collapsed');
             }
 
-            // Desktop hamburger button functionality
+            // Desktop hamburger button
             if (desktopMenuButton) {
                 desktopMenuButton.addEventListener('click', function() {
                     if (window.innerWidth >= 768) {
                         desktopSidebar.classList.toggle('collapsed');
-                        // Save state to localStorage
                         localStorage.setItem('desktopSidebarCollapsed', desktopSidebar.classList.contains('collapsed'));
                     }
                 });
@@ -1034,15 +942,8 @@
 
             // Handle resize
             window.addEventListener('resize', function() {
-                // Close mobile sidebar when resizing to desktop
                 if (window.innerWidth >= 768 && mobileSidebar.classList.contains('open')) {
                     closeMobileSidebar();
-                }
-
-                // Reset desktop sidebar if needed
-                if (window.innerWidth < 768 && desktopSidebar.classList.contains('collapsed')) {
-                    // We keep the collapsed state but it's hidden on mobile anyway
-                    // This is fine as it will be hidden
                 }
             });
         });
