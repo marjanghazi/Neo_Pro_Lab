@@ -60,12 +60,17 @@ class Facility extends Model
     // ---------- Accessors ----------
 
     /**
-     * Override the camelCase accessor for the facility_type column so that
-     *   $facility->facilityType->name
-     * works in every Blade view without a separate facility_types table.
+     * Override the camelCase accessor for the `facility_type` column.
      *
-     * The raw value is still accessible via  $facility->getRawOriginal('facility_type')
-     * or  $facility->attributes['facility_type']  which is what forms should use.
+     * Returns an object so that ALL usage patterns work without crashing:
+     *
+     *   $facility->facilityType->name   → "Hospital"   (used in admin blades)
+     *   $facility->facilityType->id     → "hospital"   (used in edit form selected check)
+     *   {{ $facility->facilityType }}   → "Hospital"   (__toString called by Blade)
+     *   {{ $facility->facility_type }}  → "Hospital"   (Eloquent resolves to same accessor)
+     *
+     * The raw DB value is always available via:
+     *   $facility->getRawOriginal('facility_type')   → "hospital"
      */
     public function getFacilityTypeAttribute($value)
     {
@@ -77,17 +82,18 @@ class Facility extends Model
             'other'           => 'Other',
         ];
 
-        $label = $map[$value] ?? ucfirst(str_replace('_', ' ', $value ?? 'N/A'));
+        $id    = $value ?? '';
+        $label = $map[$id] ?? ucfirst(str_replace('_', ' ', $id ?: 'N/A'));
 
-        return (object) ['id' => $value, 'name' => $label];
+        return new FacilityTypeObject($id, $label);
     }
 
     /**
-     * Store the raw enum string; guard against accidentally persisting the object.
+     * Mutator — guard against accidentally persisting the object instead of the string.
      */
     public function setFacilityTypeAttribute($value)
     {
-        if (is_object($value) && isset($value->id)) {
+        if ($value instanceof FacilityTypeObject) {
             $value = $value->id;
         }
         $this->attributes['facility_type'] = $value;
@@ -103,5 +109,26 @@ class Facility extends Model
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
+    }
+}
+
+/**
+ * Simple value object returned by the facilityType accessor.
+ * Implements __toString so Blade's {{ $facility->facilityType }} never crashes.
+ */
+class FacilityTypeObject
+{
+    public string $id;
+    public string $name;
+
+    public function __construct(string $id, string $name)
+    {
+        $this->id   = $id;
+        $this->name = $name;
+    }
+
+    public function __toString(): string
+    {
+        return $this->name;
     }
 }

@@ -667,8 +667,28 @@ class ClientController extends Controller
             $paymentService->createPayment($specimenRequest, $user);
         }
 
-        // Use notification service instead of manual creation
-        notify()->newRequestCreated($specimenRequest);
+        // Notify admins about new request
+        $adminUsers = \App\Models\User::whereHas('role', function ($q) {
+            $q->where('slug', 'admin');
+        })->get();
+        foreach ($adminUsers as $admin) {
+            \App\Models\Notification::create([
+                'user_id'    => $admin->id,
+                'for_role'   => 'admin',
+                'request_id' => $specimenRequest->id,
+                'type'       => 'new_request',
+                'title'      => 'New Specimen Request',
+                'message'    => 'New request #' . $specimenRequest->request_number . ' submitted by ' . $user->first_name . ' ' . $user->last_name,
+                'data'       => json_encode([
+                    'request_number'   => $specimenRequest->request_number,
+                    'client_name'      => $user->first_name . ' ' . $user->last_name,
+                    'priority'         => $specimenRequest->priority_level,
+                    'pickup_address'   => $specimenRequest->pickup_address,
+                    'delivery_address' => $specimenRequest->delivery_address,
+                ]),
+                'is_read' => false,
+            ]);
+        }
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
@@ -810,8 +830,26 @@ class ClientController extends Controller
             'cancellation_reason' => $validated['cancellation_reason'],
         ]);
 
-        // Use notification service instead of manual creation
-        notify()->requestCancelled($specimenRequest, Auth::id(), $validated['cancellation_reason']);
+        // Notify admins about cancellation
+        $adminUsers = \App\Models\User::whereHas('role', function ($q) {
+            $q->where('slug', 'admin');
+        })->get();
+        foreach ($adminUsers as $admin) {
+            \App\Models\Notification::create([
+                'user_id'    => $admin->id,
+                'for_role'   => 'admin',
+                'request_id' => $specimenRequest->id,
+                'type'       => 'request_cancelled',
+                'title'      => 'Request Cancelled',
+                'message'    => 'Request #' . $specimenRequest->request_number . ' was cancelled. Reason: ' . $validated['cancellation_reason'],
+                'data'       => json_encode([
+                    'request_number'      => $specimenRequest->request_number,
+                    'cancelled_by'        => Auth::id(),
+                    'cancellation_reason' => $validated['cancellation_reason'],
+                ]),
+                'is_read' => false,
+            ]);
+        }
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Request cancelled successfully. ' .
@@ -1153,8 +1191,7 @@ class ClientController extends Controller
 
         $user->update($updateData);
 
-        // Notify about profile update
-        notify()->userAccountUpdated($user, $user->id);
+        // Profile updated — no notification needed
 
         return back()->with('success', 'Profile updated successfully.');
     }
