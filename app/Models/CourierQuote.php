@@ -2,14 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CourierQuote extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'request_id',
         'courier_id',
@@ -24,75 +20,94 @@ class CourierQuote extends Model
     ];
 
     protected $casts = [
+        'breakdown'   => 'array',
         'courier_fee' => 'decimal:2',
         'total_price' => 'decimal:2',
-        'breakdown' => 'array',
         'accepted_at' => 'datetime',
         'declined_at' => 'datetime',
         'valid_until' => 'datetime',
     ];
 
-    protected $attributes = [
-        'status' => 'pending',
-    ];
+    // ─── Relationships ────────────────────────────────────────────────────────
 
-    public function request(): BelongsTo
+    public function request()
     {
         return $this->belongsTo(SpecimenRequest::class, 'request_id');
     }
 
-    public function courier(): BelongsTo
+    public function courier()
     {
         return $this->belongsTo(User::class, 'courier_id');
     }
 
+    // ─── Status Helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Check if the quote is still valid (not expired, not accepted/declined).
+     */
+    public function isValid(): bool
+    {
+        return $this->status === 'pending' && ! $this->isExpired();
+    }
+
+    /**
+     * Check if the quote has passed its valid_until deadline.
+     */
+    public function isExpired(): bool
+    {
+        if (! $this->valid_until) {
+            return false;
+        }
+
+        return now()->gt($this->valid_until);
+    }
+
+    /**
+     * Accept this quote and stamp the timestamp.
+     */
     public function accept(): bool
     {
         return $this->update([
-            'status' => 'accepted',
+            'status'      => 'accepted',
             'accepted_at' => now(),
         ]);
     }
 
-    public function decline(string $reason = null): bool
+    /**
+     * Decline this quote with an optional reason.
+     */
+    public function decline(string $reason = ''): bool
     {
         return $this->update([
-            'status' => 'declined',
-            'declined_at' => now(),
+            'status'         => 'declined',
+            'declined_at'    => now(),
             'decline_reason' => $reason,
         ]);
     }
 
-    public function isExpired(): bool
+    /**
+     * Mark this quote as expired.
+     */
+    public function expire(): bool
     {
-        if (!$this->valid_until) {
-            return false;
-        }
-        return now()->gt($this->valid_until);
+        return $this->update(['status' => 'expired']);
     }
 
-    public function isValid(): bool
+    // ─── Scopes ───────────────────────────────────────────────────────────────
+
+    public function scopePending($query)
     {
-        return $this->status === 'pending' && !$this->isExpired();
+        return $query->where('status', 'pending');
     }
 
-    public function getBreakdownAttribute($value)
+    public function scopeValid($query)
     {
-        return json_decode($value, true) ?? [];
+        return $query->where('status', 'pending')
+                     ->where('valid_until', '>', now());
     }
 
-    public function setBreakdownAttribute($value)
+    public function scopeForCourier($query, int $courierId)
     {
-        $this->attributes['breakdown'] = json_encode($value);
-    }
-
-    public function getFormattedTotalPriceAttribute(): string
-    {
-        return '$' . number_format($this->total_price, 2);
-    }
-
-    public function getFormattedCourierFeeAttribute(): string
-    {
-        return '$' . number_format($this->courier_fee, 2);
+        return $query->where('courier_id', $courierId);
     }
 }

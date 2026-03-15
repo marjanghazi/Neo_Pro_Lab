@@ -57,6 +57,7 @@
                 <div class="timeline">
                     @php
                     $statuses = [
+                    'pending_courier_acceptance' => 'Quote Pending',
                     'assigned' => 'Assigned',
                     'accepted_by_courier' => 'Accepted',
                     'awaiting_pickup_proof' => 'Awaiting Pickup Proof',
@@ -153,6 +154,52 @@
                 <!-- NORMAL WORKFLOW BUTTONS - Shows standard action buttons for current status -->
                 <div class="flex flex-wrap gap-3">
                     @switch($specimenRequest->status)
+
+                    @case('pending_courier_acceptance')
+                    {{-- ══════════════════════════════════════════════════════════
+                         QUOTE ACCEPTANCE STATE
+                         Admin sent a price quote — courier must accept or decline
+                         ══════════════════════════════════════════════════════════ --}}
+                    <div class="w-full mb-4">
+                        <div class="bg-teal-50 border border-teal-300 rounded-lg p-5">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h4 class="font-bold text-teal-800 text-base mb-1">
+                                        <i class="fas fa-tag mr-2"></i>Price Quote Received
+                                    </h4>
+                                    <p class="text-sm text-teal-700">
+                                        Admin has sent you a price quote for this assignment.
+                                        Review and respond before the deadline.
+                                    </p>
+                                    @if($specimenRequest->acceptance_deadline)
+                                    <p class="text-xs mt-2 {{ now()->gt($specimenRequest->acceptance_deadline) ? 'text-red-700 font-bold' : 'text-yellow-600' }}">
+                                        <i class="fas fa-clock mr-1"></i>
+                                        @if(now()->gt($specimenRequest->acceptance_deadline))
+                                            DEADLINE EXPIRED — Contact admin
+                                        @else
+                                            Deadline: {{ $specimenRequest->acceptance_deadline->format('M d, Y h:i A') }}
+                                            ({{ now()->diffForHumans($specimenRequest->acceptance_deadline, true) }} remaining)
+                                        @endif
+                                    </p>
+                                    @endif
+                                </div>
+                                @if($specimenRequest->courier_fee > 0)
+                                <div class="text-right ml-4">
+                                    <p class="text-2xl font-bold text-teal-700">${{ number_format($specimenRequest->courier_fee, 2) }}</p>
+                                    <p class="text-xs text-gray-500">Your fee</p>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-3">
+                            <a href="{{ route('courier.requests.quote', $specimenRequest->id) }}"
+                                class="flex-1 btn-primary text-center py-2 text-sm">
+                                <i class="fas fa-eye mr-2"></i>Review Full Quote
+                            </a>
+                        </div>
+                    </div>
+                    @break
+
                     @case('assigned')
                     <!-- Accept Assignment button - submits to CourierController@acceptAssignment -->
                     <form action="{{ route('courier.assignments.accept', $specimenRequest->id) }}" method="POST" class="inline">

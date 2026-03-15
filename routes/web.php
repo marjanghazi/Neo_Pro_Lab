@@ -120,12 +120,6 @@ Route::prefix('admin')
 
         // Dashboard
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
-        Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
-
-        // Admin pricing routes
-        Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
-        Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('requests.send-quote');
-        Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('requests.assign-with-quote');
 
         // Profile
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile.index');
@@ -215,9 +209,16 @@ Route::prefix('admin')
         Route::get('/requests/{request}', [AdminRequestController::class, 'show'])->name('requests.show');
         Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
-        Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('requests.update-payment');
+
+        // Pricing & Quotes - Updated with new routes
+        Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
+        Route::get('/requests/{request}/price-data', [AdminRequestController::class, 'getPriceData'])->name('requests.price-data');
+        Route::post('/requests/{request}/send-quote', [AdminRequestController::class, 'createQuote'])->name('requests.send-quote');
+        Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('requests.assign-with-quote');
+        Route::post('/requests/{request}/cancel-quote', [AdminRequestController::class, 'cancelQuote'])->name('requests.cancel-quote');
 
         // Payments (Admin)
+        Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('requests.update-payment');
         Route::get('/payments', [AdminRequestController::class, 'payments'])->name('payments.index');
         Route::get('/payments/{payment}', [AdminRequestController::class, 'viewPayment'])->name('payments.show');
         Route::post('/payments/{payment}/refund', [AdminRequestController::class, 'refundPayment'])->name('payments.refund');
@@ -312,7 +313,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
 
 /*
 |--------------------------------------------------------------------------
-| Courier Routes
+| Courier Routes - Updated with new routes
 |--------------------------------------------------------------------------
 */
 Route::prefix('courier')
@@ -331,6 +332,11 @@ Route::prefix('courier')
         Route::get('/assignments', [CourierController::class, 'assignments'])->name('assignments.index');
         Route::post('/assignments/{requestId}/accept', [CourierController::class, 'acceptAssignment'])->name('assignments.accept');
 
+        // Quote acceptance/decline (when admin assigns with quote)
+        Route::get('/requests/{requestId}/quote', [CourierController::class, 'viewQuote'])->name('requests.quote');
+        Route::post('/requests/{requestId}/accept-quote', [CourierController::class, 'acceptQuote'])->name('requests.accept-quote');
+        Route::post('/requests/{requestId}/decline-quote', [CourierController::class, 'declineQuote'])->name('requests.decline-quote');
+
         // Location Tracking
         Route::post('/location', [CourierController::class, 'updateLocation'])->name('location.update');
         Route::get('/location/status', [CourierController::class, 'locationStatus'])->name('location.status');
@@ -344,11 +350,6 @@ Route::prefix('courier')
         Route::post('/requests/{requestId}/pickup-proof', [CourierController::class, 'submitPickupProof'])->name('requests.pickup-proof');
         Route::post('/requests/{requestId}/transit-proof', [CourierController::class, 'submitTransitProof'])->name('requests.transit-proof');
         Route::post('/requests/{requestId}/skip-proof', [CourierController::class, 'skipProofRequirement'])->name('requests.skip-proof');
-
-        // Courier quote acceptance routes
-        Route::post('/requests/{requestId}/accept-quote', [CourierController::class, 'acceptQuote'])->name('courier.requests.accept-quote');
-        Route::post('/requests/{requestId}/decline-quote', [CourierController::class, 'declineQuote'])->name('courier.requests.decline-quote');
-        Route::get('/requests/{requestId}/quote', [CourierController::class, 'viewQuote'])->name('courier.requests.quote');
 
         // Arrival Proof Route
         Route::post('/requests/{requestId}/arrival-proof', [CourierController::class, 'submitArrivalProof'])->name('requests.arrival-proof');
