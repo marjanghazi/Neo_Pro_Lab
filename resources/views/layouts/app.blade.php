@@ -926,10 +926,10 @@
                                     <span>My Profile</span>
                                 </a>
                                 @if(auth()->user()->isAdmin())
-                                <a href="{{ route('admin.settings.index') }}" class="user-menu-item">
+                                <!-- <a href="{{ route('admin.settings.index') }}" class="user-menu-item">
                                     <i class="fas fa-cog"></i>
                                     <span>Settings</span>
-                                </a>
+                                </a> -->
                                 @endif
 
                                 <div class="border-t border-gray-200 my-1"></div>

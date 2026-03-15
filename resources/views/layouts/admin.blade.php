@@ -24,15 +24,15 @@
     <i class="fas fa-users w-5"></i>
     <span>Users</span>
 </a>
-<a href="{{ route('admin.reports.index') }}" class="sidebar-item {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+<!-- <a href="{{ route('admin.reports.index') }}" class="sidebar-item {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
     <i class="fas fa-chart-bar w-5"></i>
     <span>Reports</span>
-</a>
+</a> -->
 
-<div class="pt-4 mt-4 border-t border-gray-700">    
+<!-- <div class="pt-4 mt-4 border-t border-gray-700">    
     <a href="{{ route('admin.settings.index') }}" class="sidebar-item {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
         <i class="fas fa-cog w-5"></i>
         <span>Settings</span>
     </a>
-</div>
+</div> -->
 @endsection
