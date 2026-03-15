@@ -225,7 +225,6 @@
                             <option value="">Select Status</option>
                             <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }} class="text-yellow-600">Pending</option>
                             <option value="active" {{ old('status') == 'active' ? 'selected' : '' }} class="text-green-600">Active</option>
-                            <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }} class="text-gray-600">Inactive</option>
                             <option value="suspended" {{ old('status') == 'suspended' ? 'selected' : '' }} class="text-red-600">Suspended</option>
                         </select>
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">

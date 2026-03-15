@@ -32,7 +32,16 @@
                     <div>
                         <h2 class="text-2xl font-bold text-gray-800">{{ $facility->name }}</h2>
                         <div class="flex items-center space-x-3 mt-1">
-                            <span class="px-3 py-1 text-sm rounded-full {{ $facility->status == 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
+                            @php
+                                $statusBadge = match($facility->status) {
+                                    'active'    => 'bg-green-100 text-green-800',
+                                    'pending'   => 'bg-yellow-100 text-yellow-800',
+                                    'suspended' => 'bg-orange-100 text-orange-800',
+                                    'rejected'  => 'bg-red-100 text-red-800',
+                                    default     => 'bg-gray-100 text-gray-800',
+                                };
+                            @endphp
+                            <span class="px-3 py-1 text-sm rounded-full {{ $statusBadge }}">
                                 {{ ucfirst($facility->status) }}
                             </span>
                             @if($facility->is_approved)
@@ -368,19 +377,37 @@
                 </form>
                 @endif
                 @if($facility->is_approved && $facility->status == 'active')
-                <a href="#"
-                    class="flex items-center p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition">
-                    <i class="fas fa-pause text-yellow-600 mr-3"></i>
-                    <span>Suspend Facility</span>
-                </a>
+                <form action="{{ route('admin.facilities.suspend', $facility) }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        onclick="return confirm('Suspend this facility?')"
+                        class="w-full flex items-center p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition text-left">
+                        <i class="fas fa-pause text-yellow-600 mr-3"></i>
+                        <span>Suspend Facility</span>
+                    </button>
+                </form>
                 @endif
-                @if($facility->status != 'active')
-                <a href="#"
-                    class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition">
-                    <i class="fas fa-play text-green-600 mr-3"></i>
-                    <span>Activate Facility</span>
-                </a>
+                @if($facility->status == 'suspended' || $facility->status == 'rejected' || $facility->status == 'pending')
+                <form action="{{ route('admin.facilities.activate', $facility) }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        onclick="return confirm('Activate this facility?')"
+                        class="w-full flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition text-left">
+                        <i class="fas fa-play text-green-600 mr-3"></i>
+                        <span>Activate Facility</span>
+                    </button>
+                </form>
                 @endif
+                <form action="{{ route('admin.facilities.destroy', $facility) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                        onclick="return confirm('Permanently delete this facility? This action cannot be undone.')"
+                        class="w-full flex items-center p-3 bg-red-50 hover:bg-red-100 rounded-lg transition text-left">
+                        <i class="fas fa-trash text-red-600 mr-3"></i>
+                        <span>Delete Facility</span>
+                    </button>
+                </form>
             </div>
         </div>
     </div>

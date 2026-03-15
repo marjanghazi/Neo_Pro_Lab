@@ -69,7 +69,7 @@
                     <option value="">All Status</option>
                     <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
                     <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    
                     <option value="suspended" {{ request('status') == 'suspended' ? 'selected' : '' }}>Suspended</option>
                     <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                 </select>
@@ -197,12 +197,37 @@
                             </form>
                             @endif
                             @if($facility->is_approved && $facility->status == 'active')
-                            <a href="#" 
-                               class="text-purple-600 hover:text-purple-800 p-1"
-                               title="Suspend">
-                                <i class="fas fa-pause"></i>
-                            </a>
+                            <form action="{{ route('admin.facilities.suspend', $facility) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit"
+                                        class="text-orange-600 hover:text-orange-800 p-1"
+                                        title="Suspend"
+                                        onclick="return confirm('Suspend this facility?')">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                            </form>
                             @endif
+                            @if($facility->status == 'suspended' || $facility->status == 'rejected')
+                            <form action="{{ route('admin.facilities.activate', $facility) }}" method="POST" class="inline">
+                                @csrf
+                                <button type="submit"
+                                        class="text-green-600 hover:text-green-800 p-1"
+                                        title="Activate"
+                                        onclick="return confirm('Activate this facility?')">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </form>
+                            @endif
+                            <form action="{{ route('admin.facilities.destroy', $facility) }}" method="POST" class="inline">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="text-red-600 hover:text-red-800 p-1"
+                                        title="Delete"
+                                        onclick="return confirm('Permanently delete this facility? This cannot be undone.')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>

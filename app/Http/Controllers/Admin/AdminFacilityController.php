@@ -6,14 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Facility;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // Fixed the import
+use Illuminate\Support\Facades\Log;
 
 class AdminFacilityController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Facility::query();
+        $query = Facility::withCount(['users', 'specimenRequests']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -35,16 +34,14 @@ class AdminFacilityController extends Controller
     public function create()
     {
         $facilityTypes = collect([
-            ['id' => 'hospital', 'name' => 'Hospital'],
-            ['id' => 'clinic', 'name' => 'Clinic'],
-            ['id' => 'lab', 'name' => 'Laboratory'],
+            ['id' => 'hospital',        'name' => 'Hospital'],
+            ['id' => 'clinic',          'name' => 'Clinic'],
+            ['id' => 'lab',             'name' => 'Laboratory'],
             ['id' => 'research_center', 'name' => 'Research Center'],
-            ['id' => 'other', 'name' => 'Other']
+            ['id' => 'other',           'name' => 'Other'],
         ]);
 
-        $admins = User::whereHas('role', function ($q) {
-            $q->where('slug', 'admin');
-        })->get();
+        $admins = User::whereHas('role', fn($q) => $q->where('slug', 'admin'))->get();
 
         return view('admin.facilities.create', compact('facilityTypes', 'admins'));
     }
@@ -52,29 +49,33 @@ class AdminFacilityController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'facility_type' => 'required|in:hospital,clinic,lab,research_center,other',
-            'license_number' => 'required|string|max:100|unique:facilities',
-            'address' => 'required|string|max:500',
-            'city' => 'required|string|max:100',
-            'state' => 'required|string|max:100',
-            'country' => 'required|string|max:100',
-            'postal_code' => 'nullable|string|max:20',
-            'phone' => 'required|string|max:20',
-            'email' => 'required|email|max:255',
-            'website' => 'nullable|url|max:255',
-            'operating_hours' => 'nullable|string|max:255',
-            'zip_code' => 'nullable|string|max:20',
-            'contact_person_name' => 'required|string|max:255',
-            'contact_person_phone' => 'required|string|max:20',
-            'contact_person_email' => 'required|email|max:255',
-            'is_approved' => 'boolean',
-            'status' => 'required|in:pending,active,suspended,rejected',
-            'notes' => 'nullable|string|max:1000',
+            'name'                 => 'required|string|max:255',
+            'facility_type'        => 'required|in:hospital,clinic,lab,research_center,other',
+            'license_number'       => 'nullable|string|max:100|unique:facilities',
+            'address'              => 'required|string|max:500',
+            'city'                 => 'required|string|max:100',
+            'state'                => 'required|string|max:100',
+            'country'              => 'required|string|max:100',
+            'postal_code'          => 'nullable|string|max:20',
+            'zip_code'             => 'nullable|string|max:20',
+            'phone'                => 'nullable|string|max:20',
+            'email'                => 'nullable|email|max:255',
+            'website'              => 'nullable|url|max:255',
+            'operating_hours'      => 'nullable|string|max:255',
+            'contact_person_name'  => 'nullable|string|max:255',
+            'contact_person_phone' => 'nullable|string|max:20',
+            'contact_person_email' => 'nullable|email|max:255',
+            'is_approved'          => 'boolean',
+            'status'               => 'required|in:pending,active,suspended,rejected',
+            'notes'                => 'nullable|string|max:1000',
         ]);
 
-        // Handle boolean checkbox
         $validated['is_approved'] = $request->has('is_approved');
+
+        if ($validated['is_approved']) {
+            $validated['approved_by'] = auth()->id();
+            $validated['approved_at'] = now();
+        }
 
         $facility = Facility::create($validated);
 
@@ -84,15 +85,18 @@ class AdminFacilityController extends Controller
 
     public function show(Facility $facility)
     {
-        $facility->load(['users', 'approver', 'specimenRequests' => function ($q) {
-            $q->orderBy('created_at', 'desc')->limit(10);
-        }]);
+        $facility->load([
+            'users',
+            'approver',
+            'specimenRequests' => fn($q) => $q->orderBy('created_at', 'desc')->limit(10),
+        ]);
 
-        // Statistics
         $stats = [
-            'total_users' => $facility->users()->count(),
-            'total_requests' => $facility->specimenRequests()->count(),
-            'active_requests' => $facility->specimenRequests()->whereIn('status', ['pending', 'assigned', 'in_transit', 'picked_up'])->count(),
+            'total_users'        => $facility->users()->count(),
+            'total_requests'     => $facility->specimenRequests()->count(),
+            'active_requests'    => $facility->specimenRequests()
+                                        ->whereIn('status', ['pending', 'assigned', 'in_transit', 'picked_up'])
+                                        ->count(),
             'completed_requests' => $facility->specimenRequests()->where('status', 'completed')->count(),
         ];
 
@@ -101,89 +105,75 @@ class AdminFacilityController extends Controller
 
     public function edit(Facility $facility)
     {
-        // Convert facility types array to collection of objects
         $facilityTypes = collect([
-            ['id' => 'hospital', 'name' => 'Hospital'],
-            ['id' => 'clinic', 'name' => 'Clinic'],
-            ['id' => 'lab', 'name' => 'Laboratory'],
+            ['id' => 'hospital',        'name' => 'Hospital'],
+            ['id' => 'clinic',          'name' => 'Clinic'],
+            ['id' => 'lab',             'name' => 'Laboratory'],
             ['id' => 'research_center', 'name' => 'Research Center'],
-            ['id' => 'other', 'name' => 'Other']
+            ['id' => 'other',           'name' => 'Other'],
         ]);
 
-        $admins = User::whereHas('role', function ($q) {
-            $q->where('slug', 'admin');
-        })->get();
+        $admins = User::whereHas('role', fn($q) => $q->where('slug', 'admin'))->get();
 
         return view('admin.facilities.edit', compact('facility', 'facilityTypes', 'admins'));
     }
 
     public function update(Request $request, Facility $facility)
     {
-        // Debug: Log the incoming request
         Log::info('=== FACILITY UPDATE ATTEMPT ===', [
-            'facility_id' => $facility->id,
-            'facility_name' => $facility->name,
-            'request_method' => $request->method(),
-            'request_url' => $request->fullUrl(),
-            'all_data' => $request->except(['_token', '_method'])
+            'facility_id'  => $facility->id,
+            'facility_name'=> $facility->name,
+            'request_data' => $request->except(['_token', '_method']),
         ]);
 
         try {
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'facility_type' => 'required|in:hospital,clinic,lab,research_center,other',
-                'license_number' => 'required|string|max:100|unique:facilities,license_number,' . $facility->id,
-                'address' => 'required|string|max:500',
-                'city' => 'required|string|max:100',
-                'state' => 'required|string|max:100',
-                'country' => 'required|string|max:100',
-                'postal_code' => 'nullable|string|max:20',
-                'phone' => 'required|string|max:20',
-                'email' => 'required|email|max:255',
-                'website' => 'nullable|url|max:255',
-                'operating_hours' => 'nullable|string|max:255',
-                'zip_code' => 'nullable|string|max:20',
-                'contact_person_name' => 'required|string|max:255',
-                'contact_person_phone' => 'required|string|max:20',
-                'contact_person_email' => 'required|email|max:255',
-                'is_approved' => 'sometimes|boolean',
-                'status' => 'required|in:pending,active,suspended,rejected',
-                'notes' => 'nullable|string|max:1000',
+                'name'                 => 'required|string|max:255',
+                'facility_type'        => 'required|in:hospital,clinic,lab,research_center,other',
+                'license_number'       => 'nullable|string|max:100|unique:facilities,license_number,' . $facility->id,
+                'address'              => 'required|string|max:500',
+                'city'                 => 'required|string|max:100',
+                'state'                => 'required|string|max:100',
+                'country'              => 'required|string|max:100',
+                'postal_code'          => 'nullable|string|max:20',
+                'zip_code'             => 'nullable|string|max:20',
+                'phone'                => 'nullable|string|max:20',
+                'email'                => 'nullable|email|max:255',
+                'website'              => 'nullable|url|max:255',
+                'operating_hours'      => 'nullable|string|max:255',
+                'contact_person_name'  => 'nullable|string|max:255',
+                'contact_person_phone' => 'nullable|string|max:20',
+                'contact_person_email' => 'nullable|email|max:255',
+                'is_approved'          => 'sometimes|boolean',
+                'status'               => 'required|in:pending,active,suspended,rejected',
+                'notes'                => 'nullable|string|max:1000',
             ]);
 
-            // Handle boolean checkbox
             $validated['is_approved'] = $request->has('is_approved');
 
-            Log::info('Validation passed', ['validated_data' => $validated]);
+            // Record approval details when newly approved
+            if ($validated['is_approved'] && !$facility->getRawOriginal('is_approved')) {
+                $validated['approved_by'] = auth()->id();
+                $validated['approved_at'] = now();
+            }
 
-            $updateResult = $facility->update($validated);
-            
-            Log::info('Update result', [
-                'success' => $updateResult,
-                'facility_id' => $facility->id
-            ]);
+            $facility->update($validated);
 
-            // Add a success message to the session
-            session()->flash('success', 'Facility updated successfully!');
+            Log::info('Facility updated successfully', ['facility_id' => $facility->id]);
 
-            return redirect()->route('admin.facilities.show', $facility);
-            
+            return redirect()->route('admin.facilities.show', $facility)
+                ->with('success', 'Facility updated successfully!');
+
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation failed', [
-                'errors' => $e->errors(),
-                'facility_id' => $facility->id
-            ]);
-            
-            // Return back with validation errors and input
+            Log::error('Validation failed', ['errors' => $e->errors(), 'facility_id' => $facility->id]);
             return back()->withErrors($e->errors())->withInput();
-            
+
         } catch (\Exception $e) {
             Log::error('Error updating facility', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'facility_id' => $facility->id
+                'error'       => $e->getMessage(),
+                'trace'       => $e->getTraceAsString(),
+                'facility_id' => $facility->id,
             ]);
-            
             return back()->with('error', 'Failed to update facility: ' . $e->getMessage())->withInput();
         }
     }
@@ -194,7 +184,7 @@ class AdminFacilityController extends Controller
             'is_approved' => true,
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'status' => 'active',
+            'status'      => 'active',
         ]);
 
         return back()->with('success', 'Facility approved successfully.');
@@ -203,17 +193,17 @@ class AdminFacilityController extends Controller
     public function reject(Facility $facility)
     {
         $facility->update([
-            'status' => 'rejected',
+            'status'      => 'rejected',
             'is_approved' => false,
         ]);
 
-        return back()->with('success', 'Facility rejected successfully.');
+        return back()->with('success', 'Facility rejected.');
     }
 
     public function suspend(Request $request, Facility $facility)
     {
         $facility->update([
-            'status' => 'suspended',
+            'status'      => 'suspended',
             'is_approved' => false,
         ]);
 
@@ -224,10 +214,21 @@ class AdminFacilityController extends Controller
         return back()->with('success', 'Facility suspended successfully.');
     }
 
+    public function activate(Facility $facility)
+    {
+        $facility->update([
+            'status'      => 'active',
+            'is_approved' => true,
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
+
+        return back()->with('success', 'Facility activated successfully.');
+    }
+
     public function destroy(Facility $facility)
     {
         try {
-            // Check if facility has any users or requests
             if ($facility->users()->count() > 0) {
                 return back()->with('error', 'Cannot delete facility with assigned users. Remove users first.');
             }
@@ -240,29 +241,26 @@ class AdminFacilityController extends Controller
 
             return redirect()->route('admin.facilities.index')
                 ->with('success', 'Facility deleted successfully.');
-                
+
         } catch (\Exception $e) {
             Log::error('Error deleting facility', [
-                'error' => $e->getMessage(),
-                'facility_id' => $facility->id
+                'error'       => $e->getMessage(),
+                'facility_id' => $facility->id,
             ]);
-            
             return back()->with('error', 'Failed to delete facility: ' . $e->getMessage());
         }
     }
-    
+
+    // -----------------------------------------------------------------------
+    // User Management
+    // -----------------------------------------------------------------------
+
     public function users(Facility $facility)
     {
-        $facility->load(['users' => function ($query) {
-            $query->with(['role'])->orderBy('facility_users.created_at', 'desc');
-        }]);
+        $facility->load(['users' => fn($q) => $q->with('role')->orderBy('facility_users.created_at', 'desc')]);
 
-        $availableUsers = User::whereHas('role', function ($q) {
-            $q->whereIn('slug', ['client', 'staff']);
-        })
-            ->whereDoesntHave('facilities', function ($q) use ($facility) {
-                $q->where('facilities.id', $facility->id);
-            })
+        $availableUsers = User::whereHas('role', fn($q) => $q->whereIn('slug', ['client', 'staff']))
+            ->whereDoesntHave('facilities', fn($q) => $q->where('facilities.id', $facility->id))
             ->where('is_active', true)
             ->where('is_approved', true)
             ->orderBy('first_name')
@@ -273,12 +271,8 @@ class AdminFacilityController extends Controller
 
     public function assignUsersForm(Facility $facility)
     {
-        $availableUsers = User::whereHas('role', function ($q) {
-            $q->whereIn('slug', ['client', 'staff']);
-        })
-            ->whereDoesntHave('facilities', function ($q) use ($facility) {
-                $q->where('facilities.id', $facility->id);
-            })
+        $availableUsers = User::whereHas('role', fn($q) => $q->whereIn('slug', ['client', 'staff']))
+            ->whereDoesntHave('facilities', fn($q) => $q->where('facilities.id', $facility->id))
             ->where('is_active', true)
             ->where('is_approved', true)
             ->orderBy('first_name')
@@ -292,23 +286,22 @@ class AdminFacilityController extends Controller
     public function assignUsers(Request $request, Facility $facility)
     {
         $request->validate([
-            'user_ids' => 'required|array',
-            'user_ids.*' => 'exists:users,id',
-            'positions' => 'nullable|array',
+            'user_ids'    => 'required|array',
+            'user_ids.*'  => 'exists:users,id',
+            'positions'   => 'nullable|array',
             'departments' => 'nullable|array',
         ]);
 
         $userData = [];
         foreach ($request->user_ids as $userId) {
             $userData[$userId] = [
-                'position' => $request->positions[$userId] ?? null,
-                'department' => $request->departments[$userId] ?? null,
+                'position'           => $request->positions[$userId] ?? null,
+                'department'         => $request->departments[$userId] ?? null,
                 'is_primary_contact' => false,
-                'created_at' => now(),
-                'updated_at' => now(),
             ];
         }
 
+        // syncWithoutDetaching handles created_at/updated_at via withTimestamps() on the relationship
         $facility->users()->syncWithoutDetaching($userData);
 
         return redirect()->route('admin.facilities.users.index', $facility)
@@ -324,10 +317,13 @@ class AdminFacilityController extends Controller
 
     public function togglePrimaryContact(Facility $facility, User $user)
     {
-        // Reset all users to non-primary first
-        $facility->users()->updateExistingPivot($facility->users()->pluck('users.id'), ['is_primary_contact' => false]);
+        // Reset all to non-primary
+        $allIds = $facility->users()->pluck('users.id')->toArray();
+        foreach ($allIds as $id) {
+            $facility->users()->updateExistingPivot($id, ['is_primary_contact' => false]);
+        }
 
-        // Set the selected user as primary
+        // Set chosen user as primary
         $facility->users()->updateExistingPivot($user->id, ['is_primary_contact' => true]);
 
         return back()->with('success', 'Primary contact updated successfully!');

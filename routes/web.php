@@ -21,7 +21,7 @@ use App\Http\Controllers\PickupController;
 use App\Http\Controllers\FormsController;
 use App\Http\Controllers\Client\DocumentController;
 use App\Http\Controllers\Client\FacilityController;
-use App\Http\Controllers\Public\PickupRequestController;
+use Http\Controllers\Public\PickupRequestController;
 use App\Http\Controllers\NotificationController;
 
 /*
@@ -158,7 +158,7 @@ Route::prefix('admin')
         Route::patch('/couriers/{courier}/toggle-active', [AdminCourierController::class, 'toggleActive'])
             ->name('couriers.toggle-active');
 
-        // Facilities
+        // Facilities - Updated with activate route
         Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
         Route::get('/facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');
         Route::post('/facilities', [AdminFacilityController::class, 'store'])->name('facilities.store');
@@ -167,12 +167,12 @@ Route::prefix('admin')
         Route::put('/facilities/{facility}', [AdminFacilityController::class, 'update'])->name('facilities.update');
         Route::post('/facilities/{facility}/approve', [AdminFacilityController::class, 'approve'])->name('facilities.approve');
         Route::post('/facilities/{facility}/reject', [AdminFacilityController::class, 'reject'])->name('facilities.reject');
-        Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
-        // Add these with your other facility routes
         Route::post('/facilities/{facility}/suspend', [AdminFacilityController::class, 'suspend'])->name('facilities.suspend');
+        Route::post('/facilities/{facility}/activate', [AdminFacilityController::class, 'activate'])->name('facilities.activate');
+        Route::delete('/facilities/{facility}', [AdminFacilityController::class, 'destroy'])->name('facilities.destroy');
         Route::delete('/facilities/{facility}/delete', [AdminFacilityController::class, 'destroy'])->name('facilities.delete');
 
-        // Add these routes in your admin facility routes section
+        // Facility user management routes
         Route::get('/facilities/{facility}/users', [AdminFacilityController::class, 'users'])->name('facilities.users.index');
         Route::get('/facilities/{facility}/users/assign', [AdminFacilityController::class, 'assignUsersForm'])->name('facilities.users.assign.form');
         Route::post('/facilities/{facility}/users/assign', [AdminFacilityController::class, 'assignUsers'])->name('facilities.users.assign');

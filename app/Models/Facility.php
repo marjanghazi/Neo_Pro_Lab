@@ -2,11 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Facility extends Model
 {
@@ -20,16 +17,16 @@ class Facility extends Model
         'city',
         'state',
         'country',
+        'zip_code',
         'postal_code',
-        'phone',           // ADD THIS - missing in your model
-        'email',           // ADD THIS - missing in your model
-        'website',         // ADD THIS - missing in your model
-        'operating_hours', // ADD THIS - missing in your model
-        'zip_code',        // ADD THIS - missing in your model
+        'phone',
+        'email',
+        'website',
+        'operating_hours',
         'contact_person_name',
         'contact_person_phone',
         'contact_person_email',
-        'notes',           // ADD THIS - missing in your model
+        'notes',
         'is_approved',
         'approved_by',
         'approved_at',
@@ -41,20 +38,70 @@ class Facility extends Model
         'approved_at' => 'datetime',
     ];
 
-    public function approver(): BelongsTo
+    // ---------- Relationships ----------
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'facility_users')
+            ->withPivot(['position', 'department', 'is_primary_contact'])
+            ->withTimestamps();
+    }
+
+    public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function users(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'facility_users')
-                    ->withPivot('position', 'department', 'is_primary_contact')
-                    ->withTimestamps();
-    }
-
-    public function specimenRequests(): HasMany
+    public function specimenRequests()
     {
         return $this->hasMany(SpecimenRequest::class);
+    }
+
+    // ---------- Accessors ----------
+
+    /**
+     * Override the camelCase accessor for the facility_type column so that
+     *   $facility->facilityType->name
+     * works in every Blade view without a separate facility_types table.
+     *
+     * The raw value is still accessible via  $facility->getRawOriginal('facility_type')
+     * or  $facility->attributes['facility_type']  which is what forms should use.
+     */
+    public function getFacilityTypeAttribute($value)
+    {
+        $map = [
+            'hospital'        => 'Hospital',
+            'clinic'          => 'Clinic',
+            'lab'             => 'Laboratory',
+            'research_center' => 'Research Center',
+            'other'           => 'Other',
+        ];
+
+        $label = $map[$value] ?? ucfirst(str_replace('_', ' ', $value ?? 'N/A'));
+
+        return (object) ['id' => $value, 'name' => $label];
+    }
+
+    /**
+     * Store the raw enum string; guard against accidentally persisting the object.
+     */
+    public function setFacilityTypeAttribute($value)
+    {
+        if (is_object($value) && isset($value->id)) {
+            $value = $value->id;
+        }
+        $this->attributes['facility_type'] = $value;
+    }
+
+    // ---------- Scopes ----------
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
     }
 }
