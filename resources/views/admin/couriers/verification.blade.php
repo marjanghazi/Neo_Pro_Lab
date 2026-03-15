@@ -82,7 +82,7 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div class="flex items-center space-x-3 sm:space-x-4">
                                 <div class="relative">
-                                    <img src="{{ Storage::url($courier->courierVerification->profile_image) }}"
+<img src="{{ asset('storage/' . $courier->courierVerification->profile_image) }}"
                                          alt="Profile" 
                                          class="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-white shadow-md">
                                     <div class="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-green-500 rounded-full border-2 border-white"></div>
