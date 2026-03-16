@@ -198,8 +198,10 @@ class ClientController extends Controller
 
             // If lat/lng provided by Google Maps picker, use them as origin/destination
             // for Distance Matrix — this is more accurate than an address string.
-            if (!empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude']) &&
-                !empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])) {
+            if (
+                !empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude']) &&
+                !empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])
+            ) {
                 $origin      = $validated['pickup_latitude']  . ',' . $validated['pickup_longitude'];
                 $destination = $validated['delivery_latitude'] . ',' . $validated['delivery_longitude'];
             } else {
@@ -714,12 +716,31 @@ class ClientController extends Controller
             $paymentService->createPayment($specimenRequest, $user);
         }
 
+        //client notification
+        Notification::create([
+            'user_id'    => $user->id,  // Notify the client themselves
+            'for_role'   => 'client',
+            'request_id' => $specimenRequest->id,
+            'type'       => 'request_submitted',
+            'title'      => 'Request Submitted Successfully',
+            'message'    => 'Your request #' . $specimenRequest->request_number . ' has been submitted successfully and is now pending approval.',
+            'data'       => json_encode([
+                'request_number' => $specimenRequest->request_number,
+                'status' => $specimenRequest->status,
+                'pickup_address' => $specimenRequest->pickup_address,
+                'delivery_address' => $specimenRequest->delivery_address,
+                'estimated_price' => $specimenRequest->estimated_price,
+                'created_at' => now()->toDateTimeString(),
+            ]),
+            'is_read' => false,
+        ]);
+
         // Notify admins about new request
         $adminUsers = \App\Models\User::whereHas('role', function ($q) {
             $q->where('slug', 'admin');
         })->get();
         foreach ($adminUsers as $admin) {
-            \App\Models\Notification::create([
+            Notification::create([
                 'user_id'    => $admin->id,
                 'for_role'   => 'admin',
                 'request_id' => $specimenRequest->id,
