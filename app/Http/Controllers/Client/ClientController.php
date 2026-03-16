@@ -180,37 +180,23 @@ class ClientController extends Controller
     {
         try {
             $validated = $httpRequest->validate([
-                'pickup_address'          => 'required|string',
-                'pickup_latitude'         => 'nullable|numeric',
-                'pickup_longitude'        => 'nullable|numeric',
-                'delivery_address'        => 'required|string',
-                'delivery_latitude'       => 'nullable|numeric',
-                'delivery_longitude'      => 'nullable|numeric',
-                'pickup_date'             => 'required|date',
-                'pickup_time'             => 'required|string',
-                'priority_level'          => 'required|string',
-                'specimen_type'           => 'required|string',
+                'pickup_address' => 'required|string',
+                'delivery_address' => 'required|string',
+                'pickup_date' => 'required|date',
+                'pickup_time' => 'required|string',
+                'priority_level' => 'required|string',
+                'specimen_type' => 'required|string',
                 'temperature_requirement' => 'required|string',
-                'stops'                   => 'nullable|array',
-                'stops.*.type'            => 'nullable|string',
-                'stops.*.address'         => 'nullable|string',
+                'stops' => 'nullable|array',
+                'stops.*.type' => 'nullable|string',
+                'stops.*.address' => 'nullable|string',
             ]);
 
-            // If lat/lng provided by Google Maps picker, use them as origin/destination
-            // for Distance Matrix — this is more accurate than an address string.
-            if (
-                !empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude']) &&
-                !empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])
-            ) {
-                $origin      = $validated['pickup_latitude']  . ',' . $validated['pickup_longitude'];
-                $destination = $validated['delivery_latitude'] . ',' . $validated['delivery_longitude'];
-            } else {
-                $origin      = $validated['pickup_address'];
-                $destination = $validated['delivery_address'];
-            }
-
             // Calculate distance using Google Maps Distance Matrix API
-            $distanceMiles = $this->calculateDistanceWithGoogleMaps($origin, $destination);
+            $distanceMiles = $this->calculateDistanceWithGoogleMaps(
+                $validated['pickup_address'],
+                $validated['delivery_address']
+            );
 
             // Base price
             $basePrice = 50.00;
@@ -509,13 +495,9 @@ class ClientController extends Controller
             'recipient_name' => 'required|string|max:200',
             'contact_phone' => 'required|string|max:20',
             'pickup_address' => 'required|string',
-            'pickup_latitude' => 'nullable|numeric|between:-90,90',
-            'pickup_longitude' => 'nullable|numeric|between:-180,180',
             'pickup_date' => 'required|date',
             'pickup_time' => 'required|string',
             'delivery_address' => 'required|string',
-            'delivery_latitude' => 'nullable|numeric|between:-90,90',
-            'delivery_longitude' => 'nullable|numeric|between:-180,180',
             'delivery_instructions' => 'nullable|string',
             'specimen_type' => 'required|string',
             'temperature_requirement' => 'required|string',
@@ -526,8 +508,6 @@ class ClientController extends Controller
             'stops.*.type' => 'nullable|string',
             'stops.*.contact_name' => 'nullable|string',
             'stops.*.address' => 'nullable|string',
-            'stops.*.latitude' => 'nullable|numeric',
-            'stops.*.longitude' => 'nullable|numeric',
             'stops.*.instructions' => 'nullable|string',
         ]);
 
@@ -575,13 +555,9 @@ class ClientController extends Controller
                 'recipient_name' => 'required|string|max:200',
                 'contact_phone' => 'required|string|max:20',
                 'pickup_address' => 'required|string',
-                'pickup_latitude' => 'nullable|numeric|between:-90,90',
-                'pickup_longitude' => 'nullable|numeric|between:-180,180',
                 'pickup_date' => 'required|date',
                 'pickup_time' => 'required|string',
                 'delivery_address' => 'required|string',
-                'delivery_latitude' => 'nullable|numeric|between:-90,90',
-                'delivery_longitude' => 'nullable|numeric|between:-180,180',
                 'delivery_instructions' => 'nullable|string',
                 'specimen_type' => 'required|string',
                 'temperature_requirement' => 'required|string',
@@ -592,8 +568,6 @@ class ClientController extends Controller
                 'stops.*.type' => 'required|string',
                 'stops.*.contact_name' => 'nullable|string',
                 'stops.*.address' => 'required|string',
-                'stops.*.latitude' => 'nullable|numeric',
-                'stops.*.longitude' => 'nullable|numeric',
                 'stops.*.instructions' => 'nullable|string',
                 'documents' => 'nullable|array',
                 'documents.*' => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
@@ -616,25 +590,9 @@ class ClientController extends Controller
         $user = Auth::user();
         $facility = $user->facilities()->first();
 
-        // Use coordinates from form (set via Google Maps picker) if available,
-        // otherwise fall back to server-side geocoding
-        if (!empty($validated['pickup_latitude']) && !empty($validated['pickup_longitude'])) {
-            $pickupCoords = [
-                'latitude'  => (float) $validated['pickup_latitude'],
-                'longitude' => (float) $validated['pickup_longitude'],
-            ];
-        } else {
-            $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
-        }
-
-        if (!empty($validated['delivery_latitude']) && !empty($validated['delivery_longitude'])) {
-            $deliveryCoords = [
-                'latitude'  => (float) $validated['delivery_latitude'],
-                'longitude' => (float) $validated['delivery_longitude'],
-            ];
-        } else {
-            $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
-        }
+        // Geocode addresses to get coordinates
+        $pickupCoords = $this->geocodeAddress($validated['pickup_address']);
+        $deliveryCoords = $this->geocodeAddress($validated['delivery_address']);
 
         // Parse scheduled pickup time
         $scheduledPickup = $this->parsePickupDateTime(
@@ -670,18 +628,11 @@ class ClientController extends Controller
             'additional_stops' => $priceData ? $priceData['additional_stops'] : 0,
         ]);
 
-        // Add additional stops — use coordinates from form if provided, else geocode
+        // Add additional stops with geocoding
         if (!empty($validated['stops'])) {
             $stopOrder = 1;
             foreach ($validated['stops'] as $stop) {
-                if (!empty($stop['latitude']) && !empty($stop['longitude'])) {
-                    $stopCoords = [
-                        'latitude'  => (float) $stop['latitude'],
-                        'longitude' => (float) $stop['longitude'],
-                    ];
-                } else {
-                    $stopCoords = $this->geocodeAddress($stop['address']);
-                }
+                $stopCoords = $this->geocodeAddress($stop['address']);
                 $specimenRequest->stops()->create([
                     'stop_type' => $stop['type'],
                     'stop_order' => $stopOrder++,
@@ -716,47 +667,8 @@ class ClientController extends Controller
             $paymentService->createPayment($specimenRequest, $user);
         }
 
-        //client notification
-        Notification::create([
-            'user_id'    => $user->id,  // Notify the client themselves
-            'for_role'   => 'client',
-            'request_id' => $specimenRequest->id,
-            'type'       => 'request_submitted',
-            'title'      => 'Request Submitted Successfully',
-            'message'    => 'Your request #' . $specimenRequest->request_number . ' has been submitted successfully and is now pending approval.',
-            'data'       => json_encode([
-                'request_number' => $specimenRequest->request_number,
-                'status' => $specimenRequest->status,
-                'pickup_address' => $specimenRequest->pickup_address,
-                'delivery_address' => $specimenRequest->delivery_address,
-                'estimated_price' => $specimenRequest->estimated_price,
-                'created_at' => now()->toDateTimeString(),
-            ]),
-            'is_read' => false,
-        ]);
-
-        // Notify admins about new request
-        $adminUsers = \App\Models\User::whereHas('role', function ($q) {
-            $q->where('slug', 'admin');
-        })->get();
-        foreach ($adminUsers as $admin) {
-            Notification::create([
-                'user_id'    => $admin->id,
-                'for_role'   => 'admin',
-                'request_id' => $specimenRequest->id,
-                'type'       => 'new_request',
-                'title'      => 'New Specimen Request',
-                'message'    => 'New request #' . $specimenRequest->request_number . ' submitted by ' . $user->first_name . ' ' . $user->last_name,
-                'data'       => json_encode([
-                    'request_number'   => $specimenRequest->request_number,
-                    'client_name'      => $user->first_name . ' ' . $user->last_name,
-                    'priority'         => $specimenRequest->priority_level,
-                    'pickup_address'   => $specimenRequest->pickup_address,
-                    'delivery_address' => $specimenRequest->delivery_address,
-                ]),
-                'is_read' => false,
-            ]);
-        }
+        // Use notification service instead of manual creation
+        notify()->newRequestCreated($specimenRequest);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
@@ -898,26 +810,8 @@ class ClientController extends Controller
             'cancellation_reason' => $validated['cancellation_reason'],
         ]);
 
-        // Notify admins about cancellation
-        $adminUsers = \App\Models\User::whereHas('role', function ($q) {
-            $q->where('slug', 'admin');
-        })->get();
-        foreach ($adminUsers as $admin) {
-            \App\Models\Notification::create([
-                'user_id'    => $admin->id,
-                'for_role'   => 'admin',
-                'request_id' => $specimenRequest->id,
-                'type'       => 'request_cancelled',
-                'title'      => 'Request Cancelled',
-                'message'    => 'Request #' . $specimenRequest->request_number . ' was cancelled. Reason: ' . $validated['cancellation_reason'],
-                'data'       => json_encode([
-                    'request_number'      => $specimenRequest->request_number,
-                    'cancelled_by'        => Auth::id(),
-                    'cancellation_reason' => $validated['cancellation_reason'],
-                ]),
-                'is_read' => false,
-            ]);
-        }
+        // Use notification service instead of manual creation
+        notify()->requestCancelled($specimenRequest, Auth::id(), $validated['cancellation_reason']);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Request cancelled successfully. ' .
@@ -1259,7 +1153,8 @@ class ClientController extends Controller
 
         $user->update($updateData);
 
-        // Profile updated — no notification needed
+        // Notify about profile update
+        notify()->userAccountUpdated($user, $user->id);
 
         return back()->with('success', 'Profile updated successfully.');
     }
@@ -1441,40 +1336,55 @@ class ClientController extends Controller
             $cachedLocation['longitude'] ?? null
         );
 
-        // Calculate distance to pickup and delivery if coordinates are available
-        $distanceToPickup = null;
+        // Use Google Maps Directions API for real driving distance & ETA
+        $courierLat = $cachedLocation['latitude'] ?? null;
+        $courierLng = $cachedLocation['longitude'] ?? null;
+
+        $distanceToPickup   = null;
         $distanceToDelivery = null;
-        $etaToPickup = null;
-        $etaToDelivery = null;
+        $etaToPickup        = null;
+        $etaToDelivery      = null;
+        $pickupRouteInfo    = null;
+        $deliveryRouteInfo  = null;
 
-        if ($request->pickup_latitude && $request->pickup_longitude) {
-            $distanceToPickup = $this->calculateDistance(
-                $cachedLocation['latitude'],
-                $cachedLocation['longitude'],
-                $request->pickup_latitude,
-                $request->pickup_longitude
-            );
-            $etaToPickup = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
-        }
+        if ($courierLat && $courierLng) {
+            if ($request->pickup_latitude && $request->pickup_longitude) {
+                $pickupRouteInfo = $this->getGoogleMapsDirections(
+                    $courierLat, $courierLng,
+                    $request->pickup_latitude, $request->pickup_longitude
+                );
+                if ($pickupRouteInfo) {
+                    $distanceToPickup = $pickupRouteInfo['distance_km'];
+                    $etaToPickup      = $pickupRouteInfo['duration_minutes'];
+                } else {
+                    $distanceToPickup = $this->calculateDistance($courierLat, $courierLng, $request->pickup_latitude, $request->pickup_longitude);
+                    $etaToPickup      = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
+                }
+            }
 
-        if ($request->delivery_latitude && $request->delivery_longitude) {
-            $distanceToDelivery = $this->calculateDistance(
-                $cachedLocation['latitude'],
-                $cachedLocation['longitude'],
-                $request->delivery_latitude,
-                $request->delivery_longitude
-            );
-            $etaToDelivery = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
+            if ($request->delivery_latitude && $request->delivery_longitude) {
+                $deliveryRouteInfo = $this->getGoogleMapsDirections(
+                    $courierLat, $courierLng,
+                    $request->delivery_latitude, $request->delivery_longitude
+                );
+                if ($deliveryRouteInfo) {
+                    $distanceToDelivery = $deliveryRouteInfo['distance_km'];
+                    $etaToDelivery      = $deliveryRouteInfo['duration_minutes'];
+                } else {
+                    $distanceToDelivery = $this->calculateDistance($courierLat, $courierLng, $request->delivery_latitude, $request->delivery_longitude);
+                    $etaToDelivery      = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
+                }
+            }
         }
 
         return response()->json([
             'courier' => [
-                'id' => $courier->id,
-                'name' => $courier->full_name,
-                'phone' => $courier->phone,
-                'vehicle_type' => $courier->vehicle_type,
+                'id'            => $courier->id,
+                'name'          => $courier->full_name,
+                'phone'         => $courier->phone,
+                'vehicle_type'  => $courier->vehicle_type,
                 'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
-                'last_seen' => isset($cachedLocation['last_update'])
+                'last_seen'     => isset($cachedLocation['last_update'])
                     ? Carbon::parse($cachedLocation['last_update'])->diffForHumans()
                     : (isset($cachedLocation['timestamp'])
                         ? Carbon::createFromTimestamp($cachedLocation['timestamp'])->diffForHumans()
@@ -1482,39 +1392,42 @@ class ClientController extends Controller
                 'rating' => $courier->rating ?? 4.5,
             ],
             'location' => [
-                'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
-                'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
-                'accuracy' => isset($cachedLocation['accuracy']) ? (float) $cachedLocation['accuracy'] : null,
-                'speed' => isset($cachedLocation['speed']) ? (float) $cachedLocation['speed'] : 0,
-                'heading' => isset($cachedLocation['heading']) ? (float) $cachedLocation['heading'] : 0,
-                'altitude' => isset($cachedLocation['altitude']) ? (float) $cachedLocation['altitude'] : null,
-                'timestamp' => $cachedLocation['timestamp'] ?? time(),
+                'latitude'       => (float) ($courierLat ?? 0),
+                'longitude'      => (float) ($courierLng ?? 0),
+                'accuracy'       => isset($cachedLocation['accuracy']) ? (float) $cachedLocation['accuracy'] : null,
+                'speed'          => isset($cachedLocation['speed']) ? (float) $cachedLocation['speed'] : 0,
+                'heading'        => isset($cachedLocation['heading']) ? (float) $cachedLocation['heading'] : 0,
+                'altitude'       => isset($cachedLocation['altitude']) ? (float) $cachedLocation['altitude'] : null,
+                'timestamp'      => $cachedLocation['timestamp'] ?? time(),
                 'formatted_time' => isset($cachedLocation['timestamp'])
                     ? date('Y-m-d H:i:s', $cachedLocation['timestamp'])
                     : date('Y-m-d H:i:s'),
-                'is_online' => (bool) ($cachedLocation['is_online'] ?? false),
+                'is_online'         => (bool) ($cachedLocation['is_online'] ?? false),
                 'formatted_address' => $formattedAddress,
-                'battery_level' => $cachedLocation['battery_level'] ?? null,
-                'coordinates' => [
-                    'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
-                    'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
-                    'formatted' => sprintf(
-                        '%.6f, %.6f',
-                        (float) ($cachedLocation['latitude'] ?? 0),
-                        (float) ($cachedLocation['longitude'] ?? 0)
-                    ),
+                'battery_level'     => $cachedLocation['battery_level'] ?? null,
+                'coordinates'       => [
+                    'latitude'  => (float) ($courierLat ?? 0),
+                    'longitude' => (float) ($courierLng ?? 0),
+                    'formatted' => sprintf('%.6f, %.6f', (float)($courierLat ?? 0), (float)($courierLng ?? 0)),
                 ],
             ],
             'distances' => [
-                'to_pickup_km' => $distanceToPickup ? round($distanceToPickup, 2) : null,
-                'to_delivery_km' => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
-                'eta_to_pickup_minutes' => $etaToPickup,
+                'to_pickup_km'            => $distanceToPickup ? round($distanceToPickup, 2) : null,
+                'to_pickup_text'          => $pickupRouteInfo['distance_text'] ?? null,
+                'to_delivery_km'          => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
+                'to_delivery_text'        => $deliveryRouteInfo['distance_text'] ?? null,
+                'eta_to_pickup_minutes'   => $etaToPickup,
+                'eta_to_pickup_text'      => $pickupRouteInfo['duration_text'] ?? null,
                 'eta_to_delivery_minutes' => $etaToDelivery,
+                'eta_to_delivery_text'    => $deliveryRouteInfo['duration_text'] ?? null,
+                'pickup_polyline'         => $pickupRouteInfo['polyline'] ?? null,
+                'delivery_polyline'       => $deliveryRouteInfo['polyline'] ?? null,
+                'source'                  => ($pickupRouteInfo || $deliveryRouteInfo) ? 'google_maps' : 'haversine',
             ],
-            'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
+            'status'         => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
             'request_status' => $request->status,
             'payment_status' => $request->payment_status,
-            'last_updated' => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
+            'last_updated'   => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
         ]);
     }
 
@@ -1576,26 +1489,45 @@ class ClientController extends Controller
             ];
         });
 
-        // Calculate distances if courier location is available
+        // Calculate distances using Google Maps Directions API
         $distances = [];
         if ($courierLocation && $courierLocation['latitude'] && $courierLocation['longitude']) {
+            $cLat = $courierLocation['latitude'];
+            $cLng = $courierLocation['longitude'];
+
             if ($request->pickup_latitude && $request->pickup_longitude) {
-                $distances['to_pickup_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'],
-                    $courierLocation['longitude'],
-                    $request->pickup_latitude,
-                    $request->pickup_longitude
-                ), 2);
+                $pickupDir = $this->getGoogleMapsDirections(
+                    $cLat, $cLng,
+                    $request->pickup_latitude, $request->pickup_longitude
+                );
+                if ($pickupDir) {
+                    $distances['to_pickup_km']          = $pickupDir['distance_km'];
+                    $distances['to_pickup_text']        = $pickupDir['distance_text'];
+                    $distances['eta_to_pickup_minutes'] = $pickupDir['duration_minutes'];
+                    $distances['eta_to_pickup_text']    = $pickupDir['duration_text'];
+                    $distances['pickup_polyline']       = $pickupDir['polyline'];
+                } else {
+                    $distances['to_pickup_km'] = round($this->calculateDistance($cLat, $cLng, $request->pickup_latitude, $request->pickup_longitude), 2);
+                }
             }
 
             if ($request->delivery_latitude && $request->delivery_longitude) {
-                $distances['to_delivery_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'],
-                    $courierLocation['longitude'],
-                    $request->delivery_latitude,
-                    $request->delivery_longitude
-                ), 2);
+                $deliveryDir = $this->getGoogleMapsDirections(
+                    $cLat, $cLng,
+                    $request->delivery_latitude, $request->delivery_longitude
+                );
+                if ($deliveryDir) {
+                    $distances['to_delivery_km']          = $deliveryDir['distance_km'];
+                    $distances['to_delivery_text']        = $deliveryDir['distance_text'];
+                    $distances['eta_to_delivery_minutes'] = $deliveryDir['duration_minutes'];
+                    $distances['eta_to_delivery_text']    = $deliveryDir['duration_text'];
+                    $distances['delivery_polyline']       = $deliveryDir['polyline'];
+                } else {
+                    $distances['to_delivery_km'] = round($this->calculateDistance($cLat, $cLng, $request->delivery_latitude, $request->delivery_longitude), 2);
+                }
             }
+
+            $distances['source'] = isset($pickupDir) || isset($deliveryDir) ? 'google_maps' : 'haversine';
         }
 
         // Payment information
@@ -1778,6 +1710,64 @@ class ClientController extends Controller
             'location' => array_merge($cachedLocation, ['formatted_address' => $formattedAddress]),
             'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
         ]);
+    }
+
+    /**
+     * Get real driving directions from Google Maps Directions API.
+     * Returns distance (km), duration (minutes), polyline, and human-readable strings.
+     * Falls back to null so callers can use Haversine instead.
+     */
+    private function getGoogleMapsDirections($originLat, $originLng, $destLat, $destLng): ?array
+    {
+        $cacheKey = 'directions_' . md5("{$originLat},{$originLng},{$destLat},{$destLng}");
+
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            $apiKey = config('services.google.maps_api_key');
+            if (empty($apiKey)) {
+                return null;
+            }
+
+            $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/directions/json', [
+                'origin'      => "{$originLat},{$originLng}",
+                'destination' => "{$destLat},{$destLng}",
+                'mode'        => 'driving',
+                'key'         => $apiKey,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if ($data['status'] === 'OK' && !empty($data['routes'][0]['legs'][0])) {
+                    $leg = $data['routes'][0]['legs'][0];
+
+                    $result = [
+                        'distance_m'       => $leg['distance']['value'],
+                        'distance_km'      => round($leg['distance']['value'] / 1000, 2),
+                        'distance_text'    => $leg['distance']['text'],
+                        'duration_seconds' => $leg['duration']['value'],
+                        'duration_minutes' => (int) ceil($leg['duration']['value'] / 60),
+                        'duration_text'    => $leg['duration']['text'],
+                        'start_address'    => $leg['start_address'],
+                        'end_address'      => $leg['end_address'],
+                        'polyline'         => $data['routes'][0]['overview_polyline']['points'] ?? null,
+                    ];
+
+                    Cache::put($cacheKey, $result, 120); // 2 minute cache
+                    return $result;
+                }
+
+                Log::warning('Google Maps Directions API: ' . ($data['status'] ?? 'unknown') . ' - ' . ($data['error_message'] ?? ''));
+            }
+        } catch (\Exception $e) {
+            Log::error('Google Maps Directions API exception: ' . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**
