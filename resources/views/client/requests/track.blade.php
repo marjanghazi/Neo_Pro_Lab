@@ -6,19 +6,38 @@
 @section('content')
 <div class="max-w-6xl mx-auto">
 
-    {{-- Header --}}
+    {{-- Flash messages --}}
+    @if(session('success'))
+    <div class="flex items-start gap-3 p-4 mb-4 bg-green-50 border border-green-200 rounded-xl">
+        <i class="fas fa-check-circle text-green-500 flex-shrink-0 mt-0.5"></i>
+        <span class="text-green-800 font-medium">{{ session('success') }}</span>
+    </div>
+    @endif
+    @if(session('error'))
+    <div class="flex items-start gap-3 p-4 mb-4 bg-red-50 border border-red-200 rounded-xl">
+        <i class="fas fa-exclamation-circle text-red-500 flex-shrink-0 mt-0.5"></i>
+        <span class="text-red-800 font-medium">{{ session('error') }}</span>
+    </div>
+    @endif
+
+    {{-- ─── Header ─────────────────────────────────────────────── --}}
     <div class="card p-6 mb-6">
-        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-                <h2 class="text-xl font-bold">Tracking Request #{{ $request->request_number }}</h2>
+                <h2 class="text-xl font-bold">Request #{{ $request->request_number }}</h2>
                 <p class="text-gray-600 mt-1">
                     <span class="font-medium">Status:</span>
-                    <span class="badge badge-{{ $request->status == 'completed' ? 'success' : ($request->status == 'in_transit' ? 'info' : ($request->status == 'pending_approval' ? 'warning' : ($request->status == 'delivered' ? 'primary' : 'secondary'))) }} ml-2">
-                        {{ str_replace('_', ' ', $request->status) }}
+                    <span class="badge ml-2
+                        {{ $request->status === 'completed'          ? 'badge-success'   :
+                           ($request->status === 'delivered'         ? 'badge-info'      :
+                           ($request->status === 'in_transit'        ? 'badge-info'      :
+                           ($request->status === 'pending_approval'  ? 'badge-warning'   :
+                           ($request->status === 'cancelled'         ? 'badge-danger'    : 'badge-primary')))) }}">
+                        {{ str_replace('_', ' ', ucwords($request->status, '_')) }}
                     </span>
                 </p>
             </div>
-            <div class="mt-4 md:mt-0 flex space-x-4">
+            <div class="flex gap-3 flex-wrap">
                 <a href="{{ route('client.requests.show', $request) }}" class="btn-secondary">
                     <i class="fas fa-eye mr-2"></i> View Details
                 </a>
@@ -29,11 +48,41 @@
         </div>
     </div>
 
-    {{-- Live Location Box --}}
+    {{-- ─── DELIVERY CONFIRMATION BANNER (shown when status = delivered) ─── --}}
+    @if($request->status === 'delivered')
+    <div class="mb-6 rounded-2xl overflow-hidden border-2 border-green-300 shadow-lg">
+        <div class="bg-gradient-to-r from-green-500 to-teal-500 p-5 flex items-start gap-4">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-check-double text-white text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-white font-bold text-lg">Your specimen has been delivered!</h3>
+                <p class="text-green-100 text-sm mt-1">
+                    The courier has completed the delivery. Please confirm receipt to close this request.
+                    @if($request->delivered_at)
+                    Delivered at {{ $request->delivered_at->format('M d, Y h:i A') }}.
+                    @endif
+                </p>
+            </div>
+        </div>
+        <div class="bg-white p-5">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="openConfirmModal()" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold transition">
+                    <i class="fas fa-signature"></i> Confirm Receipt & Complete
+                </button>
+                <a href="{{ route('client.requests.show', $request) }}" class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition">
+                    <i class="fas fa-eye"></i> View Delivery Proof
+                </a>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ─── Live Location Box ───────────────────────────────────── --}}
     <div class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold">Live Courier Location</h3>
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center gap-4">
                 <span class="text-sm text-gray-600" id="locationLastUpdate">
                     <i class="fas fa-clock mr-1"></i>Updating...
                 </span>
@@ -66,82 +115,41 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="grid grid-cols-2 gap-3 mt-4">
                         <div class="bg-white p-3 rounded border location-metric">
-                            <div class="flex items-center">
-                                <i class="fas fa-tachometer-alt text-green-500 mr-2"></i>
-                                <span class="text-sm text-gray-600">Speed</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="locationSpeed" class="font-bold text-lg">0</span>
-                                <span class="text-sm text-gray-500"> km/h</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-tachometer-alt text-green-500 mr-2"></i><span class="text-sm text-gray-600">Speed</span></div>
+                            <div class="mt-1"><span id="locationSpeed" class="font-bold text-lg">0</span><span class="text-sm text-gray-500"> km/h</span></div>
                         </div>
                         <div class="bg-white p-3 rounded border location-metric">
-                            <div class="flex items-center">
-                                <i class="fas fa-battery-three-quarters text-yellow-500 mr-2"></i>
-                                <span class="text-sm text-gray-600">Battery</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="locationBattery" class="font-bold text-lg">N/A</span>
-                                <span class="text-sm text-gray-500"> %</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-battery-three-quarters text-yellow-500 mr-2"></i><span class="text-sm text-gray-600">Battery</span></div>
+                            <div class="mt-1"><span id="locationBattery" class="font-bold text-lg">N/A</span><span class="text-sm text-gray-500"> %</span></div>
                         </div>
                         <div class="bg-white p-3 rounded border location-metric">
-                            <div class="flex items-center">
-                                <i class="fas fa-crosshairs text-blue-500 mr-2"></i>
-                                <span class="text-sm text-gray-600">Accuracy</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="locationAccuracy" class="font-bold text-lg">0</span>
-                                <span class="text-sm text-gray-500"> m</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-crosshairs text-blue-500 mr-2"></i><span class="text-sm text-gray-600">Accuracy</span></div>
+                            <div class="mt-1"><span id="locationAccuracy" class="font-bold text-lg">0</span><span class="text-sm text-gray-500"> m</span></div>
                         </div>
                         <div class="bg-white p-3 rounded border location-metric">
-                            <div class="flex items-center">
-                                <i class="fas fa-compass text-purple-500 mr-2"></i>
-                                <span class="text-sm text-gray-600">Heading</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="locationHeading" class="font-bold text-lg">0</span>
-                                <span class="text-sm text-gray-500"> °</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-compass text-purple-500 mr-2"></i><span class="text-sm text-gray-600">Heading</span></div>
+                            <div class="mt-1"><span id="locationHeading" class="font-bold text-lg">0</span><span class="text-sm text-gray-500"> °</span></div>
                         </div>
                     </div>
                 </div>
 
                 {{-- Distance info --}}
                 <div id="distanceInfo" class="hidden">
-                    <h4 class="font-semibold text-gray-800 mb-3">Distance Information
+                    <h4 class="font-semibold text-gray-800 mb-3">Distance Info
                         <span id="distanceSource" class="text-xs font-normal text-gray-400 ml-2"></span>
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-blue-50 p-3 rounded border border-blue-100">
-                            <div class="flex items-center">
-                                <i class="fas fa-flag-checkered text-red-500 mr-2"></i>
-                                <span class="text-sm text-gray-700">To Pickup</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="distanceToPickup" class="font-bold text-lg">--</span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                <i class="fas fa-clock mr-1"></i>
-                                <span id="etaToPickup">-- min</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-flag-checkered text-red-500 mr-2"></i><span class="text-sm text-gray-700">To Pickup</span></div>
+                            <div class="mt-1"><span id="distanceToPickup" class="font-bold text-lg">--</span></div>
+                            <div class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i><span id="etaToPickup">-- min</span></div>
                         </div>
                         <div class="bg-green-50 p-3 rounded border border-green-100">
-                            <div class="flex items-center">
-                                <i class="fas fa-home text-green-500 mr-2"></i>
-                                <span class="text-sm text-gray-700">To Delivery</span>
-                            </div>
-                            <div class="mt-1">
-                                <span id="distanceToDelivery" class="font-bold text-lg">--</span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                <i class="fas fa-clock mr-1"></i>
-                                <span id="etaToDelivery">-- min</span>
-                            </div>
+                            <div class="flex items-center"><i class="fas fa-home text-green-500 mr-2"></i><span class="text-sm text-gray-700">To Delivery</span></div>
+                            <div class="mt-1"><span id="distanceToDelivery" class="font-bold text-lg">--</span></div>
+                            <div class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i><span id="etaToDelivery">-- min</span></div>
                         </div>
                     </div>
                 </div>
@@ -162,19 +170,17 @@
                         </button>
                     </div>
                 </div>
-                <div class="mt-4 flex space-x-3">
-                    <button onclick="refreshLocation()" class="btn-primary flex-1">
-                        <i class="fas fa-sync-alt mr-2"></i> Refresh Location
-                    </button>
-                    <button onclick="shareLocation()" class="btn-secondary flex-1">
-                        <i class="fas fa-share-alt mr-2"></i> Share
-                    </button>
+                <div class="mt-4 flex gap-3">
+                    <button onclick="refreshLocation()" class="btn-primary flex-1"><i class="fas fa-sync-alt mr-2"></i> Refresh</button>
+                    <button onclick="shareLocation()" class="btn-secondary flex-1"><i class="fas fa-share-alt mr-2"></i> Share</button>
                 </div>
             </div>
         </div>
     </div>
 
+    {{-- ─── Main Grid ───────────────────────────────────────────── --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
         {{-- Left: Main map + Courier info --}}
         <div class="lg:col-span-2 space-y-6">
             <div class="card p-6">
@@ -204,8 +210,10 @@
             </div>
         </div>
 
-        {{-- Right: Progress + Details --}}
+        {{-- Right: Progress + Details + Actions --}}
         <div class="space-y-6">
+
+            {{-- Progress card --}}
             <div class="card p-6">
                 <h3 class="text-lg font-bold mb-4">Delivery Progress</h3>
                 <div class="mb-6">
@@ -220,6 +228,7 @@
                 <div class="space-y-4" id="progressSteps"></div>
             </div>
 
+            {{-- Request details --}}
             <div class="card p-6">
                 <h3 class="text-lg font-bold mb-4">Request Details</h3>
                 <div class="space-y-4">
@@ -233,7 +242,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-sm text-gray-500">Specimen Type</p>
+                            <p class="text-sm text-gray-500">Specimen</p>
                             <p class="font-medium">{{ ucfirst($request->specimen_type) }}</p>
                         </div>
                         <div>
@@ -249,70 +258,177 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Action buttons --}}
+            <div class="card p-6">
+                <h3 class="text-lg font-bold mb-4">Actions</h3>
+                <div class="space-y-3">
+
+                    @if($request->status === 'delivered')
+                    <button onclick="openConfirmModal()"
+                        class="w-full inline-flex items-center justify-center gap-2 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold transition">
+                        <i class="fas fa-check-circle"></i> Confirm Receipt
+                    </button>
+                    @endif
+
+                    @if($request->status === 'completed')
+                    <div class="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
+                        <i class="fas fa-check-double flex-shrink-0"></i>
+                        Request completed and confirmed.
+                    </div>
+                    @endif
+
+                    @if(in_array($request->status, ['pending_approval', 'approved']))
+                    <button type="button" onclick="openCancelModal()"
+                        class="w-full inline-flex items-center justify-center gap-2 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition">
+                        <i class="fas fa-times-circle"></i> Cancel Request
+                    </button>
+                    @endif
+
+                    <a href="{{ route('client.requests.proofs', $request) }}"
+                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition text-sm">
+                        <i class="fas fa-camera"></i> View Proofs
+                    </a>
+
+                    <a href="{{ route('client.requests.documents', $request) }}"
+                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition text-sm">
+                        <i class="fas fa-file-alt"></i> View Documents
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- Timeline --}}
+    {{-- ─── Timeline ───────────────────────────────────────────── --}}
     <div class="card p-6 mt-6">
         <h3 class="text-lg font-bold mb-4">Delivery Timeline</h3>
-        <div class="space-y-4" id="timeline"></div>
-    </div>
-</div>
-
-{{-- Cancel Modal --}}
-<div id="cancelModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3 text-center">
-            <h3 class="text-lg font-medium text-gray-900">Cancel Request</h3>
-            <div class="mt-2 px-7 py-3">
-                <p class="text-sm text-gray-500">Are you sure you want to cancel? This cannot be undone.</p>
-            </div>
-            <form action="{{ route('client.requests.cancel', $request) }}" method="POST" class="px-4 py-3">
-                @csrf
-                <textarea name="cancellation_reason" rows="3"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-teal-500" required
-                    placeholder="Please provide a reason..."></textarea>
-                <div class="flex justify-end space-x-3">
-                    <button type="button" onclick="document.getElementById('cancelModal').classList.add('hidden')" class="btn-secondary">Keep It</button>
-                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Yes, Cancel</button>
-                </div>
-            </form>
+        <div class="space-y-4" id="timeline">
+            <p class="text-gray-400 text-sm text-center py-4">Loading timeline...</p>
         </div>
     </div>
 </div>
+
+{{-- ═══════════════════════════════════════════════════════
+     DELIVERY CONFIRMATION MODAL
+═══════════════════════════════════════════════════════ --}}
+<div id="confirmModal" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-teal-500 to-green-500 p-5">
+            <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                <i class="fas fa-check-double"></i> Confirm Receipt
+            </h3>
+            <p class="text-teal-100 text-sm mt-1">Sign below to confirm you have received the specimen.</p>
+        </div>
+
+        <form id="confirmForm" action="{{ route('client.requests.confirm.submit', $request) }}" method="POST">
+            @csrf
+            <div class="p-6 space-y-4">
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Your Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="recipient_name" required
+                        value="{{ auth()->user()->first_name . ' ' . auth()->user()->last_name }}"
+                        placeholder="Full name"
+                        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Signature <span class="text-red-500">*</span></label>
+                    <div class="border-2 border-gray-300 rounded-xl overflow-hidden bg-white">
+                        <canvas id="confirmSigCanvas" style="width:100%;height:160px;cursor:crosshair;touch-action:none;display:block;"></canvas>
+                    </div>
+                    <div class="flex justify-between items-center mt-2">
+                        <p class="text-xs text-gray-500">Sign using your mouse or finger</p>
+                        <button type="button" onclick="clearConfirmSig()" class="text-xs text-red-500 hover:text-red-700 font-medium">
+                            <i class="fas fa-eraser mr-1"></i>Clear
+                        </button>
+                    </div>
+                    <input type="hidden" name="signature" id="confirmSigData">
+                </div>
+
+                <div id="confirmError" class="hidden flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <i class="fas fa-exclamation-circle flex-shrink-0"></i>
+                    <span id="confirmErrorText"></span>
+                </div>
+            </div>
+
+            <div class="px-6 pb-6 flex gap-3">
+                <button type="button" onclick="closeConfirmModal()"
+                    class="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition text-sm">
+                    Cancel
+                </button>
+                <button type="submit" id="confirmSubmitBtn"
+                    class="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold transition text-sm">
+                    <i class="fas fa-check mr-2"></i> Confirm Receipt
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════
+     CANCEL MODAL
+═══════════════════════════════════════════════════════ --}}
+<div id="cancelModal" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-gray-200">
+            <h3 class="font-bold text-gray-900 flex items-center gap-2"><i class="fas fa-times-circle text-red-500"></i> Cancel Request</h3>
+            <p class="text-gray-500 text-sm mt-1">This action cannot be undone.</p>
+        </div>
+        <form action="{{ route('client.requests.cancel', $request) }}" method="POST">
+            @csrf
+            <div class="p-5">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Reason for cancellation <span class="text-red-500">*</span></label>
+                <textarea name="cancellation_reason" rows="3" required
+                    placeholder="Please provide a reason..."
+                    class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none resize-none"></textarea>
+            </div>
+            <div class="px-5 pb-5 flex gap-3">
+                <button type="button" onclick="closeCancelModal()"
+                    class="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition text-sm">
+                    No, Keep It
+                </button>
+                <button type="submit"
+                    class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition text-sm">
+                    Yes, Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
 <style>
 #trackingMap, #miniMap { z-index: 1; }
-.progress-step { position: relative; padding-left: 2rem; }
+.progress-step { position: relative; padding-left: 2rem; margin-bottom: 0.75rem; }
 .progress-step::before {
-    content: ''; position: absolute; left: 0; top: 0.3rem;
-    width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid #d1d5db; background: white;
+    content: ''; position: absolute; left: 0; top: 0.25rem;
+    width: 1rem; height: 1rem; border-radius: 50%;
+    border: 2px solid #d1d5db; background: white;
 }
-.progress-step.active::before { background: #0d9488; border-color: #0d9488; }
+.progress-step.active::before  { background: #0d9488; border-color: #0d9488; }
 .progress-step.completed::before { background: #059669; border-color: #059669; }
-.progress-step.active { color: #0d9488; }
+.progress-step.active   { color: #0d9488; }
 .progress-step.completed { color: #059669; }
 .timeline-item { position: relative; padding-left: 1.5rem; padding-bottom: 1.5rem; border-left: 2px solid #e5e7eb; }
 .timeline-item:last-child { border-left: 2px solid transparent; }
-.timeline-item::before {
-    content: ''; position: absolute; left: -0.5rem; top: 0;
-    width: 1rem; height: 1rem; border-radius: 50%; background: #9ca3af; border: 2px solid white;
-}
+.timeline-item::before { content: ''; position: absolute; left: -0.5rem; top: 0; width: 1rem; height: 1rem; border-radius: 50%; background: #9ca3af; border: 2px solid white; }
 .timeline-item.completed::before { background: #059669; }
-.location-metric { transition: all 0.2s ease; }
-.location-metric:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-/* Google Maps InfoWindow reset */
+.location-metric { transition: all 0.2s; }
+.location-metric:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
 .gm-style .gm-style-iw-c { padding: 0 !important; border-radius: 8px !important; }
 .gm-style .gm-style-iw-d { overflow: hidden !important; }
 .map-popup { padding: 12px; min-width: 180px; }
 .map-popup h4 { font-weight: 700; margin-bottom: 4px; font-size: 13px; }
-.map-popup p { font-size: 12px; color: #6b7280; margin: 2px 0; }
+.map-popup p  { font-size: 12px; color: #6b7280; margin: 2px 0; }
+body.cr-lock  { overflow: hidden; }
 </style>
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
 // ======================================================================
 // STATE
@@ -320,13 +436,15 @@
 let trackingMap, miniMap;
 let pickupMarker, deliveryMarker, courierMarker;
 let miniPickupMarker, miniDeliveryMarker, miniCourierMarker;
-let routePolyline, pickupRoutePolyline;
-let directionsService, directionsRenderer, miniDirectionsRenderer;
+let routePolyline;
+let directionsService, directionsRenderer;
 let updateInterval, locationUpdateInterval;
 let lastCourierLocation = null;
 let mapsReady = false;
+let confirmSigPad = null;
 
 const GOOGLE_API_KEY = "{{ config('services.google.maps_api_key') }}";
+const REQUEST_STATUS = "{{ $request->status }}";
 
 // ======================================================================
 // GOOGLE MAPS INIT
@@ -334,28 +452,21 @@ const GOOGLE_API_KEY = "{{ config('services.google.maps_api_key') }}";
 window.initTrackingMaps = function() {
     mapsReady = true;
 
-    // Main tracking map
     trackingMap = new google.maps.Map(document.getElementById('trackingMap'), {
         zoom: 12,
         center: { lat: 30.1575, lng: 71.5249 },
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
+        mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
         styles: mapStyles(),
     });
 
-    // Mini map
     miniMap = new google.maps.Map(document.getElementById('miniMap'), {
         zoom: 13,
         center: { lat: 30.1575, lng: 71.5249 },
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        zoomControl: false,
+        mapTypeControl: false, streetViewControl: false,
+        fullscreenControl: false, zoomControl: false,
         styles: mapStyles(),
     });
 
-    // Directions service (used as fallback when server doesn't return polyline)
     directionsService  = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({
         suppressMarkers: true,
@@ -363,120 +474,70 @@ window.initTrackingMaps = function() {
     });
     directionsRenderer.setMap(trackingMap);
 
-    // Start live updates
     startTrackingUpdates();
 };
 
 function mapStyles() {
     return [
-        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+        { featureType:'poi',     elementType:'labels', stylers:[{ visibility:'off' }] },
+        { featureType:'transit', elementType:'labels', stylers:[{ visibility:'off' }] },
     ];
 }
 
-// Load Maps API dynamically
 (function() {
     if (!GOOGLE_API_KEY) return;
     var s = document.createElement('script');
     s.src = 'https://maps.googleapis.com/maps/api/js'
         + '?key=' + encodeURIComponent(GOOGLE_API_KEY)
-        + '&libraries=geometry'
-        + '&callback=initTrackingMaps';
+        + '&libraries=geometry&callback=initTrackingMaps';
     s.async = true; s.defer = true;
     s.onerror = function() {
         document.getElementById('trackingMap').innerHTML =
-            '<div class="flex items-center justify-center h-full bg-red-50 rounded-lg"><p class="text-red-600 font-medium">Google Maps failed to load. Check API key configuration.</p></div>';
+            '<div class="flex items-center justify-center h-full bg-red-50 rounded-lg"><p class="text-red-600 font-medium p-4">Google Maps failed to load.</p></div>';
     };
     document.head.appendChild(s);
 })();
 
 // ======================================================================
-// MARKER HELPERS
+// MARKERS
 // ======================================================================
-function makeIcon(color, label) {
-    return {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 12,
-        fillColor: color,
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2.5,
-        labelOrigin: new google.maps.Point(0, 0),
-    };
+function makeIcon(color) {
+    return { path: google.maps.SymbolPath.CIRCLE, scale: 12, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2.5 };
 }
-
 function courierIcon(heading) {
-    return {
-        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-        scale: 7,
-        fillColor: '#3b82f6',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2,
-        rotation: heading || 0,
-    };
+    return { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 7, fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2, rotation: heading || 0 };
 }
 
 function addPickupMarker(lat, lng, address) {
     if (pickupMarker) pickupMarker.setMap(null);
-    pickupMarker = new google.maps.Marker({
-        position: { lat, lng },
-        map: trackingMap,
-        icon: makeIcon('#ef4444'),
-        title: 'Pickup Location',
-        zIndex: 2,
-    });
-    pickupMarker.addListener('click', () => {
-        new google.maps.InfoWindow({ content: `<div class="map-popup"><h4>Pickup Location</h4><p>${address}</p><p style="color:#9ca3af">${lat.toFixed(6)}, ${lng.toFixed(6)}</p></div>` }).open(trackingMap, pickupMarker);
-    });
-
-    // Mini map
+    pickupMarker = new google.maps.Marker({ position:{lat,lng}, map:trackingMap, icon:makeIcon('#ef4444'), title:'Pickup', zIndex:2 });
+    pickupMarker.addListener('click', () => new google.maps.InfoWindow({ content:`<div class="map-popup"><h4>Pickup</h4><p>${address}</p></div>` }).open(trackingMap, pickupMarker));
     if (miniPickupMarker) miniPickupMarker.setMap(null);
-    miniPickupMarker = new google.maps.Marker({ position: { lat, lng }, map: miniMap, icon: makeIcon('#ef4444'), zIndex: 2 });
+    miniPickupMarker = new google.maps.Marker({ position:{lat,lng}, map:miniMap, icon:makeIcon('#ef4444'), zIndex:2 });
 }
 
 function addDeliveryMarker(lat, lng, address) {
     if (deliveryMarker) deliveryMarker.setMap(null);
-    deliveryMarker = new google.maps.Marker({
-        position: { lat, lng },
-        map: trackingMap,
-        icon: makeIcon('#22c55e'),
-        title: 'Delivery Location',
-        zIndex: 2,
-    });
-    deliveryMarker.addListener('click', () => {
-        new google.maps.InfoWindow({ content: `<div class="map-popup"><h4>Delivery Location</h4><p>${address}</p><p style="color:#9ca3af">${lat.toFixed(6)}, ${lng.toFixed(6)}</p></div>` }).open(trackingMap, deliveryMarker);
-    });
-
+    deliveryMarker = new google.maps.Marker({ position:{lat,lng}, map:trackingMap, icon:makeIcon('#22c55e'), title:'Delivery', zIndex:2 });
+    deliveryMarker.addListener('click', () => new google.maps.InfoWindow({ content:`<div class="map-popup"><h4>Delivery</h4><p>${address}</p></div>` }).open(trackingMap, deliveryMarker));
     if (miniDeliveryMarker) miniDeliveryMarker.setMap(null);
-    miniDeliveryMarker = new google.maps.Marker({ position: { lat, lng }, map: miniMap, icon: makeIcon('#22c55e'), zIndex: 2 });
+    miniDeliveryMarker = new google.maps.Marker({ position:{lat,lng}, map:miniMap, icon:makeIcon('#22c55e'), zIndex:2 });
 }
 
 function updateCourierMarker(lat, lng, address, speed, heading) {
     const pos = { lat, lng };
     if (!courierMarker) {
-        courierMarker = new google.maps.Marker({
-            position: pos,
-            map: trackingMap,
-            icon: courierIcon(heading),
-            title: 'Courier',
-            zIndex: 10,
-            animation: google.maps.Animation.DROP,
-        });
+        courierMarker = new google.maps.Marker({ position:pos, map:trackingMap, icon:courierIcon(heading), title:'Courier', zIndex:10, animation:google.maps.Animation.DROP });
         courierMarker.addListener('click', () => {
-            const speedKmh = speed ? Math.round(speed * 3.6) : 0;
-            new google.maps.InfoWindow({
-                content: `<div class="map-popup"><h4>Courier</h4><p>${address || 'Location updating...'}</p><p>Speed: ${speedKmh} km/h</p><p style="color:#9ca3af">${lat.toFixed(6)}, ${lng.toFixed(6)}</p><p>Updated: ${new Date().toLocaleTimeString()}</p></div>`
-            }).open(trackingMap, courierMarker);
+            const spd = speed ? Math.round(speed * 3.6) : 0;
+            new google.maps.InfoWindow({ content:`<div class="map-popup"><h4>Courier</h4><p>${address||'Updating...'}</p><p>Speed: ${spd} km/h</p></div>` }).open(trackingMap, courierMarker);
         });
     } else {
         courierMarker.setPosition(pos);
         courierMarker.setIcon(courierIcon(heading));
     }
-
-    // Mini map courier
     if (!miniCourierMarker) {
-        miniCourierMarker = new google.maps.Marker({ position: pos, map: miniMap, icon: courierIcon(heading), zIndex: 10 });
+        miniCourierMarker = new google.maps.Marker({ position:pos, map:miniMap, icon:courierIcon(heading), zIndex:10 });
     } else {
         miniCourierMarker.setPosition(pos);
         miniCourierMarker.setIcon(courierIcon(heading));
@@ -484,25 +545,13 @@ function updateCourierMarker(lat, lng, address, speed, heading) {
     miniMap.panTo(pos);
 }
 
-// ======================================================================
-// ROUTE DRAWING
-// ======================================================================
 function drawRouteFromPolyline(encodedPolyline, color, existingLine) {
     if (!mapsReady || !google.maps.geometry) return existingLine;
     if (existingLine) existingLine.setMap(null);
     try {
         const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
-        const line = new google.maps.Polyline({
-            path,
-            strokeColor: color || '#0d9488',
-            strokeWeight: 4,
-            strokeOpacity: 0.85,
-            map: trackingMap,
-        });
-        return line;
-    } catch(e) {
-        return existingLine;
-    }
+        return new google.maps.Polyline({ path, strokeColor: color || '#0d9488', strokeWeight: 4, strokeOpacity: 0.85, map: trackingMap });
+    } catch(e) { return existingLine; }
 }
 
 function drawRouteViaDirectionsAPI(originLat, originLng, destLat, destLng) {
@@ -512,9 +561,7 @@ function drawRouteViaDirectionsAPI(originLat, originLng, destLat, destLng) {
         destination: { lat: destLat, lng: destLng },
         travelMode: google.maps.TravelMode.DRIVING,
     }, (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK) {
-            directionsRenderer.setDirections(result);
-        }
+        if (status === google.maps.DirectionsStatus.OK) directionsRenderer.setDirections(result);
     });
 }
 
@@ -522,27 +569,11 @@ function fitMapToMarkers(data) {
     if (!mapsReady) return;
     const bounds = new google.maps.LatLngBounds();
     let hasPoints = false;
-
-    if (data.request?.pickup_latitude && data.request?.pickup_longitude) {
-        bounds.extend({ lat: data.request.pickup_latitude, lng: data.request.pickup_longitude });
-        hasPoints = true;
-    }
-    if (data.request?.delivery_latitude && data.request?.delivery_longitude) {
-        bounds.extend({ lat: data.request.delivery_latitude, lng: data.request.delivery_longitude });
-        hasPoints = true;
-    }
-    if (data.courier_location?.latitude && data.courier_location?.longitude) {
-        bounds.extend({ lat: data.courier_location.latitude, lng: data.courier_location.longitude });
-        hasPoints = true;
-    }
-    data.stops?.forEach(s => {
-        if (s.latitude && s.longitude) { bounds.extend({ lat: s.latitude, lng: s.longitude }); hasPoints = true; }
-    });
-
-    if (hasPoints) {
-        trackingMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
-        if (trackingMap.getZoom() > 16) trackingMap.setZoom(16);
-    }
+    if (data.request?.pickup_latitude)     { bounds.extend({ lat: data.request.pickup_latitude,   lng: data.request.pickup_longitude });   hasPoints = true; }
+    if (data.request?.delivery_latitude)   { bounds.extend({ lat: data.request.delivery_latitude, lng: data.request.delivery_longitude }); hasPoints = true; }
+    if (data.courier_location?.latitude)   { bounds.extend({ lat: data.courier_location.latitude, lng: data.courier_location.longitude }); hasPoints = true; }
+    data.stops?.forEach(s => { if (s.latitude && s.longitude) { bounds.extend({ lat: s.latitude, lng: s.longitude }); hasPoints = true; } });
+    if (hasPoints) { trackingMap.fitBounds(bounds, { top:60, right:60, bottom:60, left:60 }); if (trackingMap.getZoom() > 16) trackingMap.setZoom(16); }
 }
 
 // ======================================================================
@@ -551,8 +582,8 @@ function fitMapToMarkers(data) {
 function startTrackingUpdates() {
     fetchTrackingData();
     fetchCourierLocation();
-    updateInterval          = setInterval(fetchTrackingData, 8000);
-    locationUpdateInterval  = setInterval(fetchCourierLocation, 4000);
+    updateInterval         = setInterval(fetchTrackingData, 8000);
+    locationUpdateInterval = setInterval(fetchCourierLocation, 4000);
 }
 
 async function fetchTrackingData() {
@@ -563,48 +594,35 @@ async function fetchTrackingData() {
 
         updateLastUpdateTime();
         updateProgress(data.progress);
-        updateProgressSteps(data.request.status, data.stops);
+        updateProgressSteps(data.request.status);
         updateTimeline(data.timestamps);
         updateCourierInfo(data.courier, data.courier_location);
 
+        // Auto-show confirm banner if status just became 'delivered'
+        if (data.request.status === 'delivered' && REQUEST_STATUS !== 'delivered') {
+            showToast('Specimen has been delivered! Please confirm receipt.', 'info');
+        }
+
         if (!mapsReady) return;
 
-        // Place markers
-        if (data.request.pickup_latitude && data.request.pickup_longitude) {
+        if (data.request.pickup_latitude && data.request.pickup_longitude)
             addPickupMarker(data.request.pickup_latitude, data.request.pickup_longitude, data.request.pickup_address);
-        }
-        if (data.request.delivery_latitude && data.request.delivery_longitude) {
+        if (data.request.delivery_latitude && data.request.delivery_longitude)
             addDeliveryMarker(data.request.delivery_latitude, data.request.delivery_longitude, data.request.delivery_address);
-        }
 
-        // Draw route — prefer server polyline, fall back to client-side Directions API
-        if (data.distances?.delivery_polyline) {
+        if (data.distances?.delivery_polyline)
             routePolyline = drawRouteFromPolyline(data.distances.delivery_polyline, '#0d9488', routePolyline);
-        } else if (data.distances?.pickup_polyline) {
+        else if (data.distances?.pickup_polyline)
             routePolyline = drawRouteFromPolyline(data.distances.pickup_polyline, '#3b82f6', routePolyline);
-        } else if (data.request.pickup_latitude && data.request.delivery_latitude) {
-            drawRouteViaDirectionsAPI(
-                data.request.pickup_latitude, data.request.pickup_longitude,
-                data.request.delivery_latitude, data.request.delivery_longitude
-            );
-        }
+        else if (data.request.pickup_latitude && data.request.delivery_latitude)
+            drawRouteViaDirectionsAPI(data.request.pickup_latitude, data.request.pickup_longitude, data.request.delivery_latitude, data.request.delivery_longitude);
 
-        // Update courier marker
         if (data.courier_location?.latitude) {
-            updateCourierMarker(
-                data.courier_location.latitude,
-                data.courier_location.longitude,
-                data.courier_location.formatted_address,
-                data.courier_location.speed,
-                data.courier_location.heading
-            );
+            updateCourierMarker(data.courier_location.latitude, data.courier_location.longitude, data.courier_location.formatted_address, data.courier_location.speed, data.courier_location.heading);
             lastCourierLocation = data.courier_location;
             fitMapToMarkers(data);
         }
-
-    } catch(e) {
-        console.error('Tracking data error:', e);
-    }
+    } catch(e) { console.error('Tracking data error:', e); }
 }
 
 async function fetchCourierLocation() {
@@ -613,22 +631,12 @@ async function fetchCourierLocation() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.error) return;
-
         updateLocationBox(data);
-
         if (mapsReady && data.location?.latitude && data.location?.longitude) {
-            updateCourierMarker(
-                data.location.latitude,
-                data.location.longitude,
-                data.location.formatted_address,
-                data.location.speed,
-                data.location.heading
-            );
+            updateCourierMarker(data.location.latitude, data.location.longitude, data.location.formatted_address, data.location.speed, data.location.heading);
             lastCourierLocation = data.location;
         }
-    } catch(e) {
-        console.error('Location fetch error:', e);
-    }
+    } catch(e) { console.error('Location fetch error:', e); }
 }
 
 // ======================================================================
@@ -636,45 +644,36 @@ async function fetchCourierLocation() {
 // ======================================================================
 function updateLocationBox(data) {
     const isOnline = data.status === 'online';
-
     document.getElementById('locationStatus').innerHTML = `
         <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'} mr-2"></span>
-        <span class="text-sm ${isOnline ? 'text-green-600' : 'text-red-600'}">${isOnline ? 'Online' : 'Offline'}</span>
-    `;
+        <span class="text-sm ${isOnline ? 'text-green-600' : 'text-red-600'}">${isOnline ? 'Online' : 'Offline'}</span>`;
     document.getElementById('locationLastUpdate').innerHTML =
-        `<i class="fas fa-clock mr-1"></i>Updated: ${new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}`;
+        `<i class="fas fa-clock mr-1"></i>Updated: ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
 
     if (data.location?.formatted_address) {
         document.getElementById('currentLocationAddress').innerHTML = `
             <p class="text-gray-800 font-medium">${data.location.formatted_address}</p>
-            <p class="text-gray-500 text-xs mt-1"><i class="fas fa-history mr-1"></i>Last seen: ${data.courier?.last_seen || 'Just now'}</p>
-        `;
+            <p class="text-gray-500 text-xs mt-1"><i class="fas fa-history mr-1"></i>Last seen: ${data.courier?.last_seen || 'Just now'}</p>`;
         const coordsEl = document.getElementById('locationCoordinates');
         coordsEl.classList.remove('hidden');
         document.getElementById('coordinatesText').textContent = data.location.coordinates?.formatted || '';
     }
-
     if (data.location) {
         document.getElementById('locationSpeed').textContent    = Math.round((data.location.speed || 0) * 3.6) || '0';
         document.getElementById('locationBattery').textContent  = data.location.battery_level || 'N/A';
         document.getElementById('locationAccuracy').textContent = data.location.accuracy ? Math.round(data.location.accuracy) : '0';
         document.getElementById('locationHeading').textContent  = data.location.heading ? Math.round(data.location.heading) : '0';
     }
-
     if (data.distances) {
         document.getElementById('distanceInfo').classList.remove('hidden');
-
-        // Show text from Google Maps if available, otherwise numeric
-        const pickupDist = data.distances.to_pickup_text || (data.distances.to_pickup_km ? data.distances.to_pickup_km + ' km' : '--');
-        const delivDist  = data.distances.to_delivery_text || (data.distances.to_delivery_km ? data.distances.to_delivery_km + ' km' : '--');
-        const pickupETA  = data.distances.eta_to_pickup_text || (data.distances.eta_to_pickup_minutes ? data.distances.eta_to_pickup_minutes + ' min' : '--');
-        const delivETA   = data.distances.eta_to_delivery_text || (data.distances.eta_to_delivery_minutes ? data.distances.eta_to_delivery_minutes + ' min' : '--');
-
-        document.getElementById('distanceToPickup').textContent   = pickupDist;
-        document.getElementById('etaToPickup').textContent        = pickupETA;
-        document.getElementById('distanceToDelivery').textContent = delivDist;
-        document.getElementById('etaToDelivery').textContent      = delivETA;
-
+        const pd = data.distances.to_pickup_text   || (data.distances.to_pickup_km   ? data.distances.to_pickup_km   + ' km' : '--');
+        const dd = data.distances.to_delivery_text || (data.distances.to_delivery_km ? data.distances.to_delivery_km + ' km' : '--');
+        const pe = data.distances.eta_to_pickup_text   || (data.distances.eta_to_pickup_minutes   ? data.distances.eta_to_pickup_minutes   + ' min' : '--');
+        const de = data.distances.eta_to_delivery_text || (data.distances.eta_to_delivery_minutes ? data.distances.eta_to_delivery_minutes + ' min' : '--');
+        document.getElementById('distanceToPickup').textContent   = pd;
+        document.getElementById('etaToPickup').textContent        = pe;
+        document.getElementById('distanceToDelivery').textContent = dd;
+        document.getElementById('etaToDelivery').textContent      = de;
         const src = document.getElementById('distanceSource');
         if (src) src.textContent = data.distances.source === 'google_maps' ? '(via Google Maps)' : '(estimated)';
     }
@@ -682,55 +681,42 @@ function updateLocationBox(data) {
 
 function updateLastUpdateTime() {
     document.getElementById('lastUpdate').innerHTML =
-        `<i class="fas fa-clock mr-2"></i>Last updated: ${new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })}`;
+        `<i class="fas fa-clock mr-2"></i>Updated: ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
 }
 
 function updateProgress(progress) {
-    document.getElementById('progressBar').style.width   = `${progress}%`;
+    document.getElementById('progressBar').style.width        = `${progress}%`;
     document.getElementById('progressPercentage').textContent = `${progress}%`;
 }
 
 function updateCourierInfo(courier, location) {
     const loading = document.getElementById('loadingCourier');
     const content = document.getElementById('courierContent');
-
     if (!courier) {
         loading.innerHTML = `<div class="text-center"><i class="fas fa-user-slash text-2xl text-gray-400 mb-4"></i><p class="text-gray-600">No courier assigned yet</p></div>`;
         return;
     }
-
     loading.classList.add('hidden');
     content.classList.remove('hidden');
-
     const isOnline   = location?.is_online;
-    const statusColor = isOnline ? 'text-green-600' : 'text-gray-500';
     const address    = location?.formatted_address || 'Location not available';
-    const coords     = location?.latitude ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'N/A';
+    const coords     = location?.latitude ? `${parseFloat(location.latitude).toFixed(6)}, ${parseFloat(location.longitude).toFixed(6)}` : 'N/A';
     const lastUpdate = location?.last_update ? new Date(location.last_update).toLocaleTimeString() : 'Just now';
-
     content.innerHTML = `
         <div class="flex items-start space-x-4">
             <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
-                ${courier.profile_image
-                    ? `<img src="${courier.profile_image}" class="w-full h-full object-cover" alt="${courier.name}">`
-                    : `<i class="fas fa-user text-gray-400 text-2xl"></i>`}
+                ${courier.profile_image ? `<img src="${courier.profile_image}" class="w-full h-full object-cover" alt="${courier.name}">` : `<i class="fas fa-user text-gray-400 text-2xl"></i>`}
             </div>
             <div class="flex-1">
                 <h4 class="font-bold text-lg">${courier.name}</h4>
                 <div class="flex items-center mt-1">
                     <i class="fas fa-circle text-xs ${isOnline ? 'text-green-500' : 'text-gray-400'} mr-2"></i>
-                    <span class="text-sm ${statusColor} font-medium">${isOnline ? 'Online & Tracking' : 'Offline'}</span>
+                    <span class="text-sm ${isOnline ? 'text-green-600' : 'text-gray-500'} font-medium">${isOnline ? 'Online & Tracking' : 'Offline'}</span>
                 </div>
                 <div class="mt-2 space-y-1 text-sm">
-                    <div class="flex items-center">
-                        <i class="fas fa-phone text-gray-400 mr-2 w-4"></i>
-                        <a href="tel:${courier.phone}" class="hover:text-teal-600">${courier.phone}</a>
-                    </div>
+                    <div class="flex items-center"><i class="fas fa-phone text-gray-400 mr-2 w-4"></i><a href="tel:${courier.phone}" class="hover:text-teal-600">${courier.phone}</a></div>
                     ${courier.vehicle_type ? `<div class="flex items-center"><i class="fas fa-car text-gray-400 mr-2 w-4"></i><span>${courier.vehicle_type}</span></div>` : ''}
-                    <div class="flex items-center">
-                        <i class="fas fa-star text-yellow-400 mr-2 w-4"></i>
-                        <span>Rating: ${courier.rating || 'N/A'}</span>
-                    </div>
+                    <div class="flex items-center"><i class="fas fa-star text-yellow-400 mr-2 w-4"></i><span>Rating: ${courier.rating || 'N/A'}</span></div>
                 </div>
                 ${location ? `
                 <div class="mt-3 pt-3 border-t border-gray-100">
@@ -746,65 +732,57 @@ function updateCourierInfo(courier, location) {
                     </div>
                 </div>` : ''}
             </div>
-        </div>
-    `;
+        </div>`;
 }
 
-function updateProgressSteps(status, stops) {
-    const allSteps = [
-        { id: 'submitted',  label: 'Request Submitted',      doneAt: ['pending_approval','approved','assigned','accepted_by_courier','at_stop','picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'approved',   label: 'Request Approved',       doneAt: ['approved','assigned','accepted_by_courier','at_stop','picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'assigned',   label: 'Courier Assigned',       doneAt: ['assigned','accepted_by_courier','at_stop','picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'enroute',    label: 'En Route to Pickup',     doneAt: ['accepted_by_courier','at_stop','picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'pickup',     label: 'At Pickup Location',     doneAt: ['at_stop','picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'picked',     label: 'Specimen Picked Up',     doneAt: ['picked_up','in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'transit',    label: 'In Transit',             doneAt: ['in_transit','arrived_at_destination','delivered','completed'] },
-        { id: 'arrived',    label: 'Arrived at Destination', doneAt: ['arrived_at_destination','delivered','completed'] },
-        { id: 'delivered',  label: 'Specimen Delivered',     doneAt: ['delivered','completed'] },
-        { id: 'completed',  label: 'Completed',              doneAt: ['completed'] },
+// ── Progress Steps ────────────────────────────────────────────
+function updateProgressSteps(status) {
+    // Correct step definitions — no 'at_stop', no 'in_delivery'
+    // Includes all awaiting_proof statuses as part of their parent step
+    const steps = [
+        { label: 'Request Submitted',      doneWhen: ['pending_approval','approved','pending_courier_acceptance','assigned','accepted_by_courier','awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered','completed'], activeWhen: 'pending_approval' },
+        { label: 'Request Approved',       doneWhen: ['approved','pending_courier_acceptance','assigned','accepted_by_courier','awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered','completed'],                  activeWhen: 'approved' },
+        { label: 'Courier Assigned',       doneWhen: ['pending_courier_acceptance','assigned','accepted_by_courier','awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered','completed'],                             activeWhen: ['assigned','pending_courier_acceptance'] },
+        { label: 'En Route to Pickup',     doneWhen: ['awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered','completed'],                                                                                           activeWhen: 'accepted_by_courier' },
+        { label: 'Specimen Picked Up',     doneWhen: ['picked_up','in_transit','arrived_at_destination','delivered','completed'],                                                                                                                   activeWhen: 'awaiting_pickup_proof' },
+        { label: 'In Transit',             doneWhen: ['in_transit','arrived_at_destination','delivered','completed'],                                                                                                                               activeWhen: 'picked_up' },
+        { label: 'Arrived at Destination', doneWhen: ['arrived_at_destination','delivered','completed'],                                                                                                                                           activeWhen: 'in_transit' },
+        { label: 'Delivered',              doneWhen: ['delivered','completed'],                                                                                                                                                                    activeWhen: 'arrived_at_destination' },
+        { label: 'Completed',              doneWhen: ['completed'],                                                                                                                                                                                activeWhen: ['delivered','completed'] },
     ];
 
     let html = '';
-    allSteps.forEach(step => {
-        const completed = step.doneAt.includes(status);
-        const active    = !completed && (
-            (step.id === 'submitted'  && status === 'pending_approval') ||
-            (step.id === 'approved'   && status === 'approved') ||
-            (step.id === 'assigned'   && status === 'assigned') ||
-            (step.id === 'enroute'    && status === 'accepted_by_courier') ||
-            (step.id === 'pickup'     && status === 'at_stop') ||
-            (step.id === 'picked'     && status === 'picked_up') ||
-            (step.id === 'transit'    && status === 'in_transit') ||
-            (step.id === 'arrived'    && status === 'arrived_at_destination') ||
-            (step.id === 'delivered'  && status === 'delivered')
-        );
+    steps.forEach(step => {
+        const done   = step.doneWhen.includes(status);
+        const active = !done && (Array.isArray(step.activeWhen) ? step.activeWhen.includes(status) : status === step.activeWhen);
         html += `
-            <div class="progress-step ${completed ? 'completed' : active ? 'active' : ''}">
+            <div class="progress-step ${done ? 'completed' : active ? 'active' : ''}">
                 <div class="flex items-center justify-between">
                     <span class="font-medium text-sm">${step.label}</span>
-                    ${completed ? '<i class="fas fa-check text-green-500 text-xs"></i>' : ''}
+                    ${done ? '<i class="fas fa-check text-green-500 text-xs"></i>' : (active ? '<i class="fas fa-circle-notch fa-spin text-teal-400 text-xs"></i>' : '')}
                 </div>
-            </div>
-        `;
+            </div>`;
     });
     document.getElementById('progressSteps').innerHTML = html;
 }
 
+// ── Timeline ──────────────────────────────────────────────────
 function updateTimeline(timestamps) {
     const events = [
-        { key: 'created_at',              title: 'Request Created',           desc: 'Specimen request submitted' },
-        { key: 'accepted_at',             title: 'Courier Accepted',          desc: 'Courier accepted the assignment' },
-        { key: 'pickup_started_at',       title: 'Pickup Started',            desc: 'Courier arrived at pickup location' },
-        { key: 'pickup_completed_at',     title: 'Specimen Picked Up',        desc: 'Specimen collected with photo proof' },
-        { key: 'transit_started_at',      title: 'In Transit',                desc: 'Specimen is on the way' },
-        { key: 'arrived_at_destination_at', title: 'Arrived at Destination',  desc: 'Courier arrived at delivery location' },
-        { key: 'delivered_at',            title: 'Delivered',                 desc: 'Specimen delivered, signature obtained' },
-        { key: 'completed_at',            title: 'Completed',                 desc: 'Request completed and closed' },
+        { key: 'created_at',                  title: 'Request Submitted',        icon: 'fa-plus-circle',     color: 'text-blue-500'   },
+        { key: 'accepted_at',                 title: 'Courier Assigned',         icon: 'fa-user-check',      color: 'text-teal-500'   },
+        { key: 'courier_accepted_at',         title: 'Courier Accepted',         icon: 'fa-handshake',       color: 'text-teal-500'   },
+        { key: 'pickup_started_at',           title: 'Pickup Started',           icon: 'fa-route',           color: 'text-orange-500' },
+        { key: 'pickup_completed_at',         title: 'Specimen Picked Up',       icon: 'fa-box',             color: 'text-purple-500' },
+        { key: 'transit_started_at',          title: 'In Transit',               icon: 'fa-truck',           color: 'text-blue-500'   },
+        { key: 'arrived_at_destination_at',   title: 'Arrived at Destination',   icon: 'fa-map-marker-alt',  color: 'text-orange-500' },
+        { key: 'delivered_at',                title: 'Delivered',                icon: 'fa-check-circle',    color: 'text-green-500'  },
+        { key: 'completed_at',                title: 'Completed',                icon: 'fa-check-double',    color: 'text-green-600'  },
     ];
 
     const active = events.filter(e => timestamps[e.key]);
     if (!active.length) {
-        document.getElementById('timeline').innerHTML = '<p class="text-gray-500 text-center py-4">No timeline events yet</p>';
+        document.getElementById('timeline').innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No timeline events yet</p>';
         return;
     }
 
@@ -812,29 +790,109 @@ function updateTimeline(timestamps) {
         const t = new Date(timestamps[e.key]);
         return `
             <div class="timeline-item ${i < active.length - 1 ? 'completed' : ''}">
-                <div class="ml-4">
-                    <h4 class="font-medium">${e.title}</h4>
-                    <p class="text-sm text-gray-600 mt-1">${e.desc}</p>
-                    <p class="text-xs text-gray-400 mt-1">${t.toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+                <div class="ml-4 flex items-start gap-3">
+                    <i class="fas ${e.icon} ${e.color} mt-0.5 text-sm flex-shrink-0"></i>
+                    <div>
+                        <h4 class="font-medium text-sm">${e.title}</h4>
+                        <p class="text-xs text-gray-400 mt-0.5">${t.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+                    </div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }).join('');
 }
+
+// ======================================================================
+// CONFIRM RECEIPT MODAL
+// ======================================================================
+function openConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('cr-lock');
+    setTimeout(initConfirmSig, 100);
+}
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.add('hidden');
+    document.getElementById('confirmModal').classList.remove('flex');
+    document.body.classList.remove('cr-lock');
+}
+
+function initConfirmSig() {
+    if (confirmSigPad) return;
+    const canvas = document.getElementById('confirmSigCanvas');
+    if (!canvas) return;
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width  = canvas.offsetWidth  * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    canvas.getContext('2d').scale(ratio, ratio);
+    confirmSigPad = new SignaturePad(canvas, {
+        backgroundColor: 'rgb(255,255,255)',
+        penColor: 'rgb(0,0,0)',
+        minWidth: 0.8, maxWidth: 2.5,
+    });
+}
+function clearConfirmSig() {
+    if (confirmSigPad) confirmSigPad.clear();
+    document.getElementById('confirmSigData').value = '';
+}
+
+document.getElementById('confirmForm').addEventListener('submit', function(e) {
+    const errEl  = document.getElementById('confirmError');
+    const errTxt = document.getElementById('confirmErrorText');
+    errEl.classList.add('hidden');
+
+    const name = document.querySelector('[name="recipient_name"]');
+    if (!name || !name.value.trim()) {
+        e.preventDefault();
+        errEl.classList.remove('hidden');
+        errTxt.textContent = 'Please enter your name.';
+        return;
+    }
+    if (!confirmSigPad || confirmSigPad.isEmpty()) {
+        e.preventDefault();
+        errEl.classList.remove('hidden');
+        errTxt.textContent = 'Please provide your signature to confirm receipt.';
+        return;
+    }
+    document.getElementById('confirmSigData').value = confirmSigPad.toDataURL();
+    const btn = document.getElementById('confirmSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Confirming...';
+});
+
+// backdrop close
+document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) closeConfirmModal();
+});
+
+// ======================================================================
+// CANCEL MODAL
+// ======================================================================
+function openCancelModal()  {
+    document.getElementById('cancelModal').classList.remove('hidden');
+    document.getElementById('cancelModal').classList.add('flex');
+    document.body.classList.add('cr-lock');
+}
+function closeCancelModal() {
+    document.getElementById('cancelModal').classList.add('hidden');
+    document.getElementById('cancelModal').classList.remove('flex');
+    document.body.classList.remove('cr-lock');
+}
+document.getElementById('cancelModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCancelModal();
+});
 
 // ======================================================================
 // ACTIONS
 // ======================================================================
 function centerOnCourier() {
-    if (!mapsReady || !lastCourierLocation) return;
+    if (!mapsReady || !lastCourierLocation) { showToast('Courier location not available', 'error'); return; }
     trackingMap.setCenter({ lat: lastCourierLocation.latitude, lng: lastCourierLocation.longitude });
     trackingMap.setZoom(16);
     showToast('Centered on courier', 'success');
 }
-
-function refreshLocation()  { fetchCourierLocation(); showToast('Location refreshed', 'success'); }
-function refreshTracking()  { fetchTrackingData();    showToast('Tracking refreshed', 'success'); }
-
+function refreshLocation() { fetchCourierLocation(); showToast('Location refreshed', 'success'); }
+function refreshTracking() { fetchTrackingData();    showToast('Tracking refreshed', 'success'); }
 function shareLocation() {
     const text = lastCourierLocation?.formatted_address
         ? `Courier is at: ${lastCourierLocation.formatted_address}\n${window.location.href}`
@@ -848,12 +906,16 @@ function shareLocation() {
 
 function showToast(msg, type) {
     const el = document.createElement('div');
-    el.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm flex items-center gap-2
-        ${type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`;
-    el.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>${msg}`;
+    el.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white text-sm flex items-center gap-2
+        ${type==='error'?'bg-red-500':type==='success'?'bg-green-500':'bg-blue-500'}`;
+    el.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-circle':type==='success'?'check-circle':'info-circle'}"></i>${msg}`;
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    setTimeout(() => el.remove(), 3500);
 }
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeConfirmModal(); closeCancelModal(); }
+});
 
 window.addEventListener('beforeunload', () => {
     clearInterval(updateInterval);

@@ -429,16 +429,30 @@ class CourierController extends Controller
         $specimenRequest = SpecimenRequest::findOrFail($requestId);
 
         if ($specimenRequest->assigned_to != Auth::id()) {
-            return redirect()->back()->with('error', 'You are not assigned to this request.');
+            return redirect()->route('courier.requests.show', $requestId)
+                ->with('error', 'You are not assigned to this request.');
         }
 
-        if (! $specimenRequest->requires_proof || $specimenRequest->proof_uploaded) {
-            return redirect()->back()->with('error', 'Proof not required or already uploaded.');
+        // Allow from accepted_by_courier OR awaiting_pickup_proof
+        if (! in_array($specimenRequest->status, ['accepted_by_courier', 'awaiting_pickup_proof'])) {
+            return redirect()->route('courier.requests.show', $requestId)
+                ->with('error', 'Pickup proof cannot be submitted from current status: ' . str_replace('_', ' ', $specimenRequest->status));
         }
 
-        $request->validate([
-            'pickup_photo'     => 'required|image|max:5120',
-            'pickup_notes'     => 'nullable|string|max:500',
+        // Block if already has a pickup proof
+        $existingProof = PickupProof::where('request_id', $specimenRequest->id)
+            ->where(function($q) {
+                $q->whereNull('proof_type')->orWhere('proof_type', 'pickup');
+            })->first();
+
+        if ($existingProof) {
+            return redirect()->route('courier.requests.show', $requestId)
+                ->with('error', 'Pickup proof already uploaded for this request.');
+        }
+
+        $validated = $request->validate([
+            'pickup_photo'       => 'required|image|max:5120',
+            'pickup_notes'       => 'nullable|string|max:500',
             'specimen_condition' => 'required|in:good,acceptable,damaged',
             'temperature_check'  => 'required|in:within_range,out_of_range,not_checked',
         ]);
@@ -446,26 +460,26 @@ class CourierController extends Controller
         $photoPath = $request->file('pickup_photo')->store('pickup-proofs', 'public');
 
         PickupProof::create([
-            'request_id'        => $specimenRequest->id,
-            'courier_id'        => Auth::id(),
-            'photo_path'        => $photoPath,
-            'notes'             => $request->pickup_notes,
-            'specimen_condition'=> $request->specimen_condition,
-            'temperature_check' => $request->temperature_check,
-            'latitude'          => $request->latitude ?? null,
-            'longitude'         => $request->longitude ?? null,
-            'accuracy'          => $request->accuracy ?? null,
-            'verified'          => false,
+            'request_id'         => $specimenRequest->id,
+            'courier_id'         => Auth::id(),
+            'proof_type'         => 'pickup',
+            'photo_path'         => $photoPath,
+            'notes'              => $request->pickup_notes,
+            'specimen_condition' => $request->specimen_condition,
+            'temperature_check'  => $request->temperature_check,
+            'latitude'           => $request->latitude ?? null,
+            'longitude'          => $request->longitude ?? null,
+            'accuracy'           => $request->accuracy ?? null,
+            'verified'           => false,
         ]);
 
-        $nextStatus = $specimenRequest->proof_required_at_status ?? 'picked_up';
-
         $specimenRequest->update([
-            'status'                   => $nextStatus,
+            'status'                   => 'picked_up',
             'requires_proof'           => false,
             'proof_uploaded'           => true,
             'proof_required_at_status' => null,
             'pickup_completed_at'      => now(),
+            'pickup_started_at'        => $specimenRequest->pickup_started_at ?? now(),
         ]);
 
         AuditLog::create([
@@ -473,12 +487,16 @@ class CourierController extends Controller
             'action'     => 'submit_pickup_proof',
             'model_type' => SpecimenRequest::class,
             'model_id'   => $specimenRequest->id,
-            'changes'    => json_encode(['status' => "awaiting_pickup_proof → {$nextStatus}", 'request_number' => $specimenRequest->request_number]),
+            'changes'    => json_encode([
+                'status'         => $specimenRequest->getOriginal('status') . ' → picked_up',
+                'request_number' => $specimenRequest->request_number,
+            ]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Pickup proof submitted! Status updated to ' . str_replace('_', ' ', $nextStatus) . '.');
+        return redirect()->route('courier.requests.show', $requestId)
+            ->with('success', 'Pickup proof uploaded! Status updated to Picked Up.');
     }
 
     // ─── Start Transit ────────────────────────────────────────────────────────
@@ -492,28 +510,26 @@ class CourierController extends Controller
         }
 
         if ($specimenRequest->status !== 'picked_up') {
-            return redirect()->back()->with('error', 'Cannot start transit from current status.');
+            return redirect()->back()->with('error', 'Cannot start transit from current status: ' . $specimenRequest->status);
         }
 
         $specimenRequest->update([
-            'status'                   => 'awaiting_transit_proof',
-            'requires_proof'           => true,
-            'proof_uploaded'           => false,
-            'proof_required_at_status' => 'in_transit',
-            'transit_started_at'       => now(),
+            'status'             => 'in_transit',
+            'requires_proof'     => false,
+            'transit_started_at' => now(),
         ]);
 
         AuditLog::create([
             'user_id'    => Auth::id(),
-            'action'     => 'start_transit_requires_proof',
+            'action'     => 'start_transit',
             'model_type' => SpecimenRequest::class,
             'model_id'   => $specimenRequest->id,
-            'changes'    => json_encode(['status' => 'picked_up → awaiting_transit_proof', 'request_number' => $specimenRequest->request_number]),
+            'changes'    => json_encode(['status' => 'picked_up → in_transit', 'request_number' => $specimenRequest->request_number]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Please upload transit proof to continue.');
+        return redirect()->back()->with('success', 'Transit started! Head to the delivery location.');
     }
 
     // ─── Submit Transit Proof ─────────────────────────────────────────────────
@@ -575,28 +591,26 @@ class CourierController extends Controller
         }
 
         if ($specimenRequest->status !== 'in_transit') {
-            return redirect()->back()->with('error', 'Cannot mark arrival from current status.');
+            return redirect()->back()->with('error', 'Cannot mark arrival from current status: ' . $specimenRequest->status);
         }
 
         $specimenRequest->update([
-            'status'                      => 'awaiting_arrival_proof',
-            'requires_proof'              => true,
-            'proof_uploaded'              => false,
-            'proof_required_at_status'    => 'arrived_at_destination',
-            'arrived_at_destination_at'   => now(),
+            'status'                    => 'arrived_at_destination',
+            'requires_proof'            => false,
+            'arrived_at_destination_at' => now(),
         ]);
 
         AuditLog::create([
             'user_id'    => Auth::id(),
-            'action'     => 'arrive_destination_requires_proof',
+            'action'     => 'arrived_at_destination',
             'model_type' => SpecimenRequest::class,
             'model_id'   => $specimenRequest->id,
-            'changes'    => json_encode(['status' => 'in_transit → awaiting_arrival_proof', 'request_number' => $specimenRequest->request_number]),
+            'changes'    => json_encode(['status' => 'in_transit → arrived_at_destination', 'request_number' => $specimenRequest->request_number]),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Arrival recorded! Please upload arrival proof.');
+        return redirect()->back()->with('success', 'Arrival marked! Now capture the recipient signature to complete delivery.');
     }
 
     // ─── Submit Arrival Proof ─────────────────────────────────────────────────
@@ -667,15 +681,15 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
-        if (! in_array($specimenRequest->status, ['arrived_at_destination', 'in_transit'])) {
-            return redirect()->back()->with('error', 'Cannot submit delivery from current status.');
+        if ($specimenRequest->status !== 'arrived_at_destination') {
+            return redirect()->back()->with('error', 'You must mark arrival before completing delivery. Current status: ' . str_replace('_', ' ', $specimenRequest->status));
         }
 
         $request->validate([
             'signature'              => 'required|string',
             'recipient_name'         => 'required|string|max:255',
             'recipient_relationship' => 'required|string|max:100',
-            'delivery_photo'         => 'nullable|image|max:5120',
+            'delivery_photo'         => 'required|image|max:5120',
             'delivery_notes'         => 'nullable|string|max:500',
         ]);
 
@@ -685,17 +699,17 @@ class CourierController extends Controller
         }
 
         Signature::create([
-            'request_id'              => $specimenRequest->id,
-            'courier_id'              => Auth::id(),
-            'recipient_name'          => $request->recipient_name,
-            'recipient_relationship'  => $request->recipient_relationship,
-            'signature_data'          => $request->signature,
-            'photo_path'              => $photoPath,
-            'notes'                   => $request->delivery_notes,
-            'latitude'                => $request->latitude ?? null,
-            'longitude'               => $request->longitude ?? null,
-            'accuracy'                => $request->accuracy ?? null,
-            'signed_at'               => now(),
+            'request_id'             => $specimenRequest->id,
+            'courier_id'             => Auth::id(),
+            'signature_type'         => 'delivery',
+            'signed_by'              => Auth::id(),
+            'recipient_name'         => $request->recipient_name,
+            'signature_data'         => $request->signature,
+            'signature_image_path'   => $photoPath,
+            'ip_address'             => $request->ip(),
+            'device_info'            => $request->userAgent(),
+            'latitude'               => $request->latitude ?? null,
+            'longitude'              => $request->longitude ?? null,
         ]);
 
         $specimenRequest->update([
@@ -713,7 +727,8 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Delivery submitted! Please mark as complete.');
+        return redirect()->route('courier.requests.show', $requestId)
+            ->with('success', 'Delivery completed! Waiting for client to confirm receipt.');
     }
 
     // ─── Complete Request ─────────────────────────────────────────────────────

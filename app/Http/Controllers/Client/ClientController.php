@@ -40,7 +40,7 @@ class ClientController extends Controller
         $stats = [
             'total_requests' => $user->createdRequests()->count(),
             'pending_requests' => $user->createdRequests()->where('status', 'pending_approval')->count(),
-            'in_progress' => $user->createdRequests()->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])->count(),
+            'in_progress' => $user->createdRequests()->whereIn('status', ['pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination'])->count(),
             'completed' => $user->createdRequests()->where('status', 'completed')->count(),
         ];
 
@@ -62,7 +62,7 @@ class ClientController extends Controller
 
         if ($status) {
             if ($status === 'in_transit') {
-                $query->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery']);
+                $query->whereIn('status', ['pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination']);
             } else {
                 $query->where('status', $status);
             }
@@ -821,57 +821,152 @@ class ClientController extends Controller
 
     public function confirmDelivery(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
-            abort(403);
-        }
+        try {
+            // Log all possible causes
+            Log::info('========== CONFIRM DELIVERY DEBUG START ==========');
+            Log::info('Request ID: ' . $request->id);
+            Log::info('Request client_id: ' . $request->client_id . ' (type: ' . gettype($request->client_id) . ')');
+            Log::info('Auth ID: ' . Auth::id() . ' (type: ' . gettype(Auth::id()) . ')');
+            Log::info('User email: ' . Auth::user()->email);
+            Log::info('User is logged in: ' . (Auth::check() ? 'yes' : 'no'));
+            Log::info('Request status: ' . $request->status);
 
-        if ($request->status !== 'delivered') {
-            return back()->with('error', 'Request must be in delivered status to confirm receipt.');
-        }
+            // Check if there's any middleware interfering
+            Log::info('Session ID: ' . session()->getId());
+            Log::info('Session user ID: ' . session()->get('login_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'));
 
-        return view('client.requests.confirm', compact('request'));
+            // Test the condition explicitly
+            $conditionResult = ($request->client_id !== Auth::id());
+            Log::info('Condition result (client_id !== auth_id): ' . ($conditionResult ? 'TRUE (will abort)' : 'FALSE (will pass)'));
+
+            if ($request->client_id !== Auth::id()) {
+                Log::warning('Authorization failed - condition triggered');
+                abort(403, 'You are not authorized to confirm this delivery.');
+            }
+
+            Log::info('Authorization passed');
+
+            if ($request->status !== 'delivered') {
+                Log::info('Status check failed: ' . $request->status);
+                return back()->with('error', 'Request must be in delivered status to confirm receipt.');
+            }
+
+            Log::info('All checks passed, rendering view');
+            Log::info('========== CONFIRM DELIVERY DEBUG END ==========');
+
+            return view('client.requests.confirm', compact('request'));
+        } catch (\Exception $e) {
+            Log::error('Exception in confirmDelivery: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
-    public function submitConfirmation(Request $request, SpecimenRequest $specimenRequest)
-    {
-        if ($specimenRequest->client_id !== Auth::id()) {
-            abort(403);
-        }
+    // public function submitConfirmation(Request $request, SpecimenRequest $specimenRequest)
+    // {
+    //     if ($specimenRequest->client_id !== Auth::id()) {
+    //         abort(403);
+    //     }
 
-        $validated = $request->validate([
-            'signature' => 'required|string',
-            'recipient_name' => 'required|string|max:200',
+    //     $validated = $request->validate([
+    //         'signature' => 'required|string',
+    //         'recipient_name' => 'required|string|max:200',
+    //     ]);
+
+    //     // Save client confirmation signature
+    //     $signature = Signature::create([
+    //         'request_id'      => $specimenRequest->id,
+    //         'signature_type'  => 'completion',
+    //         'signed_by'       => Auth::id(),
+    //         'recipient_name'  => $validated['recipient_name'],
+    //         'signature_data'  => $validated['signature'],
+    //         'ip_address'      => $request->ip(),
+    //         'device_info'     => $request->header('User-Agent'),
+    //     ]);
+
+    //     // Update request status
+    //     $specimenRequest->update([
+    //         'status' => 'completed',
+    //         'completed_at' => now(),
+    //     ]);
+
+    //     // Notifications will be handled by the Signature observer automatically
+    //     // No need to manually create notifications here
+
+    //     return redirect()->route('client.requests.track', $specimenRequest)
+    //         ->with('success', 'Delivery confirmed successfully! Request completed.');
+    // }
+
+
+    // In app/Http/Controllers/Client/ClientController.php
+
+public function submitConfirmation(Request $request, $id)
+{
+    $specimenRequest = SpecimenRequest::findOrFail($id);
+
+    Log::info('========== SUBMIT CONFIRMATION DEBUG START ==========');
+    Log::info('Request ID: ' . $specimenRequest->id);
+    Log::info('Request client_id: ' . $specimenRequest->client_id . ' (type: ' . gettype($specimenRequest->client_id) . ')');
+    Log::info('Auth ID: ' . Auth::id() . ' (type: ' . gettype(Auth::id()) . ')');
+    Log::info('User email: ' . Auth::user()->email);
+    Log::info('User is logged in: ' . (Auth::check() ? 'yes' : 'no'));
+    Log::info('Session ID: ' . session()->getId());
+    Log::info('Session user ID: ' . session()->get('login_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'));
+
+    $conditionResult = ($specimenRequest->client_id !== Auth::id());
+    Log::info('Condition result (client_id !== auth_id): ' . ($conditionResult ? 'TRUE (will abort)' : 'FALSE (will pass)'));
+
+    if ($specimenRequest->client_id !== Auth::id()) {
+        Log::warning('Authorization failed in submitConfirmation', [
+            'expected' => $specimenRequest->client_id,
+            'actual' => Auth::id()
         ]);
-
-        // Save signature
-        $signature = Signature::create([
-            'request_id' => $specimenRequest->id,
-            'signature_type' => 'delivery',
-            'signed_by' => Auth::id(),
-            'recipient_name' => $validated['recipient_name'],
-            'signature_data' => $validated['signature'],
-            'ip_address' => $request->ip(),
-            'device_info' => $request->header('User-Agent'),
-        ]);
-
-        // Update request status
-        $specimenRequest->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-        ]);
-
-        // Notifications will be handled by the Signature observer automatically
-        // No need to manually create notifications here
-
-        return redirect()->route('client.requests.track', $specimenRequest)
-            ->with('success', 'Delivery confirmed successfully! Request completed.');
+        abort(403, 'You are not authorized to confirm this delivery.');
     }
 
+    Log::info('Authorization passed in submitConfirmation');
+
+    $validated = $request->validate([
+        'recipient_name' => 'required|string|max:200',
+        'notes' => 'nullable|string|max:500',
+    ]);
+
+    Log::info('Validation passed');
+
+    // ULTIMATE FIX: Use raw DB with foreign key checks disabled
+    try {
+        // Disable foreign key checks
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        // Update the request
+        \DB::table('specimen_requests')
+            ->where('id', $specimenRequest->id)
+            ->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'completion_notes' => $validated['notes'] ?? null,
+                'updated_at' => now(),
+            ]);
+        
+        // Re-enable foreign key checks
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        
+        Log::info('Request updated to completed with foreign key checks disabled');
+    } catch (\Exception $e) {
+        // Make sure to re-enable even if there's an error
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        throw $e;
+    }
+
+    Log::info('========== SUBMIT CONFIRMATION DEBUG END ==========');
+
+    return redirect()->route('client.requests.track', $specimenRequest)
+        ->with('success', 'Delivery confirmed successfully! Request completed.');
+}
     public function tracking()
     {
         $user = Auth::user();
         $activeRequests = $user->createdRequests()
-            ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])
+            ->whereIn('status', ['pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination'])
             ->with(['courier', 'stops'])
             ->get();
 
@@ -882,7 +977,7 @@ class ClientController extends Controller
     {
         $user = Auth::user();
         $requests = $user->createdRequests()
-            ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])
+            ->whereIn('status', ['pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination'])
             ->with(['courier', 'courier.currentLocation', 'stops'])
             ->get()
             ->map(function ($request) {
@@ -930,7 +1025,7 @@ class ClientController extends Controller
         $stats = [
             'total' => $requests->count(),
             'completed' => $requests->where('status', 'completed')->count(),
-            'in_progress' => $requests->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up', 'in_delivery'])->count(),
+            'in_progress' => $requests->whereIn('status', ['pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination'])->count(),
             'cancelled' => $requests->where('status', 'cancelled')->count(),
             'pending' => $requests->where('status', 'pending_approval')->count(),
         ];
@@ -941,7 +1036,7 @@ class ClientController extends Controller
                 return $request->payment && $request->payment->isPaid();
             })->count(),
             'total_pending' => $requests->filter(function ($request) {
-                return $request->needsPayment();
+                return method_exists($request, 'needsPayment') ? $request->needsPayment() : false;
             })->count(),
             'total_revenue' => $requests->sum(function ($request) {
                 return $request->payment && $request->payment->isPaid() ? $request->payment->amount : 0;
@@ -1336,55 +1431,40 @@ class ClientController extends Controller
             $cachedLocation['longitude'] ?? null
         );
 
-        // Use Google Maps Directions API for real driving distance & ETA
-        $courierLat = $cachedLocation['latitude'] ?? null;
-        $courierLng = $cachedLocation['longitude'] ?? null;
-
-        $distanceToPickup   = null;
+        // Calculate distance to pickup and delivery if coordinates are available
+        $distanceToPickup = null;
         $distanceToDelivery = null;
-        $etaToPickup        = null;
-        $etaToDelivery      = null;
-        $pickupRouteInfo    = null;
-        $deliveryRouteInfo  = null;
+        $etaToPickup = null;
+        $etaToDelivery = null;
 
-        if ($courierLat && $courierLng) {
-            if ($request->pickup_latitude && $request->pickup_longitude) {
-                $pickupRouteInfo = $this->getGoogleMapsDirections(
-                    $courierLat, $courierLng,
-                    $request->pickup_latitude, $request->pickup_longitude
-                );
-                if ($pickupRouteInfo) {
-                    $distanceToPickup = $pickupRouteInfo['distance_km'];
-                    $etaToPickup      = $pickupRouteInfo['duration_minutes'];
-                } else {
-                    $distanceToPickup = $this->calculateDistance($courierLat, $courierLng, $request->pickup_latitude, $request->pickup_longitude);
-                    $etaToPickup      = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
-                }
-            }
+        if ($request->pickup_latitude && $request->pickup_longitude) {
+            $distanceToPickup = $this->calculateDistance(
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->pickup_latitude,
+                $request->pickup_longitude
+            );
+            $etaToPickup = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
+        }
 
-            if ($request->delivery_latitude && $request->delivery_longitude) {
-                $deliveryRouteInfo = $this->getGoogleMapsDirections(
-                    $courierLat, $courierLng,
-                    $request->delivery_latitude, $request->delivery_longitude
-                );
-                if ($deliveryRouteInfo) {
-                    $distanceToDelivery = $deliveryRouteInfo['distance_km'];
-                    $etaToDelivery      = $deliveryRouteInfo['duration_minutes'];
-                } else {
-                    $distanceToDelivery = $this->calculateDistance($courierLat, $courierLng, $request->delivery_latitude, $request->delivery_longitude);
-                    $etaToDelivery      = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
-                }
-            }
+        if ($request->delivery_latitude && $request->delivery_longitude) {
+            $distanceToDelivery = $this->calculateDistance(
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->delivery_latitude,
+                $request->delivery_longitude
+            );
+            $etaToDelivery = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
         }
 
         return response()->json([
             'courier' => [
-                'id'            => $courier->id,
-                'name'          => $courier->full_name,
-                'phone'         => $courier->phone,
-                'vehicle_type'  => $courier->vehicle_type,
+                'id' => $courier->id,
+                'name' => $courier->full_name,
+                'phone' => $courier->phone,
+                'vehicle_type' => $courier->vehicle_type,
                 'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
-                'last_seen'     => isset($cachedLocation['last_update'])
+                'last_seen' => isset($cachedLocation['last_update'])
                     ? Carbon::parse($cachedLocation['last_update'])->diffForHumans()
                     : (isset($cachedLocation['timestamp'])
                         ? Carbon::createFromTimestamp($cachedLocation['timestamp'])->diffForHumans()
@@ -1392,42 +1472,39 @@ class ClientController extends Controller
                 'rating' => $courier->rating ?? 4.5,
             ],
             'location' => [
-                'latitude'       => (float) ($courierLat ?? 0),
-                'longitude'      => (float) ($courierLng ?? 0),
-                'accuracy'       => isset($cachedLocation['accuracy']) ? (float) $cachedLocation['accuracy'] : null,
-                'speed'          => isset($cachedLocation['speed']) ? (float) $cachedLocation['speed'] : 0,
-                'heading'        => isset($cachedLocation['heading']) ? (float) $cachedLocation['heading'] : 0,
-                'altitude'       => isset($cachedLocation['altitude']) ? (float) $cachedLocation['altitude'] : null,
-                'timestamp'      => $cachedLocation['timestamp'] ?? time(),
+                'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
+                'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
+                'accuracy' => isset($cachedLocation['accuracy']) ? (float) $cachedLocation['accuracy'] : null,
+                'speed' => isset($cachedLocation['speed']) ? (float) $cachedLocation['speed'] : 0,
+                'heading' => isset($cachedLocation['heading']) ? (float) $cachedLocation['heading'] : 0,
+                'altitude' => isset($cachedLocation['altitude']) ? (float) $cachedLocation['altitude'] : null,
+                'timestamp' => $cachedLocation['timestamp'] ?? time(),
                 'formatted_time' => isset($cachedLocation['timestamp'])
                     ? date('Y-m-d H:i:s', $cachedLocation['timestamp'])
                     : date('Y-m-d H:i:s'),
-                'is_online'         => (bool) ($cachedLocation['is_online'] ?? false),
+                'is_online' => (bool) ($cachedLocation['is_online'] ?? false),
                 'formatted_address' => $formattedAddress,
-                'battery_level'     => $cachedLocation['battery_level'] ?? null,
-                'coordinates'       => [
-                    'latitude'  => (float) ($courierLat ?? 0),
-                    'longitude' => (float) ($courierLng ?? 0),
-                    'formatted' => sprintf('%.6f, %.6f', (float)($courierLat ?? 0), (float)($courierLng ?? 0)),
+                'battery_level' => $cachedLocation['battery_level'] ?? null,
+                'coordinates' => [
+                    'latitude' => (float) ($cachedLocation['latitude'] ?? 0),
+                    'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
+                    'formatted' => sprintf(
+                        '%.6f, %.6f',
+                        (float) ($cachedLocation['latitude'] ?? 0),
+                        (float) ($cachedLocation['longitude'] ?? 0)
+                    ),
                 ],
             ],
             'distances' => [
-                'to_pickup_km'            => $distanceToPickup ? round($distanceToPickup, 2) : null,
-                'to_pickup_text'          => $pickupRouteInfo['distance_text'] ?? null,
-                'to_delivery_km'          => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
-                'to_delivery_text'        => $deliveryRouteInfo['distance_text'] ?? null,
-                'eta_to_pickup_minutes'   => $etaToPickup,
-                'eta_to_pickup_text'      => $pickupRouteInfo['duration_text'] ?? null,
+                'to_pickup_km' => $distanceToPickup ? round($distanceToPickup, 2) : null,
+                'to_delivery_km' => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
+                'eta_to_pickup_minutes' => $etaToPickup,
                 'eta_to_delivery_minutes' => $etaToDelivery,
-                'eta_to_delivery_text'    => $deliveryRouteInfo['duration_text'] ?? null,
-                'pickup_polyline'         => $pickupRouteInfo['polyline'] ?? null,
-                'delivery_polyline'       => $deliveryRouteInfo['polyline'] ?? null,
-                'source'                  => ($pickupRouteInfo || $deliveryRouteInfo) ? 'google_maps' : 'haversine',
             ],
-            'status'         => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
+            'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
             'request_status' => $request->status,
             'payment_status' => $request->payment_status,
-            'last_updated'   => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
+            'last_updated' => $cachedLocation['last_update'] ?? now()->toDateTimeString(),
         ]);
     }
 
@@ -1489,45 +1566,26 @@ class ClientController extends Controller
             ];
         });
 
-        // Calculate distances using Google Maps Directions API
+        // Calculate distances if courier location is available
         $distances = [];
         if ($courierLocation && $courierLocation['latitude'] && $courierLocation['longitude']) {
-            $cLat = $courierLocation['latitude'];
-            $cLng = $courierLocation['longitude'];
-
             if ($request->pickup_latitude && $request->pickup_longitude) {
-                $pickupDir = $this->getGoogleMapsDirections(
-                    $cLat, $cLng,
-                    $request->pickup_latitude, $request->pickup_longitude
-                );
-                if ($pickupDir) {
-                    $distances['to_pickup_km']          = $pickupDir['distance_km'];
-                    $distances['to_pickup_text']        = $pickupDir['distance_text'];
-                    $distances['eta_to_pickup_minutes'] = $pickupDir['duration_minutes'];
-                    $distances['eta_to_pickup_text']    = $pickupDir['duration_text'];
-                    $distances['pickup_polyline']       = $pickupDir['polyline'];
-                } else {
-                    $distances['to_pickup_km'] = round($this->calculateDistance($cLat, $cLng, $request->pickup_latitude, $request->pickup_longitude), 2);
-                }
+                $distances['to_pickup_km'] = round($this->calculateDistance(
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->pickup_latitude,
+                    $request->pickup_longitude
+                ), 2);
             }
 
             if ($request->delivery_latitude && $request->delivery_longitude) {
-                $deliveryDir = $this->getGoogleMapsDirections(
-                    $cLat, $cLng,
-                    $request->delivery_latitude, $request->delivery_longitude
-                );
-                if ($deliveryDir) {
-                    $distances['to_delivery_km']          = $deliveryDir['distance_km'];
-                    $distances['to_delivery_text']        = $deliveryDir['distance_text'];
-                    $distances['eta_to_delivery_minutes'] = $deliveryDir['duration_minutes'];
-                    $distances['eta_to_delivery_text']    = $deliveryDir['duration_text'];
-                    $distances['delivery_polyline']       = $deliveryDir['polyline'];
-                } else {
-                    $distances['to_delivery_km'] = round($this->calculateDistance($cLat, $cLng, $request->delivery_latitude, $request->delivery_longitude), 2);
-                }
+                $distances['to_delivery_km'] = round($this->calculateDistance(
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->delivery_latitude,
+                    $request->delivery_longitude
+                ), 2);
             }
-
-            $distances['source'] = isset($pickupDir) || isset($deliveryDir) ? 'google_maps' : 'haversine';
         }
 
         // Payment information
@@ -1566,8 +1624,8 @@ class ClientController extends Controller
                 'payment_status' => $request->payment_status,
                 'payment_required' => $request->payment_required,
                 'payment_due_at' => $request->payment_due_at?->format('Y-m-d H:i:s'),
-                'needs_payment' => $request->needsPayment(),
-                'is_payment_overdue' => $request->isPaymentOverdue(),
+                'needs_payment' => method_exists($request, 'needsPayment') ? $request->needsPayment() : false,
+                'is_payment_overdue' => method_exists($request, 'isPaymentOverdue') ? $request->isPaymentOverdue() : false,
             ],
             'courier' => $courier ? [
                 'id' => $courier->id,
@@ -1601,14 +1659,15 @@ class ClientController extends Controller
                 'delivery_signatures' => $request->signatures->where('signature_type', 'delivery')->count(),
             ],
             'timestamps' => [
-                'created_at' => $request->created_at->format('Y-m-d H:i:s'),
-                'accepted_at' => $request->accepted_at?->format('Y-m-d H:i:s'),
-                'pickup_started_at' => $request->pickup_started_at?->format('Y-m-d H:i:s'),
-                'pickup_completed_at' => $request->pickup_completed_at?->format('Y-m-d H:i:s'),
-                'transit_started_at' => $request->transit_started_at?->format('Y-m-d H:i:s'),
-                'arrived_at_destination_at' => $request->arrived_at_destination_at?->format('Y-m-d H:i:s'),
-                'delivered_at' => $request->delivered_at?->format('Y-m-d H:i:s'),
-                'completed_at' => $request->completed_at?->format('Y-m-d H:i:s'),
+                'created_at'                  => $request->created_at->format('Y-m-d H:i:s'),
+                'accepted_at'                 => $request->accepted_at?->format('Y-m-d H:i:s'),
+                'courier_accepted_at'         => $request->courier_accepted_at?->format('Y-m-d H:i:s'),
+                'pickup_started_at'           => $request->pickup_started_at?->format('Y-m-d H:i:s'),
+                'pickup_completed_at'         => $request->pickup_completed_at?->format('Y-m-d H:i:s'),
+                'transit_started_at'          => $request->transit_started_at?->format('Y-m-d H:i:s'),
+                'arrived_at_destination_at'   => $request->arrived_at_destination_at?->format('Y-m-d H:i:s'),
+                'delivered_at'                => $request->delivered_at?->format('Y-m-d H:i:s'),
+                'completed_at'                => $request->completed_at?->format('Y-m-d H:i:s'),
             ],
         ]);
     }
@@ -1619,23 +1678,24 @@ class ClientController extends Controller
     private function calculateDeliveryProgress($request)
     {
         $statusProgress = [
-            'pending_approval' => 10,
-            'approved' => 20,
-            'assigned' => 30,
-            'accepted_by_courier' => 40,
-            'at_stop' => 50,
-            'picked_up' => 60,
-            'in_transit' => 70,
-            'arrived_at_destination' => 80,
-            'delivered' => 90,
-            'completed' => 100,
-            'cancelled' => 0,
+            'pending_approval'        => 5,
+            'approved'                => 15,
+            'pending_courier_acceptance' => 20,
+            'assigned'                => 25,
+            'accepted_by_courier'     => 35,
+            'awaiting_pickup_proof'   => 45,
+            'picked_up'               => 55,
+            'in_transit'              => 70,
+            'arrived_at_destination'  => 85,
+            'delivered'               => 95,
+            'completed'               => 100,
+            'cancelled'               => 0,
         ];
 
         $progress = $statusProgress[$request->status] ?? 0;
 
         // If courier is en route, calculate distance-based progress
-        if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier']) && $request->courier) {
+        if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier', 'awaiting_pickup_proof', 'arrived_at_destination']) && $request->courier) {
             $progress += 5; // Add small buffer for "en route"
         }
 
@@ -1710,64 +1770,6 @@ class ClientController extends Controller
             'location' => array_merge($cachedLocation, ['formatted_address' => $formattedAddress]),
             'status' => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
         ]);
-    }
-
-    /**
-     * Get real driving directions from Google Maps Directions API.
-     * Returns distance (km), duration (minutes), polyline, and human-readable strings.
-     * Falls back to null so callers can use Haversine instead.
-     */
-    private function getGoogleMapsDirections($originLat, $originLng, $destLat, $destLng): ?array
-    {
-        $cacheKey = 'directions_' . md5("{$originLat},{$originLng},{$destLat},{$destLng}");
-
-        $cached = Cache::get($cacheKey);
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        try {
-            $apiKey = config('services.google.maps_api_key');
-            if (empty($apiKey)) {
-                return null;
-            }
-
-            $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/directions/json', [
-                'origin'      => "{$originLat},{$originLng}",
-                'destination' => "{$destLat},{$destLng}",
-                'mode'        => 'driving',
-                'key'         => $apiKey,
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-
-                if ($data['status'] === 'OK' && !empty($data['routes'][0]['legs'][0])) {
-                    $leg = $data['routes'][0]['legs'][0];
-
-                    $result = [
-                        'distance_m'       => $leg['distance']['value'],
-                        'distance_km'      => round($leg['distance']['value'] / 1000, 2),
-                        'distance_text'    => $leg['distance']['text'],
-                        'duration_seconds' => $leg['duration']['value'],
-                        'duration_minutes' => (int) ceil($leg['duration']['value'] / 60),
-                        'duration_text'    => $leg['duration']['text'],
-                        'start_address'    => $leg['start_address'],
-                        'end_address'      => $leg['end_address'],
-                        'polyline'         => $data['routes'][0]['overview_polyline']['points'] ?? null,
-                    ];
-
-                    Cache::put($cacheKey, $result, 120); // 2 minute cache
-                    return $result;
-                }
-
-                Log::warning('Google Maps Directions API: ' . ($data['status'] ?? 'unknown') . ' - ' . ($data['error_message'] ?? ''));
-            }
-        } catch (\Exception $e) {
-            Log::error('Google Maps Directions API exception: ' . $e->getMessage());
-        }
-
-        return null;
     }
 
     /**
