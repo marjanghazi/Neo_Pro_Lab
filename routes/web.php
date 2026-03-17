@@ -224,9 +224,25 @@ Route::prefix('admin')
         Route::post('/payments/{payment}/refund', [AdminRequestController::class, 'refundPayment'])->name('payments.refund');
         Route::post('/payments/{payment}/mark-paid', [AdminRequestController::class, 'markPaymentAsPaid'])->name('payments.mark-paid');
 
-        // Tracking
-        Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])->name('requests.track');
-        Route::get('/api/courier/{courier}/location', [AdminRequestController::class, 'getCourierLocation'])->name('courier.location');
+        // ─────────────────────────────────────────────────────────────────
+        // TRACKING  ← all routes live here, in order
+        // ─────────────────────────────────────────────────────────────────
+
+        // 1. The tracking page view
+        Route::get('/tracking/{request}', [AdminRequestController::class, 'track'])
+            ->name('requests.track');
+
+        // 2. Real-time courier location JSON endpoint
+        Route::get('/api/tracking/{request}/courier-location', [AdminRequestController::class, 'getAdminCourierLocation'])
+            ->name('api.tracking.courier-location');
+
+        // 3. Full tracking details JSON endpoint (progress, timeline, distances)
+        Route::get('/api/tracking/{request}/details', [AdminRequestController::class, 'getAdminTrackingDetails'])
+            ->name('api.tracking.details');
+
+        // 4. Existing courier location lookup by courier User model
+        Route::get('/api/courier/{courier}/location', [AdminRequestController::class, 'getCourierLocation'])
+            ->name('courier.location');
     });
 
 /*
