@@ -699,52 +699,63 @@
 
                     <div class="flex items-center space-x-2 flex-shrink-0">
                         <!-- Notifications -->
-                        <div class="dropdown-container" 
-                             x-data="{
-                                open: false,
-                                notifications: [],
-                                unreadCount: 0,
-                                loading: false,
-                                fetchNotifications() {
-                                    this.loading = true;
-                                    fetch('/notifications/recent', {
-                                        headers: {
-                                            'Accept': 'application/json',
-                                            'X-Requested-With': 'XMLHttpRequest'
-                                        }
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        this.notifications = data.notifications || [];
-                                        this.unreadCount = data.unread_count || 0;
-                                    })
-                                    .catch(error => {
-                                        console.error('Error fetching notifications:', error);
-                                        this.notifications = [];
-                                        this.unreadCount = 0;
-                                    })
-                                    .finally(() => {
-                                        this.loading = false;
-                                    });
-                                },
-                                markAsRead(id) {
-                                    const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
-                                    if (!csrfToken) return;
+<div class="dropdown-container" 
+     x-data="{
+        open: false,
+        notifications: [],
+        unreadCount: 0,
+        loading: false,
+        fetchNotifications() {
+            this.loading = true;
+            fetch('/notifications/recent', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.notifications = data.notifications || [];
+                this.unreadCount = data.unread_count || 0;
+            })
+            .catch(error => {
+                console.error('Error fetching notifications:', error);
+                // Don't show error to user, just set empty state
+                this.notifications = [];
+                this.unreadCount = 0;
+            })
+            .finally(() => {
+                this.loading = false;
+            });
+        },
+        markAsReadAndNavigate(id, url) {
+            // Get CSRF token safely
+            const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
+            if (!csrfToken) {
+                window.location.href = url;
+                return;
+            }
 
-                                    fetch(`/notifications/${id}/read`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRF-TOKEN': csrfToken,
-                                            'Accept': 'application/json'
-                                        }
-                                    })
-                                    .then(() => this.fetchNotifications())
-                                    .catch(error => console.error('Error:', error));
-                                },
-                                markAllAsRead() {
-                                    const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
-                                    if (!csrfToken) return;
+            fetch(`/notifications/${id}/read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .finally(() => {
+                window.location.href = url;
+            });
+        },
+        markAllAsRead() {
+            // Get CSRF token safely
+            const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
+            if (!csrfToken) {
+                console.error('CSRF token not found');
+                return;
+            }
 
                                     fetch('/notifications/read-all', {
                                         method: 'POST',
@@ -766,55 +777,63 @@
                                 <span x-show="unreadCount > 0" x-text="unreadCount" class="notification-badge" x-cloak></span>
                             </button>
 
-                            <!-- Notifications dropdown -->
-                            <div x-show="open" class="notification-dropdown" x-cloak @click.stop>
-                                <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-                                    <h3 class="font-semibold text-xs text-gray-800">Notifications</h3>
-                                    <button x-show="unreadCount > 0" @click="markAllAsRead" class="text-[10px] text-teal-600 hover:text-teal-700 font-medium">
-                                        Mark all as read
-                                    </button>
-                                </div>
-                                
-                                <div class="max-h-80 overflow-y-auto">
-                                    <template x-if="loading">
-                                        <div class="flex items-center justify-center py-6">
-                                            <i class="fas fa-spinner fa-spin text-teal-500 text-sm"></i>
-                                        </div>
-                                    </template>
+    <!-- Notifications dropdown -->
+    <div x-show="open" class="notification-dropdown" x-cloak @click.stop>
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="font-semibold text-gray-800">Notifications</h3>
+            <button x-show="unreadCount > 0" @click="markAllAsRead" class="text-xs text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                Mark all as read
+            </button>
+        </div>
+        
+        <div class="max-h-96 overflow-y-auto">
+            <!-- Loading State -->
+            <template x-if="loading">
+                <div class="flex items-center justify-center py-8">
+                    <i class="fas fa-spinner fa-spin text-teal-500 text-xl"></i>
+                </div>
+            </template>
 
-                                    <template x-if="!loading && (!notifications || notifications.length === 0)">
-                                        <div class="text-center py-6">
-                                            <i class="far fa-bell-slash text-2xl text-gray-300 mb-2"></i>
-                                            <p class="text-xs text-gray-500">No notifications</p>
-                                        </div>
-                                    </template>
+            <!-- Empty State -->
+            <template x-if="!loading && (!notifications || notifications.length === 0)">
+                <div class="text-center py-8 px-4">
+                    <i class="far fa-bell-slash text-4xl text-gray-300 mb-3"></i>
+                    <p class="text-gray-500 text-sm">No notifications</p>
+                </div>
+            </template>
 
-                                    <template x-if="!loading && notifications && notifications.length > 0">
-                                        <div>
-                                            <template x-for="notification in notifications" :key="notification.id">
-                                                <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
-                                                    <div class="flex items-start gap-2">
-                                                        <i :class="notification.icon || 'fas fa-bell'" class="text-teal-500 text-xs mt-1"></i>
-                                                        <div class="flex-1 min-w-0">
-                                                            <p class="text-xs font-medium text-gray-800" x-text="notification.title || 'Notification'"></p>
-                                                            <p class="text-[10px] text-gray-600 mt-0.5 line-clamp-2" x-text="notification.message || ''"></p>
-                                                            <p class="text-[9px] text-gray-400 mt-1" x-text="notification.created_at_human || ''"></p>
-                                                        </div>
-                                                        <span x-show="!notification.read_at" class="w-1.5 h-1.5 bg-teal-500 rounded-full flex-shrink-0 mt-1.5"></span>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <div class="border-t border-gray-200 p-2 text-center bg-gray-50">
-                                    <a href="{{ route('notifications.index') }}" class="text-[10px] text-teal-600 hover:text-teal-700 font-medium">
-                                        View all notifications
-                                    </a>
+            <!-- Notifications List -->
+            <template x-if="!loading && notifications && notifications.length > 0">
+                <div>
+                    <template x-for="notification in notifications" :key="notification.id">
+                        <a :href="notification.url || '#'" 
+                           @click.prevent="markAsReadAndNavigate(notification.id, notification.url || '#')"
+                           class="notification-item block" 
+                           :class="{ 'unread': !notification.read_at }">
+                            <div class="flex items-start gap-3">
+                                <i :class="notification.icon || 'fas fa-bell'" 
+                                   :class="'text-' + (notification.color || 'teal') + '-500'" 
+                                   class="mt-1 text-lg"></i>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800" x-text="notification.title || 'Notification'"></p>
+                                    <p class="text-xs text-gray-600 mt-0.5 line-clamp-2" x-text="notification.message || ''"></p>
+                                    <p class="text-xs text-gray-400 mt-1" x-text="notification.created_at_human || ''"></p>
                                 </div>
                             </div>
-                        </div>
+                        </a>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <!-- Footer Link -->
+        <div class="border-t border-gray-200 p-3 text-center bg-gray-50">
+            <a href="{{ route('notifications.index') }}" class="text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
+                View all notifications
+            </a>
+        </div>
+    </div>
+</div>
 
                         <!-- User Menu -->
                         <div class="dropdown-container" x-data="{ open: false }" @click.away="open = false">

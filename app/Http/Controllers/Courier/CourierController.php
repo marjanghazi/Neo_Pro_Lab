@@ -1114,6 +1114,8 @@ class CourierController extends Controller
 
         $user->update($validated);
 
+        // Notification is handled automatically by UserObserver on the update above.
+
         return redirect()->back()->with('success', 'Profile updated successfully!');
     }
 

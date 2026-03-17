@@ -668,7 +668,7 @@ class ClientController extends Controller
         }
 
         // Use notification service instead of manual creation
-        notify()->newRequestCreated($specimenRequest);
+        //notify()->newRequestCreated($specimenRequest);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
@@ -810,8 +810,7 @@ class ClientController extends Controller
             'cancellation_reason' => $validated['cancellation_reason'],
         ]);
 
-        // Use notification service instead of manual creation
-        notify()->requestCancelled($specimenRequest, Auth::id(), $validated['cancellation_reason']);
+        // Notification is handled automatically by SpecimenRequestObserver on the update above.
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Request cancelled successfully. ' .
@@ -1248,8 +1247,7 @@ public function submitConfirmation(Request $request, $id)
 
         $user->update($updateData);
 
-        // Notify about profile update
-        notify()->userAccountUpdated($user, $user->id);
+        // Notification is handled automatically by UserObserver on the update above.
 
         return back()->with('success', 'Profile updated successfully.');
     }

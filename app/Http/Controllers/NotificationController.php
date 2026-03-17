@@ -77,7 +77,8 @@ class NotificationController extends Controller
             ->count();
 
         // Format notifications for response
-        $formattedNotifications = $notifications->map(function ($notification) {
+        $user = Auth::user();
+        $formattedNotifications = $notifications->map(function ($notification) use ($user) {
             // Decode data if it's a string
             $data = $notification->data;
             if (is_string($data)) {
@@ -87,6 +88,20 @@ class NotificationController extends Controller
             // Get icon and color from notification service if available
             $icon = $this->getNotificationIcon($notification->type);
             $color = $this->getNotificationColor($notification->type);
+
+            // Build redirect URL based on user role and whether there's a related request
+            $url = null;
+            if ($notification->request) {
+                if ($user->isAdmin()) {
+                    $url = route('admin.requests.show', $notification->request->id);
+                } elseif ($user->isCourier()) {
+                    $url = route('courier.requests.show', $notification->request->id);
+                } else {
+                    $url = route('client.requests.show', $notification->request->id);
+                }
+            } else {
+                $url = route('notifications.show', $notification->id);
+            }
 
             return [
                 'id' => $notification->id,
@@ -104,6 +119,7 @@ class NotificationController extends Controller
                 ] : null,
                 'icon' => $icon,
                 'color' => $color,
+                'url' => $url,
             ];
         });
 
