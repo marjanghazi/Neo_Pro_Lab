@@ -143,6 +143,7 @@ body.cr-lock{overflow:hidden}
 @if(!in_array($status,['completed','cancelled']))
 <div class="cr-card">
 @switch($status)
+@case('quote_sent')
 @case('pending_courier_acceptance')
 <div class="p-5 bg-teal-50 border-b border-teal-200">
     <div class="flex items-start justify-between gap-4">

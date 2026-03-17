@@ -101,50 +101,31 @@
         </div>
     </div>
 
-    {{-- ─── Price Breakdown ─────────────────────────────────────────────────── --}}
+    {{-- ─── Your Earnings Card ──────────────────────────────────────────────── --}}
     <div class="card p-6">
-        <h3 class="font-bold mb-4 pb-2 border-b">Price Breakdown</h3>
+        <h3 class="font-bold mb-4 pb-2 border-b">Your Earnings</h3>
 
-        @php
-        $labels = [
-            'base_price'             => 'Base Price',
-            'distance_charge'        => 'Distance Charge (beyond 15 mi)',
-            'stat_urgent_charge'     => 'STAT / Urgent Delivery',
-            'night_hours_charge'     => 'Night / After-Hours Service',
-            'weekend_charge'         => 'Weekend Delivery',
-            'cold_chain_charge'      => 'Cold-Chain Handling',
-            'additional_stop_charge' => 'Additional Stops',
-            'admin_fee'              => 'Platform / Admin Fee',
-            'profit_margin'          => 'Service Margin',
-        ];
-        $breakdown = is_array($quote->breakdown) ? $quote->breakdown : (json_decode($quote->breakdown, true) ?? []);
-        @endphp
-
-        <div class="space-y-2">
-            @foreach($labels as $key => $label)
-                @php $amount = $breakdown[$key] ?? 0; @endphp
-                @if($amount > 0)
-                <div class="flex justify-between items-center text-sm py-1 {{ $key === 'admin_fee' || $key === 'profit_margin' ? 'text-gray-400' : '' }}">
-                    <span class="text-gray-600">{{ $label }}</span>
-                    <span class="font-medium">${{ number_format($amount, 2) }}</span>
-                </div>
-                @endif
-            @endforeach
-
-            <div class="border-t pt-3 mt-2">
-                <div class="flex justify-between items-center font-bold text-base">
-                    <span>Total Service Price</span>
-                    <span>${{ number_format($quote->total_price, 2) }}</span>
-                </div>
+        <div class="space-y-3">
+            {{-- Distance info —visible, non-sensitive --}}
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-600">Trip Distance</span>
+                <span class="font-medium">{{ number_format($request->distance_miles ?? 0, 1) }} miles</span>
             </div>
 
-            {{-- Your Fee — highlighted --}}
-            <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 mt-3 text-center">
-                <p class="text-sm text-teal-700 mb-1">Your Earnings for This Assignment</p>
-                <p class="text-4xl font-bold text-teal-700">${{ number_format($quote->courier_fee, 2) }}</p>
-                <p class="text-xs text-teal-600 mt-1">
-                    {{ $quote->total_price > 0 ? round(($quote->courier_fee / $quote->total_price) * 100) : 70 }}% of total price
-                </p>
+            @if(($request->priority_level ?? '') === 'stat')
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-600">Priority</span>
+                <span class="font-medium text-red-600"><i class="fas fa-bolt mr-1"></i>STAT — Urgent</span>
+            </div>
+            @endif
+
+            {{-- Divider --}}
+            <div class="border-t pt-3 mt-2">
+                <div class="text-center">
+                    <p class="text-sm text-gray-500 mb-2">Your earnings for completing this assignment</p>
+                    <p class="text-5xl font-bold text-teal-700">${{ number_format($quote->courier_fee, 2) }}</p>
+                    <p class="text-sm text-gray-400 mt-2">Paid upon successful delivery</p>
+                </div>
             </div>
         </div>
     </div>

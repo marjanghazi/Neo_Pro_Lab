@@ -86,10 +86,10 @@ class AdminRequestController extends Controller
             "You have been assigned to request #{$request->request_number}",
             $request->id,
             [
-                'request_id'    => $request->id,
-                'request_number'=> $request->request_number,
-                'assigned_by'   => auth()->user()->first_name . ' ' . auth()->user()->last_name,
-                'assigned_at'   => now()->toDateTimeString(),
+                'request_id'     => $request->id,
+                'request_number' => $request->request_number,
+                'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'assigned_at'    => now()->toDateTimeString(),
             ]
         );
 
@@ -99,10 +99,10 @@ class AdminRequestController extends Controller
             "Request #{$request->request_number} has been assigned to a courier",
             $request->id,
             [
-                'request_id'    => $request->id,
-                'request_number'=> $request->request_number,
-                'courier_id'    => $validated['courier_id'],
-                'assigned_by'   => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'request_id'     => $request->id,
+                'request_number' => $request->request_number,
+                'courier_id'     => $validated['courier_id'],
+                'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
             ]
         );
 
@@ -150,11 +150,11 @@ class AdminRequestController extends Controller
                 "Your request #{$request->request_number} has been {$validated['status']}.",
                 $request->id,
                 [
-                    'request_id'    => $request->id,
-                    'request_number'=> $request->request_number,
-                    'status'        => $validated['status'],
-                    'updated_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
-                    'updated_at'    => now()->toDateTimeString(),
+                    'request_id'     => $request->id,
+                    'request_number' => $request->request_number,
+                    'status'         => $validated['status'],
+                    'updated_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'updated_at'     => now()->toDateTimeString(),
                 ]
             );
         }
@@ -165,10 +165,10 @@ class AdminRequestController extends Controller
             "Request #{$request->request_number} has been {$validated['status']}",
             $request->id,
             [
-                'request_id'    => $request->id,
-                'request_number'=> $request->request_number,
-                'status'        => $validated['status'],
-                'updated_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                'request_id'     => $request->id,
+                'request_number' => $request->request_number,
+                'status'         => $validated['status'],
+                'updated_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
             ]
         );
 
@@ -224,10 +224,10 @@ class AdminRequestController extends Controller
     public function createQuote(Request $httpRequest, SpecimenRequest $request)
     {
         $validated = $httpRequest->validate([
-            'courier_id'   => 'required|exists:users,id',
-            'courier_fee'  => 'required|numeric|min:0',
-            'total_price'  => 'required|numeric|min:0',
-            'valid_hours'  => 'nullable|integer|min:1|max:72',
+            'courier_id'  => 'required|exists:users,id',
+            'courier_fee' => 'required|numeric|min:0',
+            'total_price' => 'required|numeric|min:0',
+            'valid_hours' => 'nullable|integer|min:1|max:72',
         ]);
 
         try {
@@ -254,10 +254,14 @@ class AdminRequestController extends Controller
                 'status'      => 'pending',
             ]);
 
+            // ── IMPORTANT: Do NOT set assigned_to here.
+            // The courier is not yet assigned — they must accept the quote first.
+            // assigned_to is set by CourierController::acceptQuote() on acceptance.
             $request->update([
-                'courier_quote_id'   => $quote->id,
-                'courier_can_accept' => true,
-                'acceptance_deadline'=> $quote->valid_until,
+                'courier_quote_id'    => $quote->id,
+                'courier_can_accept'  => true,
+                'acceptance_deadline' => $quote->valid_until,
+                'status'              => 'quote_sent',
             ]);
 
             $this->notifyCourier(
@@ -267,35 +271,35 @@ class AdminRequestController extends Controller
                 "You have a new price quote for request #{$request->request_number}",
                 $request->id,
                 [
-                    'request_id'    => $request->id,
-                    'request_number'=> $request->request_number,
-                    'quote_id'      => $quote->id,
-                    'courier_fee'   => $quote->courier_fee,
-                    'total_price'   => $quote->total_price,
-                    'valid_until'   => $quote->valid_until->toDateTimeString(),
-                    'created_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'request_id'     => $request->id,
+                    'request_number' => $request->request_number,
+                    'quote_id'       => $quote->id,
+                    'courier_fee'    => $quote->courier_fee,
+                    'valid_until'    => $quote->valid_until->toDateTimeString(),
+                    'created_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'quote_url'      => route('courier.requests.quote', $request->id),
                 ]
             );
 
             $this->notifyAdmins(
                 'quote_created',
-                'New Quote Created',
+                'New Quote Sent',
                 "Quote sent to courier for request #{$request->request_number}",
                 $request->id,
                 [
-                    'request_id'    => $request->id,
-                    'request_number'=> $request->request_number,
-                    'quote_id'      => $quote->id,
-                    'courier_id'    => $validated['courier_id'],
-                    'total_price'   => $quote->total_price,
-                    'created_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'request_id'     => $request->id,
+                    'request_number' => $request->request_number,
+                    'quote_id'       => $quote->id,
+                    'courier_id'     => $validated['courier_id'],
+                    'total_price'    => $quote->total_price,
+                    'created_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
                 ]
             );
 
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Price quote sent to courier successfully.',
+                    'message' => 'Price quote sent to courier. Awaiting response.',
                     'data'    => [
                         'quote_id'    => $quote->id,
                         'courier_fee' => $quote->courier_fee,
@@ -306,7 +310,7 @@ class AdminRequestController extends Controller
             }
 
             return redirect()->route('admin.requests.show', $request)
-                ->with('success', 'Price quote sent to courier successfully. Awaiting response.');
+                ->with('success', 'Price quote sent to courier. Awaiting response.');
 
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -316,7 +320,7 @@ class AdminRequestController extends Controller
         }
     }
 
-    // ─── Assign With Quote (assignment + quote in one step) ───────────────────
+    // ─── Assign With Quote ────────────────────────────────────────────────────
 
     public function assignWithQuote(Request $httpRequest, SpecimenRequest $request)
     {
@@ -348,14 +352,14 @@ class AdminRequestController extends Controller
                 'status'      => 'pending',
             ]);
 
+            // ── IMPORTANT: Do NOT set assigned_to here.
+            // The courier is not yet assigned — they must accept the quote first.
+            // assigned_to is set by CourierController::acceptQuote() on acceptance.
             $request->update([
-                'assigned_to'         => $validated['courier_id'],
-                'assigned_by'         => auth()->id(),
-                'assigned_at'         => now(),
                 'courier_quote_id'    => $quote->id,
                 'courier_can_accept'  => true,
                 'acceptance_deadline' => $quote->valid_until,
-                'status'              => 'pending_courier_acceptance',
+                'status'              => 'quote_sent',
             ]);
 
             $courier = User::find($validated['courier_id']);
@@ -363,68 +367,51 @@ class AdminRequestController extends Controller
             $this->notifyCourier(
                 $validated['courier_id'],
                 'request_assigned_with_quote',
-                'New Assignment with Price Quote',
-                "You have been assigned to request #{$request->request_number}. Please review and accept or decline the quote.",
+                'New Price Quote',
+                "You have a new price quote for request #{$request->request_number}. Please review and accept or decline.",
                 $request->id,
                 [
-                    'request_id'    => $request->id,
-                    'request_number'=> $request->request_number,
-                    'quote_id'      => $quote->id,
-                    'courier_fee'   => number_format($quote->courier_fee, 2),
-                    'total_price'   => number_format($quote->total_price, 2),
-                    'deadline'      => $quote->valid_until->format('M d, Y h:i A'),
-                    'assigned_by'   => auth()->user()->first_name . ' ' . auth()->user()->last_name,
-                    'quote_url'     => route('courier.requests.quote', $request->id),
+                    'request_id'     => $request->id,
+                    'request_number' => $request->request_number,
+                    'quote_id'       => $quote->id,
+                    'courier_fee'    => number_format($quote->courier_fee, 2),
+                    'deadline'       => $quote->valid_until->format('M d, Y h:i A'),
+                    'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'quote_url'      => route('courier.requests.quote', $request->id),
                 ]
             );
 
-            if ($request->client_id) {
-                $this->notifyClient(
-                    $request->client_id,
-                    'request_assigned',
-                    'Request Assigned to Courier',
-                    "Your request #{$request->request_number} has been assigned and is awaiting courier acceptance.",
-                    $request->id,
-                    [
-                        'request_id'    => $request->id,
-                        'request_number'=> $request->request_number,
-                        'status'        => 'pending_courier_acceptance',
-                        'assigned_at'   => now()->toDateTimeString(),
-                    ]
-                );
-            }
-
             $this->notifyAdmins(
                 'request_assigned_with_quote',
-                'Request Assigned with Quote',
-                "Request #{$request->request_number} assigned to {$courier->first_name} {$courier->last_name} — awaiting acceptance.",
+                'Quote Sent to Courier',
+                "Quote sent to {$courier->first_name} {$courier->last_name} for request #{$request->request_number} — awaiting acceptance.",
                 $request->id,
                 [
-                    'request_id'    => $request->id,
-                    'request_number'=> $request->request_number,
-                    'courier_id'    => $validated['courier_id'],
-                    'quote_id'      => $quote->id,
-                    'total_price'   => $quote->total_price,
-                    'assigned_by'   => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'request_id'     => $request->id,
+                    'request_number' => $request->request_number,
+                    'courier_id'     => $validated['courier_id'],
+                    'quote_id'       => $quote->id,
+                    'total_price'    => $quote->total_price,
+                    'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
                 ]
             );
 
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Courier assigned with price quote. Waiting for acceptance.',
+                    'message' => 'Price quote sent to courier. Waiting for acceptance.',
                     'data'    => [
                         'quote_id'    => $quote->id,
                         'courier_fee' => $quote->courier_fee,
                         'total_price' => $quote->total_price,
                         'valid_until' => $quote->valid_until->format('Y-m-d H:i:s'),
-                        'status'      => 'pending_courier_acceptance',
+                        'status'      => 'quote_sent',
                     ],
                 ]);
             }
 
             return redirect()->route('admin.requests.show', $request)
-                ->with('success', 'Courier assigned with price quote. Waiting for courier acceptance.');
+                ->with('success', 'Price quote sent to courier. Waiting for acceptance.');
 
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -434,14 +421,10 @@ class AdminRequestController extends Controller
         }
     }
 
-    // ─── Resend / Cancel Quote ────────────────────────────────────────────────
+    // ─── Cancel Quote ─────────────────────────────────────────────────────────
 
-    /**
-     * Cancel a pending quote and reset the request back to 'approved'.
-     */
     public function cancelQuote(Request $httpRequest, SpecimenRequest $request)
     {
-        // Expire the active quote
         CourierQuote::where('request_id', $request->id)
             ->where('status', 'pending')
             ->update(['status' => 'expired']);
@@ -469,19 +452,19 @@ class AdminRequestController extends Controller
     public function getPriceData(Request $httpRequest, SpecimenRequest $request)
     {
         $data = [
-            'base_price'            => $request->base_price ?? 0,
-            'distance_miles'        => $request->distance_miles ?? 0,
-            'distance_charge'       => $request->distance_charge ?? 0,
-            'stat_urgent_charge'    => $request->stat_urgent_charge ?? 0,
-            'night_hours_charge'    => $request->night_hours_charge ?? 0,
-            'weekend_charge'        => $request->weekend_charge ?? 0,
-            'cold_chain_charge'     => $request->cold_chain_charge ?? 0,
-            'additional_stop_charge'=> $request->additional_stop_charge ?? 0,
-            'total_price'           => $request->total_price ?? 0,
-            'courier_fee'           => $request->courier_fee ?? 0,
-            'admin_fee'             => $request->admin_fee ?? 0,
-            'profit_margin'         => $request->profit_margin ?? 0,
-            'is_price_quoted'       => $request->is_price_quoted ?? false,
+            'base_price'             => $request->base_price ?? 0,
+            'distance_miles'         => $request->distance_miles ?? 0,
+            'distance_charge'        => $request->distance_charge ?? 0,
+            'stat_urgent_charge'     => $request->stat_urgent_charge ?? 0,
+            'night_hours_charge'     => $request->night_hours_charge ?? 0,
+            'weekend_charge'         => $request->weekend_charge ?? 0,
+            'cold_chain_charge'      => $request->cold_chain_charge ?? 0,
+            'additional_stop_charge' => $request->additional_stop_charge ?? 0,
+            'total_price'            => $request->total_price ?? 0,
+            'courier_fee'            => $request->courier_fee ?? 0,
+            'admin_fee'              => $request->admin_fee ?? 0,
+            'profit_margin'          => $request->profit_margin ?? 0,
+            'is_price_quoted'        => $request->is_price_quoted ?? false,
         ];
 
         if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
@@ -491,14 +474,12 @@ class AdminRequestController extends Controller
         return $data;
     }
 
-    // ─── Courier Location API (admin tracking panel) ──────────────────────────
+    // ─── Courier Location API ─────────────────────────────────────────────────
 
     public function getCourierLocation(Request $httpRequest, User $courier)
     {
-        // Try cache first (real-time)
         $location = cache()->get('courier_location_' . $courier->id);
 
-        // Fall back to DB
         if (! $location) {
             $dbLoc = \App\Models\CourierLocation::where('courier_id', $courier->id)->first();
             if ($dbLoc) {
@@ -515,7 +496,7 @@ class AdminRequestController extends Controller
         }
 
         return response()->json([
-            'courier' => [
+            'courier'  => [
                 'id'    => $courier->id,
                 'name'  => $courier->first_name . ' ' . $courier->last_name,
                 'phone' => $courier->phone,
@@ -580,18 +561,12 @@ class AdminRequestController extends Controller
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
-    /**
-     * Build pricing fields array from a SpecimenRequest.
-     * Returns ['fields' => [...]] ready to pass to $request->update().
-     */
     private function buildPricing(SpecimenRequest $request): array
     {
-        $distanceMiles = $this->calculateDistanceMiles($request);
-        $basePrice     = 50.00;
-
+        $distanceMiles        = $this->calculateDistanceMiles($request);
+        $basePrice            = 50.00;
         $distanceCharge       = $distanceMiles > 15 ? ($distanceMiles - 15) * 2.00 : 0.00;
         $statUrgentCharge     = $request->priority_level === 'stat' ? 20.00 : 0.00;
-
         $pickupTime           = $request->scheduled_pickup_time;
         $nightHoursCharge     = ($pickupTime && $pickupTime->hour >= 18) ? 25.00 : 0.00;
         $weekendCharge        = ($pickupTime && in_array($pickupTime->dayOfWeek, [0, 6])) ? $basePrice * 0.35 : 0.00;
@@ -650,20 +625,16 @@ class AdminRequestController extends Controller
             $request->delivery_latitude && $request->delivery_longitude
         ) {
             $earthRadius = 3959;
-            $latFrom = deg2rad($request->pickup_latitude);
-            $lonFrom = deg2rad($request->pickup_longitude);
-            $latTo   = deg2rad($request->delivery_latitude);
-            $lonTo   = deg2rad($request->delivery_longitude);
-
-            $latDelta = $latTo - $latFrom;
-            $lonDelta = $lonTo - $lonFrom;
-
-            $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-                cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
-
+            $latFrom     = deg2rad($request->pickup_latitude);
+            $lonFrom     = deg2rad($request->pickup_longitude);
+            $latTo       = deg2rad($request->delivery_latitude);
+            $lonTo       = deg2rad($request->delivery_longitude);
+            $latDelta    = $latTo - $latFrom;
+            $lonDelta    = $lonTo - $lonFrom;
+            $angle       = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+                           cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
             return $angle * $earthRadius;
         }
-
         return 10.00;
     }
 }
