@@ -668,7 +668,7 @@ class ClientController extends Controller
         }
 
         // Use notification service instead of manual creation
-        notify()->newRequestCreated($specimenRequest);
+        //notify()->newRequestCreated($specimenRequest);
 
         return redirect()->route('client.requests.index')
             ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
