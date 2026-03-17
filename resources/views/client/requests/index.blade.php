@@ -134,7 +134,7 @@
                                title="Track Order">
                                 <i class="fas fa-map-marker-alt"></i>
                             </a>
-                            <a href="#" class="text-green-600 hover:text-green-800 p-1" title="View Details">
+                            <a href="{{ route('client.requests.show', $request) }}" class="text-green-600 hover:text-green-800 p-1" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @if(in_array($request->status, ['pending_approval', 'approved']))
