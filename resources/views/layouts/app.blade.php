@@ -795,11 +795,11 @@
                 this.loading = false;
             });
         },
-        markAsRead(id) {
+        markAsReadAndNavigate(id, url) {
             // Get CSRF token safely
             const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]')?.getAttribute('content');
             if (!csrfToken) {
-                console.error('CSRF token not found');
+                window.location.href = url;
                 return;
             }
 
@@ -812,11 +812,9 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
-            .then(() => {
-                this.fetchNotifications();
-            })
-            .catch(error => console.error('Error marking notification as read:', error));
+            .finally(() => {
+                window.location.href = url;
+            });
         },
         markAllAsRead() {
             // Get CSRF token safely
@@ -879,7 +877,10 @@
             <template x-if="!loading && notifications && notifications.length > 0">
                 <div>
                     <template x-for="notification in notifications" :key="notification.id">
-                        <div @click="markAsRead(notification.id)" class="notification-item" :class="{ 'unread': !notification.read_at }">
+                        <a :href="notification.url || '#'" 
+                           @click.prevent="markAsReadAndNavigate(notification.id, notification.url || '#')"
+                           class="notification-item block" 
+                           :class="{ 'unread': !notification.read_at }">
                             <div class="flex items-start gap-3">
                                 <i :class="notification.icon || 'fas fa-bell'" 
                                    :class="'text-' + (notification.color || 'teal') + '-500'" 
@@ -891,7 +892,7 @@
                                 </div>
                                 <span x-show="!notification.read_at" class="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0 mt-2"></span>
                             </div>
-                        </div>
+                        </a>
                     </template>
                 </div>
             </template>

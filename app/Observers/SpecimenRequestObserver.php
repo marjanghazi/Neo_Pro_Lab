@@ -22,12 +22,10 @@ class SpecimenRequestObserver extends BaseNotificationObserver
         try {
             // Check if status changed
             if ($request->isDirty('status')) {
-                $oldStatus = $request->getOriginal('status');
                 $newStatus = $request->status;
 
-                $this->notificationService->requestStatusChanged($request, $oldStatus, $newStatus);
-
-                // Specific status notifications
+                // Send ONE specific notification per status — no generic requestStatusChanged
+                // to avoid duplicate notifications alongside the specific ones below.
                 if ($newStatus === 'approved') {
                     $this->notificationService->requestApproved($request);
                 } elseif ($newStatus === 'rejected') {
@@ -48,6 +46,9 @@ class SpecimenRequestObserver extends BaseNotificationObserver
                     $cancelledBy = $request->cancelled_by ?? auth()->id() ?? 1;
                     $this->notificationService->requestCancelled($request, $cancelledBy, $reason);
                 }
+                // Statuses used as intermediate proof-waiting states
+                // (awaiting_pickup_proof, awaiting_transit_proof, awaiting_arrival_proof)
+                // do not send notifications — they are internal workflow states only.
             }
 
             // Check if assigned_to changed (courier assigned)

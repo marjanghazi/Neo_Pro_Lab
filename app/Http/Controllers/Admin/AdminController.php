@@ -85,8 +85,7 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        // Notify about profile update
-        notify()->userAccountUpdated($user, $user->id);
+        // Notification is handled automatically by UserObserver on the update above.
 
         return back()->with('success', 'Profile updated successfully.');
     }
