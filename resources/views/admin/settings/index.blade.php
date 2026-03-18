@@ -16,40 +16,40 @@
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
     <!-- Left Column - Settings Navigation -->
     <div class="lg:col-span-1">
-        <div class="card p-0 overflow-hidden">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-teal-600 to-teal-800 p-4">
                 <h3 class="text-lg font-bold text-white">Settings</h3>
                 <p class="text-teal-100 text-sm">Configure system preferences</p>
             </div>
             <nav class="space-y-1 p-4">
                 <a href="{{ route('admin.settings.general') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.settings.general') ? 'active' : '' }}">
+                   class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.settings.general') ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-100' }}">
                     <i class="fas fa-cog w-5"></i>
                     <span>General Settings</span>
                 </a>
                 <a href="{{ route('admin.settings.notifications') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.settings.notifications') ? 'active' : '' }}">
+                   class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.settings.notifications') ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-100' }}">
                     <i class="fas fa-bell w-5"></i>
                     <span>Notifications</span>
                 </a>
                 <a href="{{ route('admin.settings.courier') }}" 
-                   class="sidebar-item {{ request()->routeIs('admin.settings.courier') ? 'active' : '' }}">
+                   class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('admin.settings.courier') ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-100' }}">
                     <i class="fas fa-shipping-fast w-5"></i>
                     <span>Courier Settings</span>
                 </a>
-                <a href="#" class="sidebar-item">
+                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
                     <i class="fas fa-file-invoice w-5"></i>
                     <span>Billing & Payments</span>
                 </a>
-                <a href="#" class="sidebar-item">
+                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
                     <i class="fas fa-shield-alt w-5"></i>
                     <span>Security</span>
                 </a>
-                <a href="#" class="sidebar-item">
+                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
                     <i class="fas fa-database w-5"></i>
                     <span>Database</span>
                 </a>
-                <a href="#" class="sidebar-item">
+                <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
                     <i class="fas fa-plug w-5"></i>
                     <span>Integrations</span>
                 </a>
@@ -57,7 +57,7 @@
         </div>
 
         <!-- System Status -->
-        <div class="card p-6 mt-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
             <h3 class="text-lg font-bold mb-4">System Status</h3>
             <div class="space-y-3">
                 <div class="flex justify-between items-center">
@@ -75,7 +75,7 @@
                     <span class="text-sm">24 hours ago</span>
                 </div>
                 <div class="pt-4 border-t border-gray-200">
-                    <button class="w-full btn-secondary">
+                    <button class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
                         <i class="fas fa-download mr-2"></i> Backup Now
                     </button>
                 </div>
@@ -85,7 +85,7 @@
 
     <!-- Right Column - Settings Content -->
     <div class="lg:col-span-3">
-        <div class="card p-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-gray-800">General Settings</h2>
                 <p class="text-gray-600">Configure basic system settings and preferences</p>
@@ -153,13 +153,13 @@
                 <div class="md:col-span-2 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
                     <h3 class="font-bold text-yellow-800 mb-4">Maintenance Actions</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button class="btn-secondary border-yellow-300 text-yellow-700 hover:bg-yellow-100">
+                        <button class="px-4 py-2 bg-white border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium">
                             <i class="fas fa-redo mr-2"></i> Clear Cache
                         </button>
-                        <button class="btn-secondary border-yellow-300 text-yellow-700 hover:bg-yellow-100">
+                        <button class="px-4 py-2 bg-white border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium">
                             <i class="fas fa-database mr-2"></i> Optimize DB
                         </button>
-                        <button class="btn-secondary border-red-300 text-red-700 hover:bg-red-50">
+                        <button class="px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium">
                             <i class="fas fa-trash-alt mr-2"></i> Clear Logs
                         </button>
                     </div>
@@ -174,9 +174,9 @@
                                 <p class="font-medium">Maintenance Mode</p>
                                 <p class="text-sm text-gray-500">Take system offline</p>
                             </div>
-                            <label class="switch">
+                            <label class="settings-switch">
                                 <input type="checkbox">
-                                <span class="slider"></span>
+                                <span class="settings-slider"></span>
                             </label>
                         </div>
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -184,9 +184,9 @@
                                 <p class="font-medium">Auto Updates</p>
                                 <p class="text-sm text-gray-500">Automatic system updates</p>
                             </div>
-                            <label class="switch">
+                            <label class="settings-switch">
                                 <input type="checkbox" checked>
-                                <span class="slider"></span>
+                                <span class="settings-slider"></span>
                             </label>
                         </div>
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -194,9 +194,9 @@
                                 <p class="font-medium">Debug Mode</p>
                                 <p class="text-sm text-gray-500">Show debug information</p>
                             </div>
-                            <label class="switch">
+                            <label class="settings-switch">
                                 <input type="checkbox">
-                                <span class="slider"></span>
+                                <span class="settings-slider"></span>
                             </label>
                         </div>
                         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -204,9 +204,9 @@
                                 <p class="font-medium">Email Notifications</p>
                                 <p class="text-sm text-gray-500">Send email alerts</p>
                             </div>
-                            <label class="switch">
+                            <label class="settings-switch">
                                 <input type="checkbox" checked>
-                                <span class="slider"></span>
+                                <span class="settings-slider"></span>
                             </label>
                         </div>
                     </div>
@@ -217,20 +217,21 @@
 </div>
 
 <style>
-.switch {
+/* Toggle Switch Styles - Scoped to settings page */
+.settings-switch {
     position: relative;
     display: inline-block;
     width: 60px;
     height: 34px;
 }
 
-.switch input {
+.settings-switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
 
-.slider {
+.settings-slider {
     position: absolute;
     cursor: pointer;
     top: 0;
@@ -242,7 +243,7 @@
     border-radius: 34px;
 }
 
-.slider:before {
+.settings-slider:before {
     position: absolute;
     content: "";
     height: 26px;
@@ -254,12 +255,29 @@
     border-radius: 50%;
 }
 
-input:checked + .slider {
-    background-color: var(--teal);
+input:checked + .settings-slider {
+    background-color: #00B8A9;
 }
 
-input:checked + .slider:before {
+input:checked + .settings-slider:before {
     transform: translateX(26px);
+}
+
+/* Card styles - Override any conflicting styles */
+.bg-white.rounded-lg.shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure proper spacing */
+.space-y-1 > * + * {
+    margin-top: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .grid {
+        gap: 1rem;
+    }
 }
 </style>
 @endsection
