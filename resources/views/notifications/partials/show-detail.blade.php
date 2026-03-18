@@ -2,7 +2,7 @@
     <!-- Back Button -->
     <div class="mb-4">
         @php
-            $backRoute = Auth::user()->isAdmin() ? route('admin.notifications.index') : 
+            $backRoute = Auth::user()->isAdmin() ? route('notifications.index') : 
                         (Auth::user()->isCourier() ? route('courier.notifications') : route('client.notifications'));
         @endphp
         <a href="{{ $backRoute }}" class="inline-flex items-center text-gray-600 hover:text-teal-600 transition-colors">

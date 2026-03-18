@@ -62,7 +62,7 @@ class AdminProfileController extends Controller
 
         $user->update($validated);
 
-        return redirect()->route('admin.profile.index')
+        return redirect()->route('profile.index')
             ->with('success', 'Profile updated successfully!');
     }
 }
