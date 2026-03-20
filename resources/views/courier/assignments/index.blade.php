@@ -49,6 +49,7 @@
         @php
             $statusCounts = [
                 'total' => $assignments->total(),
+                'quote_sent' => isset($statusCounts['quote_sent']) ? $statusCounts['quote_sent'] : \App\Models\SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', auth()->id())->where('status', 'pending'))->count(),
                 'assigned' => auth()->user()->assignedRequests()->where('status', 'assigned')->count(),
                 'accepted_by_courier' => auth()->user()->assignedRequests()->where('status', 'accepted_by_courier')->count(),
                 'at_stop' => auth()->user()->assignedRequests()->where('status', 'at_stop')->count(),
@@ -66,7 +67,7 @@
             <span class="ml-2 bg-white text-gray-700 text-xs rounded-full px-2 py-1">{{ $statusCounts['total'] }}</span>
         </a>
         
-        @foreach(['assigned', 'accepted_by_courier', 'at_stop', 'picked_up', 'in_transit', 'arrived_at_destination', 'delivered', 'completed'] as $status)
+        @foreach(['quote_sent', 'assigned', 'accepted_by_courier', 'at_stop', 'picked_up', 'in_transit', 'arrived_at_destination', 'delivered', 'completed'] as $status)
         <a href="{{ route('courier.assignments.index', ['status' => $status]) }}" 
            class="flex-shrink-0 flex items-center px-4 py-2 rounded-lg {{ request('status') == $status ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
             <span class="status-dot status-{{ $status }} mr-2"></span>
@@ -82,7 +83,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-500">Pending Acceptance</p>
-                    <p class="text-2xl font-bold">{{ $statusCounts['assigned'] }}</p>
+                    <p class="text-2xl font-bold">{{ ($statusCounts['assigned'] ?? 0) + ($statusCounts['quote_sent'] ?? 0) }}</p>
                 </div>
                 <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-clock text-blue-600 text-xl"></i>
@@ -189,6 +190,7 @@
                     <td>
                         @php
                             $statusColors = [
+                                'quote_sent' => 'warning',
                                 'assigned' => 'warning',
                                 'accepted_by_courier' => 'info',
                                 'at_stop' => 'warning',
@@ -213,7 +215,13 @@
                     </td>
                     <td>
                         <div class="flex items-center space-x-2">
-                            @if($assignment->status == 'assigned')
+                            @if($assignment->status == 'quote_sent')
+                            <a href="{{ route('courier.requests.quote', $assignment->id) }}"
+                               class="text-teal-600 hover:text-teal-800 p-1"
+                               title="Review Price Quote">
+                                <i class="fas fa-tag"></i>
+                            </a>
+                            @elseif($assignment->status == 'assigned')
                             <form action="{{ route('courier.assignments.accept', $assignment) }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit" 
@@ -321,7 +329,7 @@
     }
     
     // Auto-refresh page every 2 minutes if there are pending assignments
-    @if($statusCounts['assigned'] > 0 || $statusCounts['accepted_by_courier'] > 0)
+    @if(($statusCounts['assigned'] ?? 0) > 0 || ($statusCounts['accepted_by_courier'] ?? 0) > 0 || ($statusCounts['quote_sent'] ?? 0) > 0)
         setTimeout(() => {
             window.location.reload();
         }, 120000);

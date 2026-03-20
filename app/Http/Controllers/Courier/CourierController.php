@@ -88,15 +88,26 @@ class CourierController extends Controller
     public function assignments(Request $request)
     {
         $user = Auth::user();
-        $query = $user->assignedRequests()->with(['client', 'pickupProof', 'signature']);
+
+        // Base query: requests assigned_to this courier OR quote_sent to this courier
+        $query = SpecimenRequest::with(['client', 'pickupProof', 'signature'])
+            ->where(function ($q) use ($user) {
+                $q->where('assigned_to', $user->id)
+                  ->orWhere(function ($q2) use ($user) {
+                      $q2->where('status', 'quote_sent')
+                         ->whereHas('quotes', function ($q3) use ($user) {
+                             $q3->where('courier_id', $user->id)
+                                ->where('status', 'pending');
+                         });
+                  });
+            });
 
         // Filter by status
         if ($request->has('status') && $request->status != 'all') {
             if ($request->status == 'awaiting_proof') {
                 $query->where('requires_proof', true);
             } elseif ($request->status == 'pending_acceptance') {
-                $query->where('status', 'pending_courier_acceptance')
-                    ->where('courier_can_accept', true);
+                $query->where('status', 'quote_sent');
             } else {
                 $query->where('status', $request->status);
             }
@@ -118,8 +129,9 @@ class CourierController extends Controller
 
         // Get status counts for filter tabs
         $statusCounts = [
-            'total' => $user->assignedRequests()->count(),
-            'pending_acceptance' => $user->assignedRequests()->where('status', 'pending_courier_acceptance')->where('courier_can_accept', true)->count(),
+            'total' => $user->assignedRequests()->count() + SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', $user->id)->where('status', 'pending'))->count(),
+            'quote_sent' => SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', $user->id)->where('status', 'pending'))->count(),
+            'pending_acceptance' => SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', $user->id)->where('status', 'pending'))->count(),
             'assigned' => $user->assignedRequests()->where('status', 'assigned')->count(),
             'accepted_by_courier' => $user->assignedRequests()->where('status', 'accepted_by_courier')->count(),
             'awaiting_pickup_proof' => $user->assignedRequests()->where('status', 'awaiting_pickup_proof')->count(),
@@ -570,8 +582,14 @@ class CourierController extends Controller
         // Get the request by ID instead of using route model binding
         $specimenRequest = SpecimenRequest::findOrFail($requestId);
 
-        // Verify this request is assigned to the current courier
-        if ($specimenRequest->assigned_to != Auth::id()) {
+        // Verify this request belongs to the current courier:
+        // Either directly assigned OR has a pending/any quote for this courier
+        $isAssigned = $specimenRequest->assigned_to == Auth::id();
+        $hasQuote   = \App\Models\CourierQuote::where('request_id', $specimenRequest->id)
+                        ->where('courier_id', Auth::id())
+                        ->exists();
+
+        if (!$isAssigned && !$hasQuote) {
             abort(403, 'You are not assigned to this request.');
         }
 
@@ -716,10 +734,6 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
 
-        // Check if proof is required
-        if (!$specimenRequest->requires_proof) {
-            return redirect()->back()->with('error', 'Proof not required.');
-        }
 
         if ($specimenRequest->proof_uploaded) {
             return redirect()->back()->with('error', 'Proof already uploaded.');
@@ -801,27 +815,20 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Cannot start transit from current status.');
         }
 
-        // Mark that proof is required for transit confirmation
+        // Go straight to in_transit — no proof required at this step
         $specimenRequest->update([
-            'status' => 'awaiting_transit_proof',
-            'requires_proof' => true,
-            'proof_uploaded' => false,
-            'proof_required_at_status' => 'in_transit',
+            'status' => 'in_transit',
             'transit_started_at' => now(),
         ]);
-
-        // Notifications will be handled by the observer automatically
-        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
             'user_id' => Auth::id(),
-            'action' => 'start_transit_requires_proof',
+            'action' => 'start_transit',
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'picked_up to awaiting_transit_proof',
-                'requires_proof' => true,
+                'status' => 'picked_up to in_transit',
                 'transit_started_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -829,7 +836,7 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Please upload transit proof to continue to next status.');
+        return redirect()->back()->with('success', 'Transit started! Navigate to the delivery location.');
     }
 
     /**
@@ -926,27 +933,20 @@ class CourierController extends Controller
             return redirect()->back()->with('error', 'Cannot mark arrival from current status.');
         }
 
-        // Mark that proof is required for arrival
+        // Go straight to arrived_at_destination — no separate arrival proof needed
         $specimenRequest->update([
-            'status' => 'awaiting_arrival_proof',
-            'requires_proof' => true,
-            'proof_uploaded' => false,
-            'proof_required_at_status' => 'arrived_at_destination',
+            'status' => 'arrived_at_destination',
             'arrived_at_destination_at' => now(),
         ]);
-
-        // Notifications will be handled by the observer automatically
-        // No need to manually create notifications here
 
         // Log audit
         AuditLog::create([
             'user_id' => Auth::id(),
-            'action' => 'arrive_destination_requires_proof',
+            'action' => 'arrive_destination',
             'model_type' => SpecimenRequest::class,
             'model_id' => $specimenRequest->id,
             'changes' => json_encode([
-                'status' => 'in_transit to awaiting_arrival_proof',
-                'requires_proof' => true,
+                'status' => 'in_transit to arrived_at_destination',
                 'arrived_at_destination_at' => now()->toDateTimeString(),
                 'request_number' => $specimenRequest->request_number
             ]),
@@ -954,7 +954,7 @@ class CourierController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return redirect()->back()->with('success', 'Arrival recorded. Please upload arrival proof to continue.');
+        return redirect()->back()->with('success', 'Arrival recorded! You can now complete the delivery.');
     }
 
     /**

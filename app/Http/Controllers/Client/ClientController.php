@@ -754,7 +754,7 @@ class ClientController extends Controller
      */
     public function trackRequest(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -765,7 +765,7 @@ class ClientController extends Controller
 
     public function showRequest(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -776,7 +776,7 @@ class ClientController extends Controller
 
     public function cancelRequest(Request $request, SpecimenRequest $specimenRequest)
     {
-        if ($specimenRequest->client_id !== Auth::id()) {
+        if ($specimenRequest->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -820,49 +820,20 @@ class ClientController extends Controller
 
     public function confirmDelivery(SpecimenRequest $request)
     {
-        try {
-            // Log all possible causes
-            Log::info('========== CONFIRM DELIVERY DEBUG START ==========');
-            Log::info('Request ID: ' . $request->id);
-            Log::info('Request client_id: ' . $request->client_id . ' (type: ' . gettype($request->client_id) . ')');
-            Log::info('Auth ID: ' . Auth::id() . ' (type: ' . gettype(Auth::id()) . ')');
-            Log::info('User email: ' . Auth::user()->email);
-            Log::info('User is logged in: ' . (Auth::check() ? 'yes' : 'no'));
-            Log::info('Request status: ' . $request->status);
-
-            // Check if there's any middleware interfering
-            Log::info('Session ID: ' . session()->getId());
-            Log::info('Session user ID: ' . session()->get('login_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'));
-
-            // Test the condition explicitly
-            $conditionResult = ($request->client_id !== Auth::id());
-            Log::info('Condition result (client_id !== auth_id): ' . ($conditionResult ? 'TRUE (will abort)' : 'FALSE (will pass)'));
-
-            if ($request->client_id !== Auth::id()) {
-                Log::warning('Authorization failed - condition triggered');
-                abort(403, 'You are not authorized to confirm this delivery.');
-            }
-
-            Log::info('Authorization passed');
-
-            if ($request->status !== 'delivered') {
-                Log::info('Status check failed: ' . $request->status);
-                return back()->with('error', 'Request must be in delivered status to confirm receipt.');
-            }
-
-            Log::info('All checks passed, rendering view');
-            Log::info('========== CONFIRM DELIVERY DEBUG END ==========');
-
-            return view('client.requests.confirm', compact('request'));
-        } catch (\Exception $e) {
-            Log::error('Exception in confirmDelivery: ' . $e->getMessage());
-            throw $e;
+        if ($request->client_id != Auth::id()) {
+            abort(403);
         }
+
+        if ($request->status !== 'delivered') {
+            return back()->with('error', 'This request is not ready for confirmation yet.');
+        }
+
+        return view('client.requests.confirm', compact('request'));
     }
 
     // public function submitConfirmation(Request $request, SpecimenRequest $specimenRequest)
     // {
-    //     if ($specimenRequest->client_id !== Auth::id()) {
+    //     if ($specimenRequest->client_id != Auth::id()) {
     //         abort(403);
     //     }
 
@@ -898,69 +869,28 @@ class ClientController extends Controller
 
     // In app/Http/Controllers/Client/ClientController.php
 
-public function submitConfirmation(Request $request, $id)
-{
-    $specimenRequest = SpecimenRequest::findOrFail($id);
+    public function submitConfirmation(Request $request, $id)
+    {
+        $specimenRequest = SpecimenRequest::findOrFail($id);
 
-    Log::info('========== SUBMIT CONFIRMATION DEBUG START ==========');
-    Log::info('Request ID: ' . $specimenRequest->id);
-    Log::info('Request client_id: ' . $specimenRequest->client_id . ' (type: ' . gettype($specimenRequest->client_id) . ')');
-    Log::info('Auth ID: ' . Auth::id() . ' (type: ' . gettype(Auth::id()) . ')');
-    Log::info('User email: ' . Auth::user()->email);
-    Log::info('User is logged in: ' . (Auth::check() ? 'yes' : 'no'));
-    Log::info('Session ID: ' . session()->getId());
-    Log::info('Session user ID: ' . session()->get('login_web_59ba36addc2b2f9401580f014c7f58ea4e30989d'));
+        if ($specimenRequest->client_id != Auth::id()) {
+            abort(403);
+        }
 
-    $conditionResult = ($specimenRequest->client_id !== Auth::id());
-    Log::info('Condition result (client_id !== auth_id): ' . ($conditionResult ? 'TRUE (will abort)' : 'FALSE (will pass)'));
-
-    if ($specimenRequest->client_id !== Auth::id()) {
-        Log::warning('Authorization failed in submitConfirmation', [
-            'expected' => $specimenRequest->client_id,
-            'actual' => Auth::id()
+        $validated = $request->validate([
+            'recipient_name' => 'required|string|max:200',
+            'notes'          => 'nullable|string|max:500',
         ]);
-        abort(403, 'You are not authorized to confirm this delivery.');
+
+        $specimenRequest->update([
+            'status'           => 'completed',
+            'completed_at'     => now(),
+            'completion_notes' => $validated['notes'] ?? null,
+        ]);
+
+        return redirect()->route('client.requests.show', $specimenRequest)
+            ->with('success', 'Delivery confirmed! Your request is now complete.');
     }
-
-    Log::info('Authorization passed in submitConfirmation');
-
-    $validated = $request->validate([
-        'recipient_name' => 'required|string|max:200',
-        'notes' => 'nullable|string|max:500',
-    ]);
-
-    Log::info('Validation passed');
-
-    // ULTIMATE FIX: Use raw DB with foreign key checks disabled
-    try {
-        // Disable foreign key checks
-        \DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        
-        // Update the request
-        \DB::table('specimen_requests')
-            ->where('id', $specimenRequest->id)
-            ->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'completion_notes' => $validated['notes'] ?? null,
-                'updated_at' => now(),
-            ]);
-        
-        // Re-enable foreign key checks
-        \DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        
-        Log::info('Request updated to completed with foreign key checks disabled');
-    } catch (\Exception $e) {
-        // Make sure to re-enable even if there's an error
-        \DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        throw $e;
-    }
-
-    Log::info('========== SUBMIT CONFIRMATION DEBUG END ==========');
-
-    return redirect()->route('client.requests.track', $specimenRequest)
-        ->with('success', 'Delivery confirmed successfully! Request completed.');
-}
     public function tracking()
     {
         $user = Auth::user();
@@ -1254,7 +1184,7 @@ public function submitConfirmation(Request $request, $id)
 
     public function documents(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1265,7 +1195,7 @@ public function submitConfirmation(Request $request, $id)
 
     public function downloadDocument(RequestDocument $document)
     {
-        if ($document->request->client_id !== Auth::id()) {
+        if ($document->request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1278,7 +1208,7 @@ public function submitConfirmation(Request $request, $id)
 
     public function proofs(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1366,7 +1296,7 @@ public function submitConfirmation(Request $request, $id)
      */
     public function getCourierLocation(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1511,7 +1441,7 @@ public function submitConfirmation(Request $request, $id)
      */
     public function getTrackingDetails(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1796,7 +1726,7 @@ public function submitConfirmation(Request $request, $id)
      */
     public function showPayment(SpecimenRequest $request)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 
@@ -1824,7 +1754,7 @@ public function submitConfirmation(Request $request, $id)
      */
     public function processPayment(Request $httpRequest, SpecimenRequest $request, PaymentService $paymentService)
     {
-        if ($request->client_id !== Auth::id()) {
+        if ($request->client_id != Auth::id()) {
             abort(403);
         }
 

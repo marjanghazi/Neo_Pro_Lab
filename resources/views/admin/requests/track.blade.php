@@ -403,19 +403,107 @@ function mapStyles() {
     ];
 }
 
+// ── Map loader: Google Maps if key exists, Leaflet otherwise ──────────────────
 (function() {
-    if (!GOOGLE_API_KEY) return;
-    var s = document.createElement('script');
-    s.src = 'https://maps.googleapis.com/maps/api/js'
-        + '?key=' + encodeURIComponent(GOOGLE_API_KEY)
-        + '&libraries=geometry&callback=initTrackingMaps';
-    s.async = true; s.defer = true;
-    s.onerror = function() {
-        document.getElementById('trackingMap').innerHTML =
-            '<div class="flex items-center justify-center h-full bg-red-50 rounded-lg"><p class="text-red-600 font-medium p-4">Google Maps failed to load.</p></div>';
-    };
-    document.head.appendChild(s);
+    if (GOOGLE_API_KEY) {
+        // Google Maps
+        var s = document.createElement('script');
+        s.src = 'https://maps.googleapis.com/maps/api/js'
+            + '?key=' + encodeURIComponent(GOOGLE_API_KEY)
+            + '&libraries=geometry&callback=initTrackingMaps';
+        s.async = true; s.defer = true;
+        s.onerror = function() { initLeafletMaps(); };
+        document.head.appendChild(s);
+    } else {
+        // No Google key — use Leaflet (free, no key needed)
+        var lCss = document.createElement('link');
+        lCss.rel = 'stylesheet';
+        lCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(lCss);
+        var lJs = document.createElement('script');
+        lJs.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        lJs.onload = function() { initLeafletMaps(); };
+        document.head.appendChild(lJs);
+    }
 })();
+
+// ── Leaflet fallback implementation ───────────────────────────────────────────
+function initLeafletMaps() {
+    mapsReady = true;
+
+    // Main map
+    trackingMap = L.map('trackingMap').setView([30.1575, 71.5249], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(trackingMap);
+
+    // Mini map
+    miniMap = L.map('miniMap', { zoomControl:false }).setView([30.1575, 71.5249], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+
+    // Override marker functions for Leaflet
+    window._leafletPickup   = null;
+    window._leafletDelivery = null;
+    window._leafletCourier  = null;
+
+    // Override addPickupMarker
+    addPickupMarker = function(lat, lng, address) {
+        if (window._leafletPickup) trackingMap.removeLayer(window._leafletPickup);
+        window._leafletPickup = L.circleMarker([lat, lng], { color:'#ef4444', fillColor:'#ef4444', fillOpacity:1, radius:10 })
+            .bindPopup('<b>Pickup</b><br>' + address).addTo(trackingMap);
+        if (window._leafletMiniPickup) miniMap.removeLayer(window._leafletMiniPickup);
+        window._leafletMiniPickup = L.circleMarker([lat, lng], { color:'#ef4444', fillColor:'#ef4444', fillOpacity:1, radius:8 }).addTo(miniMap);
+    };
+
+    // Override addDeliveryMarker
+    addDeliveryMarker = function(lat, lng, address) {
+        if (window._leafletDelivery) trackingMap.removeLayer(window._leafletDelivery);
+        window._leafletDelivery = L.circleMarker([lat, lng], { color:'#22c55e', fillColor:'#22c55e', fillOpacity:1, radius:10 })
+            .bindPopup('<b>Delivery</b><br>' + address).addTo(trackingMap);
+        if (window._leafletMiniDelivery) miniMap.removeLayer(window._leafletMiniDelivery);
+        window._leafletMiniDelivery = L.circleMarker([lat, lng], { color:'#22c55e', fillColor:'#22c55e', fillOpacity:1, radius:8 }).addTo(miniMap);
+    };
+
+    // Override updateCourierMarker
+    updateCourierMarker = function(lat, lng, address, speed, heading) {
+        if (window._leafletCourier) {
+            window._leafletCourier.setLatLng([lat, lng]);
+            if (window._leafletMiniCourier) window._leafletMiniCourier.setLatLng([lat, lng]);
+        } else {
+            var icon = L.divIcon({ html:'<div style="background:#3b82f6;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>', iconSize:[20,20], iconAnchor:[10,10], className:'' });
+            window._leafletCourier = L.marker([lat, lng], { icon:icon, zIndexOffset:1000 })
+                .bindPopup('<b>Courier</b><br>' + (address||'Updating...') + (speed?'<br>Speed: '+Math.round(speed*3.6)+' km/h':'')).addTo(trackingMap);
+            window._leafletMiniCourier = L.marker([lat, lng], { icon:icon, zIndexOffset:1000 }).addTo(miniMap);
+        }
+        miniMap.panTo([lat, lng]);
+        lastCourierLocation = { latitude:lat, longitude:lng, formatted_address:address };
+    };
+
+    // Override fitMapToMarkers
+    fitMapToMarkers = function(data) {
+        var pts = [];
+        if (data.request?.pickup_latitude)   pts.push([data.request.pickup_latitude,   data.request.pickup_longitude]);
+        if (data.request?.delivery_latitude) pts.push([data.request.delivery_latitude, data.request.delivery_longitude]);
+        if (data.courier_location?.latitude) pts.push([data.courier_location.latitude, data.courier_location.longitude]);
+        if (pts.length > 1) trackingMap.fitBounds(pts, { padding:[40,40] });
+        else if (pts.length === 1) trackingMap.setView(pts[0], 14);
+    };
+
+    // Override drawRouteViaDirectionsAPI with a simple straight line
+    drawRouteViaDirectionsAPI = function(oLat, oLng, dLat, dLng) {
+        if (routePolyline) trackingMap.removeLayer(routePolyline);
+        routePolyline = L.polyline([[oLat, oLng],[dLat, dLng]], { color:'#0d9488', weight:4, opacity:0.8, dashArray:'8,4' }).addTo(trackingMap);
+    };
+
+    // Override centerOnCourier
+    centerOnCourier = function() {
+        if (!lastCourierLocation) { showToast('Courier location not available', 'error'); return; }
+        trackingMap.setView([lastCourierLocation.latitude, lastCourierLocation.longitude], 16);
+        showToast('Centered on courier', 'success');
+    };
+
+    startTrackingUpdates();
+}
 
 // ======================================================================
 // MARKERS
