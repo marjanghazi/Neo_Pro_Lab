@@ -50,7 +50,7 @@ class AdminRequestController extends Controller
 
     public function show(SpecimenRequest $request)
     {
-        $request->load(['client', 'facility', 'courier', 'stops', 'documents']);
+        $request->load(['client', 'facility', 'courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
 
         $activeQuote = CourierQuote::where('request_id', $request->id)
             ->orderBy('created_at', 'desc')

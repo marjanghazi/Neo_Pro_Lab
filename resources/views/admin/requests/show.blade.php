@@ -450,6 +450,136 @@
 
         </div>{{-- end quote-panel --}}
 
+
+        {{-- ═══ Proofs & Documentation ═══════════════════════════════════════ --}}
+        @php
+            $adminPickupProof = $request->pickupProofs
+                ->where(function($p){ return is_null($p->proof_type) || $p->proof_type === 'pickup'; })
+                ->first();
+            $adminPickupProof = $request->pickupProofs
+                ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
+                ->first();
+            $adminDeliveryProof = $request->signatures->first() ?? null;
+        @endphp
+        @if($adminPickupProof || $adminDeliveryProof || in_array($request->status, ['picked_up','in_transit','arrived_at_destination','delivered','completed']))
+        <div class="card p-6">
+            <h3 class="font-bold text-base mb-4 border-b pb-2">
+                <i class="fas fa-camera mr-2 text-teal-600"></i>Proofs & Documentation
+            </h3>
+
+            {{-- Pickup Proof --}}
+            <div class="border rounded-lg overflow-hidden mb-4">
+                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-camera {{ $adminPickupProof ? 'text-green-500' : 'text-gray-400' }} text-sm"></i>
+                        <span class="font-semibold text-sm">Pickup Proof</span>
+                    </div>
+                    @if($adminPickupProof)
+                        <span class="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                            <i class="fas fa-check-circle mr-1"></i>Uploaded
+                        </span>
+                    @else
+                        <span class="text-xs text-gray-400">Not uploaded yet</span>
+                    @endif
+                </div>
+                @if($adminPickupProof)
+                <div class="p-4 flex flex-wrap gap-4">
+                    @if($adminPickupProof->photo_path)
+                    <a href="{{ Storage::url($adminPickupProof->photo_path) }}" target="_blank"
+                        class="block w-28 h-28 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition flex-shrink-0">
+                        <img src="{{ Storage::url($adminPickupProof->photo_path) }}" alt="Pickup Proof" class="w-full h-full object-cover">
+                    </a>
+                    @endif
+                    <div class="flex-1 min-w-0 text-sm space-y-1.5">
+                        <p class="font-semibold text-gray-800">{{ $adminPickupProof->created_at->format('M d, Y h:i A') }}</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            @if($adminPickupProof->specimen_condition)
+                            <span class="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">
+                                {{ ucfirst(str_replace('_',' ',$adminPickupProof->specimen_condition)) }}
+                            </span>
+                            @endif
+                            @if($adminPickupProof->temperature_check)
+                            <span class="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">
+                                {{ ucfirst(str_replace('_',' ',$adminPickupProof->temperature_check)) }}
+                            </span>
+                            @endif
+                            @if($adminPickupProof->verified)
+                            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Verified</span>
+                            @else
+                            <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">Pending verification</span>
+                            @endif
+                        </div>
+                        @if($adminPickupProof->courier)
+                        <p class="text-xs text-gray-500">By: {{ $adminPickupProof->courier->first_name ?? '' }} {{ $adminPickupProof->courier->last_name ?? '' }}</p>
+                        @endif
+                        @if($adminPickupProof->notes)
+                        <p class="text-xs text-gray-500 italic">{{ $adminPickupProof->notes }}</p>
+                        @endif
+                        @if($adminPickupProof->latitude && $adminPickupProof->longitude)
+                        <p class="text-xs text-gray-400">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            {{ number_format((float)$adminPickupProof->latitude, 6) }}, {{ number_format((float)$adminPickupProof->longitude, 6) }}
+                        </p>
+                        @endif
+                    </div>
+                </div>
+                @else
+                <div class="p-6 text-center text-gray-400 text-sm">
+                    <i class="fas fa-camera text-2xl mb-2 block text-gray-300"></i>
+                    No pickup proof uploaded yet
+                </div>
+                @endif
+            </div>
+
+            {{-- Delivery Proof & Signature --}}
+            <div class="border rounded-lg overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-signature {{ $adminDeliveryProof ? 'text-blue-500' : 'text-gray-400' }} text-sm"></i>
+                        <span class="font-semibold text-sm">Delivery Proof & Signature</span>
+                    </div>
+                    @if($adminDeliveryProof)
+                        <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                            <i class="fas fa-check-circle mr-1"></i>Captured
+                        </span>
+                    @else
+                        <span class="text-xs text-gray-400">Not captured yet</span>
+                    @endif
+                </div>
+                @if($adminDeliveryProof)
+                <div class="p-4 flex flex-wrap gap-4">
+                    @if($adminDeliveryProof->signature_data)
+                    <div class="w-28 h-28 bg-white border rounded-lg flex items-center justify-center flex-shrink-0 p-2">
+                        <img src="{{ $adminDeliveryProof->signature_data }}" alt="Signature" class="max-w-full max-h-full">
+                    </div>
+                    @endif
+                    <div class="flex-1 min-w-0 text-sm space-y-1.5">
+                        <p class="font-semibold text-gray-800">{{ ($adminDeliveryProof->signed_at ?? $adminDeliveryProof->created_at)?->format('M d, Y h:i A') }}</p>
+                        <p class="text-gray-700">Received by: <strong>{{ $adminDeliveryProof->recipient_name }}</strong></p>
+                        @if($adminDeliveryProof->recipient_relationship)
+                        <p class="text-xs text-gray-500">{{ $adminDeliveryProof->recipient_relationship }}</p>
+                        @endif
+                        @if($adminDeliveryProof->notes)
+                        <p class="text-xs text-gray-500 italic">{{ $adminDeliveryProof->notes }}</p>
+                        @endif
+                        @if($adminDeliveryProof->photo_path)
+                        <a href="{{ Storage::url($adminDeliveryProof->photo_path) }}" target="_blank"
+                            class="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800">
+                            <i class="fas fa-image"></i> View Delivery Photo
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @else
+                <div class="p-6 text-center text-gray-400 text-sm">
+                    <i class="fas fa-signature text-2xl mb-2 block text-gray-300"></i>
+                    No delivery signature captured yet
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
         {{-- Quote History --}}
         @if($activeQuote)
         <div class="card p-6">

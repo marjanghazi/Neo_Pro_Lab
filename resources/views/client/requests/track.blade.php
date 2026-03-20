@@ -299,6 +299,124 @@
         </div>
     </div>
 
+
+    {{-- ─── Proofs & Documentation ─────────────────────────────────── --}}
+    @php
+        $clientPickupProof = $request->pickupProofs
+            ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
+            ->first();
+        $clientDeliveryProof = $request->signatures->first() ?? null;
+    @endphp
+    @if($clientPickupProof || $clientDeliveryProof)
+    <div class="card p-6 mt-6">
+        <h3 class="text-lg font-bold mb-4">
+            <i class="fas fa-camera text-teal-600 mr-2"></i>Pickup & Delivery Proofs
+        </h3>
+
+        {{-- Pickup Proof --}}
+        <div class="border rounded-lg overflow-hidden mb-4">
+            <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-camera {{ $clientPickupProof ? 'text-green-500' : 'text-gray-400' }} text-sm"></i>
+                    <span class="font-semibold text-sm">Pickup Proof</span>
+                </div>
+                @if($clientPickupProof)
+                    <span class="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                        <i class="fas fa-check-circle mr-1"></i>Uploaded
+                    </span>
+                @else
+                    <span class="text-xs text-gray-400">Not uploaded yet</span>
+                @endif
+            </div>
+            @if($clientPickupProof)
+            <div class="p-4 flex flex-wrap gap-4">
+                @if($clientPickupProof->photo_path)
+                <a href="{{ asset('storage/' . $clientPickupProof->photo_path) }}" target="_blank"
+                    class="block w-28 h-28 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition flex-shrink-0">
+                    <img src="{{ asset('storage/' . $clientPickupProof->photo_path) }}" alt="Pickup Proof" class="w-full h-full object-cover">
+                </a>
+                @endif
+                <div class="flex-1 min-w-0 text-sm space-y-1.5">
+                    <p class="font-semibold text-gray-800">{{ $clientPickupProof->created_at->format('M d, Y h:i A') }}</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        @if($clientPickupProof->specimen_condition)
+                        <span class="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600 capitalize">
+                            {{ str_replace('_',' ',$clientPickupProof->specimen_condition) }}
+                        </span>
+                        @endif
+                        @if($clientPickupProof->temperature_check)
+                        <span class="px-2 py-0.5 bg-gray-100 rounded-full text-xs text-gray-600">
+                            {{ ucfirst(str_replace('_',' ',$clientPickupProof->temperature_check)) }}
+                        </span>
+                        @endif
+                        @if($clientPickupProof->verified)
+                        <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Verified</span>
+                        @else
+                        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs">Pending verification</span>
+                        @endif
+                    </div>
+                    @if($clientPickupProof->notes)
+                    <p class="text-xs text-gray-500 italic">{{ $clientPickupProof->notes }}</p>
+                    @endif
+                </div>
+            </div>
+            @else
+            <div class="p-5 text-center text-gray-400 text-sm">
+                <i class="fas fa-camera text-2xl mb-2 block text-gray-300"></i>
+                No pickup proof uploaded yet
+            </div>
+            @endif
+        </div>
+
+        {{-- Delivery Proof & Signature --}}
+        <div class="border rounded-lg overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-signature {{ $clientDeliveryProof ? 'text-blue-500' : 'text-gray-400' }} text-sm"></i>
+                    <span class="font-semibold text-sm">Delivery Proof & Signature</span>
+                </div>
+                @if($clientDeliveryProof)
+                    <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                        <i class="fas fa-check-circle mr-1"></i>Captured
+                    </span>
+                @else
+                    <span class="text-xs text-gray-400">Not captured yet</span>
+                @endif
+            </div>
+            @if($clientDeliveryProof)
+            <div class="p-4 flex flex-wrap gap-4">
+                @if($clientDeliveryProof->signature_data)
+                <div class="w-28 h-28 bg-white border rounded-lg flex items-center justify-center flex-shrink-0 p-2">
+                    <img src="{{ $clientDeliveryProof->signature_data }}" alt="Signature" class="max-w-full max-h-full">
+                </div>
+                @endif
+                <div class="flex-1 min-w-0 text-sm space-y-1.5">
+                    <p class="font-semibold text-gray-800">{{ ($clientDeliveryProof->signed_at ?? $clientDeliveryProof->created_at)?->format('M d, Y h:i A') }}</p>
+                    <p class="text-gray-700">Received by: <strong>{{ $clientDeliveryProof->recipient_name }}</strong></p>
+                    @if($clientDeliveryProof->recipient_relationship)
+                    <p class="text-xs text-gray-500">{{ $clientDeliveryProof->recipient_relationship }}</p>
+                    @endif
+                    @if($clientDeliveryProof->notes)
+                    <p class="text-xs text-gray-500 italic">{{ $clientDeliveryProof->notes }}</p>
+                    @endif
+                    @if($clientDeliveryProof->photo_path)
+                    <a href="{{ asset('storage/' . $clientDeliveryProof->photo_path) }}" target="_blank"
+                        class="inline-flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800">
+                        <i class="fas fa-image"></i> View Delivery Photo
+                    </a>
+                    @endif
+                </div>
+            </div>
+            @else
+            <div class="p-5 text-center text-gray-400 text-sm">
+                <i class="fas fa-signature text-2xl mb-2 block text-gray-300"></i>
+                No delivery signature captured yet
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
     {{-- ─── Timeline ───────────────────────────────────────────── --}}
     <div class="card p-6 mt-6">
         <h3 class="text-lg font-bold mb-4">Delivery Timeline</h3>

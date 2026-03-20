@@ -246,9 +246,14 @@
                             <p class="text-sm text-gray-600">{{ $proof->notes }}</p>
                             @endif
                         </div>
-                        
+                        @php
+        $clientPickupProof = $request->pickupProofs
+            ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
+            ->first();
+        $clientDeliveryProof = $request->signatures->first() ?? null;
+    @endphp
                         <div class="p-2 bg-white">
-                            <img src="{{ Storage::url($proof->image_path) }}" 
+                            <img src="{{ asset('storage/' . $clientPickupProof->photo_path) }}" 
                                  alt="Proof Image" 
                                  class="w-full h-48 object-cover rounded-lg">
                         </div>
