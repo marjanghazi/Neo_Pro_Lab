@@ -295,7 +295,7 @@ $prefilledData = session('prefilled_request_data', []);
                             <option value="12-14" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '12-14' ? 'selected' : '' }}>12:00 PM - 2:00 PM</option>
                             <option value="14-16" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '14-16' ? 'selected' : '' }}>2:00 PM - 4:00 PM</option>
                             <option value="16-18" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == '16-18' ? 'selected' : '' }}>4:00 PM - 6:00 PM</option>
-                            <option value="stat" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == 'stat' ? 'selected' : '' }}>STAT (Immediate)</option>
+                            <option value="stat" {{ old('pickup_time', $prefilledData['pickup_time'] ?? '') == 'stat' ? 'selected' : '' }}>STAT ( After hours)</option>
                         </select>
                         @error('pickup_time')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
