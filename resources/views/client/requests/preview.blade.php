@@ -93,7 +93,7 @@
                                         '12-14' => '12:00 PM - 2:00 PM',
                                         '14-16' => '2:00 PM - 4:00 PM',
                                         '16-18' => '4:00 PM - 6:00 PM',
-                                        'stat' => 'STAT ( After hours)'
+                                        'stat' => 'STAT (Immediate)'
                                     ];
                                 @endphp
                                 {{ $timeWindows[$validated['pickup_time']] ?? $validated['pickup_time'] }}
