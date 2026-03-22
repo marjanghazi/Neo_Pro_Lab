@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\StatusUpdateMail;
+use App\Mail\ProofUploadedMail;
+use Illuminate\Support\Facades\Log;
+
 
 class CourierController extends Controller
 {
@@ -93,13 +98,13 @@ class CourierController extends Controller
         $query = SpecimenRequest::with(['client', 'pickupProof', 'signature'])
             ->where(function ($q) use ($user) {
                 $q->where('assigned_to', $user->id)
-                  ->orWhere(function ($q2) use ($user) {
-                      $q2->where('status', 'quote_sent')
-                         ->whereHas('quotes', function ($q3) use ($user) {
-                             $q3->where('courier_id', $user->id)
-                                ->where('status', 'pending');
-                         });
-                  });
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->where('status', 'quote_sent')
+                            ->whereHas('quotes', function ($q3) use ($user) {
+                                $q3->where('courier_id', $user->id)
+                                    ->where('status', 'pending');
+                            });
+                    });
             });
 
         // Filter by status
@@ -151,6 +156,10 @@ class CourierController extends Controller
      * Route: POST /courier/assignments/{request}/accept
      * Linked from: "Accept Assignment" button in request details view when status is 'assigned'
      */
+    /**
+     * Accept an assignment - Changes status from 'assigned' to 'accepted_by_courier'
+     * Route: POST /courier/assignments/{request}/accept
+     */
     public function acceptAssignment(Request $request, $requestId)
     {
         // Get the request by ID instead of using route model binding
@@ -176,6 +185,36 @@ class CourierController extends Controller
             'requires_proof' => false,
             'proof_uploaded' => false,
         ]);
+
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN COURIER ACCEPTS ASSIGNMENT
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => 'accepted_by_courier',
+                'status_message' => 'Your request has been accepted by a courier and is being prepared for pickup.',
+                'updated_at' => now(),
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'pickup_address' => $specimenRequest->pickup_address,
+                'delivery_address' => $specimenRequest->delivery_address,
+                'scheduled_pickup' => $specimenRequest->scheduled_pickup_time,
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\StatusUpdateMail($emailData));
+
+            Log::info('Status update email sent to client (courier accepted)', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email,
+                'status' => 'accepted_by_courier'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send status update email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
 
         // Notifications will be handled by the observer automatically
         // No need to manually create notifications here
@@ -263,7 +302,7 @@ class CourierController extends Controller
         return redirect()->route('courier.requests.show', $specimenRequest->id)
             ->with('success', 'You have accepted the price quote. The assignment is now yours!');
     }
-    
+
 
     /**
      * Decline price quote - Declines quoted price with reason
@@ -586,8 +625,8 @@ class CourierController extends Controller
         // Either directly assigned OR has a pending/any quote for this courier
         $isAssigned = $specimenRequest->assigned_to == Auth::id();
         $hasQuote   = \App\Models\CourierQuote::where('request_id', $specimenRequest->id)
-                        ->where('courier_id', Auth::id())
-                        ->exists();
+            ->where('courier_id', Auth::id())
+            ->exists();
 
         if (!$isAssigned && !$hasQuote) {
             abort(403, 'You are not assigned to this request.');
@@ -725,6 +764,10 @@ class CourierController extends Controller
      * Route: POST /courier/requests/{request}/pickup-proof
      * Linked from: Pickup Proof Modal form (when proofType = 'pickup')
      */
+    /**
+     * Submit pickup proof with photo - REQUIRED BEFORE STATUS UPDATE
+     * Route: POST /courier/requests/{request}/pickup-proof
+     */
     public function submitPickupProof(Request $request, $requestId)
     {
         // Get the request by ID
@@ -733,7 +776,6 @@ class CourierController extends Controller
         if ($specimenRequest->assigned_to != Auth::id()) {
             return redirect()->back()->with('error', 'You are not assigned to this request.');
         }
-
 
         if ($specimenRequest->proof_uploaded) {
             return redirect()->back()->with('error', 'Proof already uploaded.');
@@ -774,6 +816,39 @@ class CourierController extends Controller
             'pickup_completed_at' => now(),
         ]);
 
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN PICKUP PROOF IS UPLOADED
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => $nextStatus,
+                'status_message' => 'Your specimen has been picked up successfully!',
+                'proof_photo' => $photoPath,
+                'specimen_condition' => $request->specimen_condition,
+                'temperature_check' => $request->temperature_check,
+                'pickup_notes' => $request->pickup_notes,
+                'updated_at' => now(),
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'pickup_address' => $specimenRequest->pickup_address,
+                'delivery_address' => $specimenRequest->delivery_address,
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\ProofUploadedMail($emailData));
+
+            Log::info('Pickup proof email sent to client', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email,
+                'proof_id' => $specimenRequest->pickupProof->id ?? 'unknown'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send pickup proof email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
+
         // Notifications will be handled by the observer automatically
         // No need to manually create notifications here
 
@@ -802,6 +877,10 @@ class CourierController extends Controller
      * Route: POST /courier/requests/{request}/start-transit
      * Linked from: "Start Transit" button when status is 'picked_up'
      */
+    /**
+     * Start transit to delivery location - After pickup is complete
+     * Route: POST /courier/requests/{request}/start-transit
+     */
     public function startTransit(Request $request, $requestId)
     {
         // Get the request by ID
@@ -820,6 +899,35 @@ class CourierController extends Controller
             'status' => 'in_transit',
             'transit_started_at' => now(),
         ]);
+
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN TRANSIT STARTS
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => 'in_transit',
+                'status_message' => 'Your specimen is now in transit to the delivery location.',
+                'updated_at' => now(),
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'tracking_url' => route('client.tracking', $specimenRequest->id),
+                'pickup_address' => $specimenRequest->pickup_address,
+                'delivery_address' => $specimenRequest->delivery_address,
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\StatusUpdateMail($emailData));
+
+            Log::info('Transit start email sent to client', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send transit start email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
 
         // Log audit
         AuditLog::create([
@@ -920,6 +1028,10 @@ class CourierController extends Controller
      * Route: POST /courier/requests/{request}/arrive-destination
      * Linked from: "Mark Arrival" button when status is 'in_transit'
      */
+    /**
+     * Arrive at destination - When courier reaches delivery location
+     * Route: POST /courier/requests/{request}/arrive-destination
+     */
     public function arriveAtDestination(Request $request, $requestId)
     {
         // Get the request by ID
@@ -938,6 +1050,33 @@ class CourierController extends Controller
             'status' => 'arrived_at_destination',
             'arrived_at_destination_at' => now(),
         ]);
+
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN COURIER ARRIVES AT DESTINATION
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => 'arrived_at_destination',
+                'status_message' => 'Your courier has arrived at the delivery location.',
+                'updated_at' => now(),
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'delivery_address' => $specimenRequest->delivery_address,
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\StatusUpdateMail($emailData));
+
+            Log::info('Arrival at destination email sent to client', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send arrival email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
 
         // Log audit
         AuditLog::create([
@@ -961,6 +1100,10 @@ class CourierController extends Controller
      * Submit delivery with signature - REQUIRED PROOF - Final delivery with recipient signature
      * Route: POST /courier/requests/{request}/submit-delivery
      * Linked from: Signature Modal form (delivery completion)
+     */
+    /**
+     * Submit delivery with signature - FINAL STEP with recipient signature
+     * Route: POST /courier/requests/{request}/submit-delivery
      */
     public function submitDelivery(Request $request, $requestId)
     {
@@ -1046,6 +1189,35 @@ class CourierController extends Controller
             'delivered_at' => now(),
         ]);
 
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN DELIVERY IS COMPLETED
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => 'delivered',
+                'status_message' => 'Your specimen has been delivered successfully!',
+                'recipient_name' => $request->recipient_name,
+                'delivered_at' => now(),
+                'delivery_notes' => $request->delivery_notes,
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'delivery_address' => $specimenRequest->delivery_address,
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\StatusUpdateMail($emailData));
+
+            Log::info('Delivery completion email sent to client', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send delivery completion email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
+
         // Notifications will be handled by the observer automatically
         // No need to manually create notifications here
 
@@ -1072,6 +1244,10 @@ class CourierController extends Controller
      * Route: POST /courier/requests/{request}/complete
      * Linked from: "Mark as Completed" button when status is 'delivered'
      */
+    /**
+     * Complete request - Final step to mark request as completed
+     * Route: POST /courier/requests/{request}/complete
+     */
     public function completeRequest(Request $request, $requestId)
     {
         // Get the request by ID
@@ -1089,6 +1265,33 @@ class CourierController extends Controller
             'status' => 'completed',
             'completed_at' => now(),
         ]);
+
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN REQUEST IS COMPLETED
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $specimenRequest->client,
+                'courier' => Auth::user(),
+                'status' => 'completed',
+                'status_message' => 'Your request has been completed successfully. Thank you for using our service!',
+                'completed_at' => now(),
+                'dashboard_url' => route('client.requests.show', $specimenRequest->id),
+                'feedback_url' => route('client.feedback.create', $specimenRequest->id),
+            ];
+
+            Mail::to($specimenRequest->client->email)->send(new \App\Mail\StatusUpdateMail($emailData));
+
+            Log::info('Request completion email sent to client', [
+                'request_id' => $specimenRequest->id,
+                'client_email' => $specimenRequest->client->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send completion email to client: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id
+            ]);
+        }
 
         // Stop location tracking for this request
         cache()->forget("tracking_start_{$specimenRequest->id}");
