@@ -30,6 +30,26 @@
 @endsection
 
 @section('content')
+@php
+// Resolve displayed total & courier fee.
+// If the active quote has a manual price override, use those values so
+// the admin sees what was actually sent. Otherwise fall back to the
+// auto-calculated fields stored on the request itself.
+$displayTotalPrice = $request->total_price;
+$displayCourierFee = $request->courier_fee;
+$displayAdminFee   = $request->admin_fee;
+$displayProfit     = $request->profit_margin;
+$priceIsOverridden = false;
+
+if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
+    $priceIsOverridden = true;
+    $displayTotalPrice = $activeQuote->total_price;
+    $displayCourierFee = $activeQuote->courier_fee;
+    $displayAdminFee   = round($displayTotalPrice * 0.20, 2);
+    $displayProfit     = round($displayTotalPrice * 0.10, 2);
+}
+@endphp
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
     {{-- ─── LEFT: Request Details ──────────────────────────────────────────── --}}
@@ -65,23 +85,23 @@
                     {{-- Status Badge --}}
                     @php
                     $statusColors = [
-                        'draft'                    => 'gray',
-                        'pending_approval'         => 'warning',
-                        'approved'                 => 'info',
-                        'assigned'                 => 'primary',
-                        'quote_sent'               => 'warning',
+                        'draft'                      => 'gray',
+                        'pending_approval'           => 'warning',
+                        'approved'                   => 'info',
+                        'assigned'                   => 'primary',
+                        'quote_sent'                 => 'warning',
                         'pending_courier_acceptance' => 'warning',
-                        'accepted_by_courier'      => 'primary',
-                        'awaiting_pickup_proof'    => 'warning',
-                        'picked_up'                => 'info',
-                        'awaiting_transit_proof'   => 'warning',
-                        'in_transit'               => 'info',
-                        'awaiting_arrival_proof'   => 'warning',
-                        'arrived_at_destination'   => 'info',
-                        'delivered'                => 'success',
-                        'completed'                => 'success',
-                        'cancelled'                => 'danger',
-                        'rejected'                 => 'danger',
+                        'accepted_by_courier'        => 'primary',
+                        'awaiting_pickup_proof'      => 'warning',
+                        'picked_up'                  => 'info',
+                        'awaiting_transit_proof'     => 'warning',
+                        'in_transit'                 => 'info',
+                        'awaiting_arrival_proof'     => 'warning',
+                        'arrived_at_destination'     => 'info',
+                        'delivered'                  => 'success',
+                        'completed'                  => 'success',
+                        'cancelled'                  => 'danger',
+                        'rejected'                   => 'danger',
                     ];
                     $sc = $statusColors[$request->status] ?? 'info';
                     @endphp
@@ -190,7 +210,7 @@
             </div>
             @endif
 
-            {{-- ─── PENDING COURIER ACCEPTANCE: Quote sent, waiting for courier ─ --}}
+            {{-- ─── PENDING COURIER ACCEPTANCE ───────────────────────────────── --}}
             @if(in_array($request->status, ['quote_sent','pending_courier_acceptance']) && $activeQuote)
             <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-5 mb-5">
                 <div class="flex items-start justify-between">
@@ -255,7 +275,7 @@
             </div>
             @endif
 
-            {{-- ─── QUOTE DECLINED: Admin needs to reassign ───────────────────── --}}
+            {{-- ─── QUOTE DECLINED ────────────────────────────────────────────── --}}
             @if($request->status === 'approved' && $request->courier_declined_at)
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-5">
                 <h4 class="font-bold text-red-800 mb-1">
@@ -271,11 +291,21 @@
             </div>
             @endif
 
-            {{-- ─── PRICING SECTION (show if approved/needs price calc) ─────────── --}}
+            {{-- ─── PRICING SECTION ─────────────────────────────────────────────
+                 Shows the EFFECTIVE price: quote override values when a manual
+                 price was set, otherwise the auto-calculated fields.
+            ──────────────────────────────────────────────────────────────────── --}}
             @if(in_array($request->status, ['approved', 'assigned', 'quote_sent', 'pending_courier_acceptance']) || $request->is_price_quoted)
             <div class="mb-5">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-sm text-gray-700">Price Calculation</h4>
+                    <div class="flex items-center gap-2">
+                        <h4 class="font-semibold text-sm text-gray-700">Price Calculation</h4>
+                        @if($priceIsOverridden)
+                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                            <i class="fas fa-pencil-alt mr-1"></i>Manually overridden
+                        </span>
+                        @endif
+                    </div>
                     @if(!in_array($request->status, ['quote_sent', 'pending_courier_acceptance', 'accepted_by_courier', 'assigned']) && !in_array($request->status, ['picked_up', 'in_transit', 'delivered', 'completed']))
                     <form action="{{ route('admin.requests.calculate-price', $request) }}" method="POST" class="inline">
                         @csrf
@@ -289,6 +319,37 @@
 
                 @if($request->is_price_quoted)
                 <div class="bg-gray-50 rounded-lg p-4 text-sm">
+                    @if($priceIsOverridden)
+                    {{-- Overridden: show quote values with original-price note --}}
+                    <div class="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-start gap-2">
+                        <i class="fas fa-info-circle flex-shrink-0 mt-0.5"></i>
+                        <span>
+                            Prices below reflect the <strong>manually set quote values</strong>.
+                            Auto-calculated total was
+                            <strong>${{ number_format($activeQuote->breakdown['original_total'] ?? $request->total_price, 2) }}</strong>
+                            (courier fee
+                            <strong>${{ number_format($activeQuote->breakdown['original_courier'] ?? $request->courier_fee, 2) }}</strong>).
+                            @if(!empty($activeQuote->breakdown['price_note']))
+                            <br>Note: {{ $activeQuote->breakdown['price_note'] }}
+                            @endif
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="border-t pt-2 flex justify-between font-bold">
+                            <span>Total Price</span><span>${{ number_format($displayTotalPrice, 2) }}</span>
+                        </div>
+                        <div class="flex justify-between text-teal-700 font-semibold">
+                            <span>Courier Fee</span><span>${{ number_format($displayCourierFee, 2) }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Admin Fee (20%)</span><span>${{ number_format($displayAdminFee, 2) }}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Profit (10%)</span><span>${{ number_format($displayProfit, 2) }}</span>
+                        </div>
+                    </div>
+                    @else
+                    {{-- Auto-calculated: show full line-item breakdown --}}
                     <div class="space-y-2">
                         @if($request->base_price > 0)
                         <div class="flex justify-between"><span class="text-gray-600">Base Price</span><span>${{ number_format($request->base_price, 2) }}</span></div>
@@ -324,6 +385,7 @@
                             <span>Profit (10%)</span><span>${{ number_format($request->profit_margin, 2) }}</span>
                         </div>
                     </div>
+                    @endif
                 </div>
                 @else
                 <div class="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500 text-sm">
@@ -334,7 +396,7 @@
             </div>
             @endif
 
-            {{-- ─── ASSIGN WITH QUOTE (main action for approved requests) ────────── --}}
+            {{-- ─── ASSIGN WITH QUOTE ──────────────────────────────────────────── --}}
             @if($request->status === 'approved' && $request->is_price_quoted)
             <div class="border border-teal-200 rounded-lg p-4 bg-teal-50">
                 <h4 class="font-semibold text-teal-800 mb-3">
@@ -373,6 +435,55 @@
                             </select>
                         </div>
                     </div>
+
+                    {{-- Price Override Toggle --}}
+                    <div class="mt-4 pt-3 border-t border-teal-200">
+                        <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+                            <input type="checkbox" id="overridePriceToggle" name="override_price" value="1"
+                                class="rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                onchange="document.getElementById('customPriceFields').classList.toggle('hidden', !this.checked)">
+                            <span class="font-medium text-teal-800">Override price manually</span>
+                            <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Optional</span>
+                        </label>
+                        <p class="text-xs text-teal-600 mt-1 ml-5">
+                            By default, the auto-calculated total of <strong>${{ number_format($request->total_price, 2) }}</strong> will be used.
+                        </p>
+                    </div>
+
+                    {{-- Custom Price Fields (hidden by default) --}}
+                    <div id="customPriceFields" class="hidden mt-3 bg-white border border-teal-100 rounded-lg p-4 space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Total Price (billed to client) *</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-gray-400 text-sm">$</span>
+                                    <input type="number" name="custom_total_price" step="0.01" min="0"
+                                        value="{{ number_format($request->total_price, 2, '.', '') }}"
+                                        placeholder="{{ number_format($request->total_price, 2, '.', '') }}"
+                                        class="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Courier Fee (paid to courier)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-gray-400 text-sm">$</span>
+                                    <input type="number" name="custom_courier_fee" step="0.01" min="0"
+                                        value="{{ number_format($request->courier_fee, 2, '.', '') }}"
+                                        placeholder="{{ number_format($request->courier_fee, 2, '.', '') }}"
+                                        class="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Leave blank to auto-calculate at 70% of total price.</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Price Note (optional)</label>
+                            <input type="text" name="price_note" maxlength="200"
+                                placeholder="e.g. Price adjusted due to after-hours pickup"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                            <p class="text-xs text-gray-400 mt-1">This note is for internal records only and will not be shown to the courier.</p>
+                        </div>
+                    </div>
+
                     <div class="mt-3 flex gap-2 flex-wrap">
                         <button type="submit"
                             onclick="return confirm('Send price quote to selected courier and assign them to this request? They will need to accept the quote.')"
@@ -383,7 +494,6 @@
                     </div>
                 </form>
             </div>
-
             @endif
 
             {{-- ─── Approved but no price yet ─────────────────────────────────── --}}
@@ -419,10 +529,10 @@
                         <p class="font-medium">{{ $request->courier->first_name }} {{ $request->courier->last_name }}</p>
                         <p class="text-sm text-gray-500">{{ $request->courier->phone }}</p>
                     </div>
-                    @if($request->courier_fee > 0)
+                    @if($displayCourierFee > 0)
                     <div class="ml-auto text-right">
                         <p class="text-sm text-gray-500">Courier Fee</p>
-                        <p class="font-bold text-teal-700">${{ number_format($request->courier_fee, 2) }}</p>
+                        <p class="font-bold text-teal-700">${{ number_format($displayCourierFee, 2) }}</p>
                     </div>
                     @endif
                 </div>
@@ -453,9 +563,6 @@
 
         {{-- ═══ Proofs & Documentation ═══════════════════════════════════════ --}}
         @php
-            $adminPickupProof = $request->pickupProofs
-                ->where(function($p){ return is_null($p->proof_type) || $p->proof_type === 'pickup'; })
-                ->first();
             $adminPickupProof = $request->pickupProofs
                 ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
                 ->first();
@@ -606,9 +713,19 @@
                         @if($q->status === 'declined' && $q->decline_reason)
                         <p class="text-red-600 text-xs mt-1">Declined: {{ $q->decline_reason }}</p>
                         @endif
+                        @if(!empty($q->breakdown['price_override']) && !empty($q->breakdown['price_note']))
+                        <p class="text-amber-600 text-xs mt-1">
+                            <i class="fas fa-edit mr-1"></i>Price note: {{ $q->breakdown['price_note'] }}
+                        </p>
+                        @endif
                     </div>
                     <div class="text-right">
                         <p class="font-bold">${{ number_format($q->total_price, 2) }}</p>
+                        @if(!empty($q->breakdown['price_override']))
+                        <p class="text-xs text-amber-600">
+                            <i class="fas fa-pencil-alt mr-1"></i>Manual price
+                        </p>
+                        @endif
                         <span class="text-xs px-2 py-0.5 rounded-full
                             {{ $q->status === 'accepted' ? 'bg-green-100 text-green-700' : '' }}
                             {{ $q->status === 'declined' ? 'bg-red-100 text-red-700' : '' }}

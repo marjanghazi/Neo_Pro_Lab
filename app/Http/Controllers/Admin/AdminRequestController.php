@@ -412,8 +412,12 @@ class AdminRequestController extends Controller
     public function assignWithQuote(Request $httpRequest, SpecimenRequest $request)
     {
         $validated = $httpRequest->validate([
-            'courier_id'  => 'required|exists:users,id',
-            'valid_hours' => 'nullable|integer|min:1|max:72',
+            'courier_id'         => 'required|exists:users,id',
+            'valid_hours'        => 'nullable|integer|min:1|max:72',
+            'override_price'     => 'nullable|boolean',
+            'custom_total_price' => 'required_if:override_price,1|nullable|numeric|min:0',
+            'custom_courier_fee' => 'nullable|numeric|min:0',
+            'price_note'         => 'nullable|string|max:200',
         ]);
 
         try {
@@ -427,12 +431,37 @@ class AdminRequestController extends Controller
                 $request->refresh();
             }
 
+            // ─── Determine final prices ───────────────────────────────────────
+            $useOverride = $httpRequest->boolean('override_price');
+
+            if ($useOverride) {
+                $totalPrice = (float) $validated['custom_total_price'];
+                // If courier fee is not provided or empty, auto-calculate at 70%
+                $courierFee = (isset($validated['custom_courier_fee']) && $validated['custom_courier_fee'] !== null && $validated['custom_courier_fee'] !== '')
+                    ? (float) $validated['custom_courier_fee']
+                    : round($totalPrice * 0.70, 2);
+            } else {
+                $totalPrice = $request->total_price;
+                $courierFee = $request->courier_fee;
+            }
+
+            // ─── Build breakdown, recording override details if applicable ────
+            $breakdown = $this->buildBreakdown($request);
+            if ($useOverride) {
+                $breakdown['price_override']   = true;
+                $breakdown['original_total']   = $request->total_price;
+                $breakdown['original_courier'] = $request->courier_fee;
+                $breakdown['price_note']       = $validated['price_note'] ?? null;
+                $breakdown['overridden_by']    = auth()->user()->first_name . ' ' . auth()->user()->last_name;
+                $breakdown['overridden_at']    = now()->toDateTimeString();
+            }
+
             $quote = CourierQuote::create([
                 'request_id'  => $request->id,
                 'courier_id'  => $validated['courier_id'],
-                'courier_fee' => $request->courier_fee,
-                'total_price' => $request->total_price,
-                'breakdown'   => $this->buildBreakdown($request),
+                'courier_fee' => $courierFee,
+                'total_price' => $totalPrice,
+                'breakdown'   => $breakdown,
                 'valid_until' => now()->addHours($validated['valid_hours'] ?? 24),
                 'status'      => 'pending',
             ]);
@@ -473,10 +502,11 @@ class AdminRequestController extends Controller
                 Mail::to($courier->email)->send(new \App\Mail\CourierQuoteMail($emailData));
 
                 Log::info('Courier quote email sent', [
-                    'request_id' => $request->id,
-                    'courier_id' => $validated['courier_id'],
-                    'quote_id' => $quote->id,
-                    'courier_email' => $courier->email
+                    'request_id'   => $request->id,
+                    'courier_id'   => $validated['courier_id'],
+                    'quote_id'     => $quote->id,
+                    'courier_email' => $courier->email,
+                    'price_overridden' => $useOverride,
                 ]);
             } catch (\Exception $e) {
                 Log::error('Failed to send courier quote email: ' . $e->getMessage(), [
@@ -508,12 +538,13 @@ class AdminRequestController extends Controller
                 "Quote sent to {$courier->first_name} {$courier->last_name} for request #{$request->request_number} — awaiting acceptance.",
                 $request->id,
                 [
-                    'request_id'     => $request->id,
-                    'request_number' => $request->request_number,
-                    'courier_id'     => $validated['courier_id'],
-                    'quote_id'       => $quote->id,
-                    'total_price'    => $quote->total_price,
-                    'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'request_id'      => $request->id,
+                    'request_number'  => $request->request_number,
+                    'courier_id'      => $validated['courier_id'],
+                    'quote_id'        => $quote->id,
+                    'total_price'     => $quote->total_price,
+                    'price_overridden' => $useOverride,
+                    'assigned_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
                 ]
             );
 
@@ -522,11 +553,12 @@ class AdminRequestController extends Controller
                     'success' => true,
                     'message' => 'Price quote sent to courier. Waiting for acceptance.',
                     'data'    => [
-                        'quote_id'    => $quote->id,
-                        'courier_fee' => $quote->courier_fee,
-                        'total_price' => $quote->total_price,
-                        'valid_until' => $quote->valid_until->format('Y-m-d H:i:s'),
-                        'status'      => 'quote_sent',
+                        'quote_id'        => $quote->id,
+                        'courier_fee'     => $quote->courier_fee,
+                        'total_price'     => $quote->total_price,
+                        'valid_until'     => $quote->valid_until->format('Y-m-d H:i:s'),
+                        'status'          => 'quote_sent',
+                        'price_overridden' => $useOverride,
                     ],
                 ]);
             }

@@ -77,6 +77,18 @@ body.cr-lock{overflow:hidden}
         'arrived_at_destination'=>5,'delivered'=>6,'completed'=>7,
     ];
     $currentStep = $stepMap[$status] ?? 0;
+
+    // ── Resolve the courier fee to display ──────────────────────────────────
+    // Prefer the accepted/pending quote's courier_fee (which may be admin-overridden).
+    // Fall back to the value stored on the request itself (auto-calculated).
+    $activeQuote = \App\Models\CourierQuote::where('request_id', $specimenRequest->id)
+        ->where('courier_id', auth()->id())
+        ->whereIn('status', ['accepted', 'pending'])
+        ->orderByRaw("CASE WHEN status = 'accepted' THEN 0 WHEN status = 'pending' THEN 1 ELSE 2 END")
+        ->orderBy('created_at', 'desc')
+        ->first();
+
+    $displayCourierFee = $activeQuote ? $activeQuote->courier_fee : $specimenRequest->courier_fee;
 @endphp
 
 {{-- Flash Messages --}}
@@ -157,8 +169,11 @@ body.cr-lock{overflow:hidden}
             </p>
             @endif
         </div>
-        @if($specimenRequest->courier_fee>0)
-        <div class="text-right flex-shrink-0"><p class="text-2xl font-bold text-teal-700">${{ number_format($specimenRequest->courier_fee,2) }}</p><p class="text-xs text-teal-600">Your earnings</p></div>
+        @if($displayCourierFee > 0)
+        <div class="text-right flex-shrink-0">
+            <p class="text-2xl font-bold text-teal-700">${{ number_format($displayCourierFee, 2) }}</p>
+            <p class="text-xs text-teal-600">Your earnings</p>
+        </div>
         @endif
     </div>
 </div>
@@ -298,6 +313,25 @@ body.cr-lock{overflow:hidden}
         @if($specimenRequest->special_instructions)<div class="col-span-2 sm:col-span-3"><p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Special Instructions</p><p class="text-gray-700">{{ $specimenRequest->special_instructions }}</p></div>@endif
     </div>
 </div>
+
+{{-- Earnings --}}
+@if($displayCourierFee > 0)
+<div class="cr-card p-5">
+    <h3 class="font-semibold text-gray-800 mb-3"><i class="fas fa-dollar-sign text-teal-600 mr-2"></i>Your Earnings</h3>
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-sm text-gray-500">Total earnings for this assignment</p>
+            @if($activeQuote && !empty($activeQuote->breakdown['price_override']))
+            <p class="text-xs text-amber-600 mt-1"><i class="fas fa-pencil-alt mr-1"></i>Custom rate set by admin</p>
+            @else
+            <p class="text-xs text-gray-400 mt-1">Standard rate</p>
+            @endif
+        </div>
+        <p class="text-3xl font-bold text-teal-700">${{ number_format($displayCourierFee, 2) }}</p>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">Paid upon successful delivery confirmation.</p>
+</div>
+@endif
 
 {{-- Proofs --}}
 <div class="cr-card p-5">
