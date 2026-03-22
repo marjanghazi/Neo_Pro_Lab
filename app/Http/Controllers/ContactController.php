@@ -22,7 +22,7 @@ class ContactController extends Controller
 
         try {
             // Send email to admin - using your working Gmail address
-            Mail::to('syedmarjanghazi@gmail.com')->send(new ContactMail($validated));
+            Mail::to('info@neoprolab.com')->send(new ContactMail($validated));
             
             // Send auto-reply to user
             Mail::to($validated['contactEmail'])->send(new ContactAutoReply($validated));

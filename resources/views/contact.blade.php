@@ -150,6 +150,12 @@
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(0, 169, 165, 0.4);
     }
+    
+    .form-submit:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
 
     @media (max-width: 768px) {
         .hero h1 {
@@ -204,7 +210,8 @@
         <!-- RIGHT SIDE - CONTACT FORM -->
         <div class="form-section">
             <h2>Quick Message</h2>
-            <form id="contactForm" onsubmit="handleContactSubmit(event)">
+            <form id="contactForm">
+                @csrf
                 <div class="form-group">
                     <label for="contactName">Your Name *</label>
                     <input type="text" id="contactName" name="contactName" required>
@@ -244,57 +251,85 @@
 </section>
 
 <script>
-function handleContactSubmit(event) {
-    event.preventDefault();
-    
-    // Show loading state
-    Swal.fire({
-        title: 'Sending...',
-        text: 'Please wait while we send your message.',
-        allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
-    
-    // Get form data
+document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('contactForm');
-    const formData = new FormData(form);
+    let isSubmitting = false;
     
-    // Send AJAX request
-    fetch('{{ route("contact.send") }}', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept': 'application/json',
-        },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+    if (form) {
+        form.addEventListener('submit', handleContactSubmit);
+    }
+    
+    async function handleContactSubmit(event) {
+        event.preventDefault();
+        
+        // Prevent multiple submissions
+        if (isSubmitting) {
+            return;
+        }
+        
+        // Get submit button
+        const submitBtn = document.querySelector('.form-submit');
+        const originalButtonText = submitBtn.innerHTML;
+        
+        // Disable submit button and set submitting flag
+        isSubmitting = true;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Sending...';
+        
+        // Show loading state
+        Swal.fire({
+            title: 'Sending...',
+            text: 'Please wait while we send your message.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Get form data
+        const formData = new FormData(form);
+        
+        try {
+            // Send AJAX request
+            const response = await fetch('{{ route("contact.send") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Message Sent!',
+                    text: data.message,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#00A9A5'
+                });
+                form.reset(); // Reset the form
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
             Swal.fire({
-                icon: 'success',
-                title: 'Message Sent!',
-                text: data.message,
+                icon: 'error',
+                title: 'Error!',
+                text: error.message || 'There was a problem sending your message. Please try again.',
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#00A9A5'
             });
-            form.reset(); // Reset the form
-        } else {
-            throw new Error(data.message);
+        } finally {
+            // Re-enable submit button and reset flag
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalButtonText;
         }
-    })
-    .catch(error => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error!',
-            text: error.message || 'There was a problem sending your message. Please try again.',
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#00A9A5'
-        });
-    });
-}
+    }
+});
 </script>
 
 @endsection
