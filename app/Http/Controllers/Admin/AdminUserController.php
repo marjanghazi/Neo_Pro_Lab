@@ -8,6 +8,10 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\UserRegistrationApprovedMail;
+use Illuminate\Support\Facades\Log;
+
 
 class AdminUserController extends Controller
 {
@@ -194,15 +198,35 @@ class AdminUserController extends Controller
         if (!$user->isAdmin()) {
             $user->update(['is_approved' => true]);
             
-            // Log the approval (you can add this to an audit log)
-            \Log::info('User approved by admin', [
+            // ============================================
+            // SEND EMAIL TO USER (Account Approved)
+            // ============================================
+            try {
+                $roleSlug = $user->role->slug;
+                Mail::to($user->email)->send(new UserRegistrationApprovedMail($user, $roleSlug));
+                
+                Log::info('User approval email sent', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'role' => $roleSlug,
+                    'admin_id' => auth()->id()
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send user approval email: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email
+                ]);
+            }
+            
+            // Log the approval
+            Log::info('User approved by admin', [
                 'user_id' => $user->id,
                 'admin_id' => auth()->id(),
                 'timestamp' => now()
             ]);
             
             return redirect()->route('admin.users.pending')
-                ->with('success', 'User approved successfully.');
+                ->with('success', 'User approved successfully. An email notification has been sent to the user.');
         }
         
         return back()->with('error', 'Cannot approve admin users.');
@@ -213,12 +237,22 @@ class AdminUserController extends Controller
         // Only reject non-admin, pending users
         if (!$user->isAdmin() && !$user->is_approved) {
             $userName = $user->full_name;
+            $userEmail = $user->email;
+            
+            // Optional: Send rejection email (you can create a rejection email template)
+            // try {
+            //     Mail::to($userEmail)->send(new UserRegistrationRejectedMail($user));
+            // } catch (\Exception $e) {
+            //     Log::error('Failed to send rejection email: ' . $e->getMessage());
+            // }
+            
             $user->delete();
             
             // Log the rejection
-            \Log::info('User rejected by admin', [
+            Log::info('User rejected by admin', [
                 'user_id' => $user->id,
                 'user_name' => $userName,
+                'user_email' => $userEmail,
                 'admin_id' => auth()->id(),
                 'timestamp' => now()
             ]);

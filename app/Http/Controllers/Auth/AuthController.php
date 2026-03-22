@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\UserRegistrationPendingMail;
+use App\Mail\AdminNewUserNotificationMail;
+use Illuminate\Support\Facades\Log;
+
 
 class AuthController extends Controller
 {
@@ -116,6 +121,46 @@ class AuthController extends Controller
             'is_approved' => false, // Always false initially, admin will approve after document verification
         ]);
 
+        // ============================================
+        // SEND EMAIL TO USER (Registration Received)
+        // ============================================
+        try {
+            Mail::to($user->email)->send(new UserRegistrationPendingMail($user, $request->role));
+            Log::info('Registration pending email sent to user', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'role' => $request->role
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send registration pending email: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'user_email' => $user->email
+            ]);
+        }
+
+        // ============================================
+        // SEND EMAIL TO ADMIN (New User Notification)
+        // ============================================
+        try {
+            // Get admin emails from settings or use default admin email
+            $adminEmails = ['admin@neoprolab.com']; // You can fetch from database settings
+
+            foreach ($adminEmails as $adminEmail) {
+                Mail::to($adminEmail)->send(new AdminNewUserNotificationMail($user, $request->role));
+            }
+
+            Log::info('Admin notification email sent for new user', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'role' => $request->role
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send admin notification email: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'user_email' => $user->email
+            ]);
+        }
+
         // Handle courier document uploads
         if ($request->role === 'courier') {
             $documentPaths = [];
@@ -166,12 +211,16 @@ class AuthController extends Controller
                 'submitted_at' => now(),
             ]);
 
-            // Log the user out immediately for couriers (don't auto-login)
+            // Log the registration
+            $this->notifyAdminAboutNewRegistration($user);
+
             return redirect()->route('login')
                 ->with('info', 'Registration successful! Your documents have been submitted for verification. You will receive an email notification once your account is approved. Please wait for admin approval before logging in.');
         }
 
-        // For regular clients, also don't auto-login
+        // For regular clients
+        $this->notifyAdminAboutNewRegistration($user);
+
         return redirect()->route('login')
             ->with('success', 'Registration successful! Your account is pending admin approval. You will receive an email notification once your account is approved. Please check back later.');
     }
@@ -200,9 +249,8 @@ class AuthController extends Controller
 
     private function notifyAdminAboutNewRegistration(User $user)
     {
-        // You can implement email notification here
-        // For now, we'll just log it
-        \Log::info('New user registration pending approval', [
+        // Log the registration (email already sent above)
+        Log::info('New user registration pending approval', [
             'user_id' => $user->id,
             'name' => $user->full_name,
             'email' => $user->email,
