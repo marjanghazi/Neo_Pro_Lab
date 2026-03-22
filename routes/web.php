@@ -23,6 +23,11 @@ use App\Http\Controllers\Client\DocumentController;
 use App\Http\Controllers\Client\FacilityController;
 use Http\Controllers\Public\PickupRequestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ContactController;
+
+
+Route::post('/contact/send', [ContactController::class, 'send'])->name('contact.send');
+
 
 /*
 |--------------------------------------------------------------------------

@@ -244,19 +244,57 @@
 </section>
 
 <script>
-    function handleContactSubmit(event) {
-        event.preventDefault();
-
+function handleContactSubmit(event) {
+    event.preventDefault();
+    
+    // Show loading state
+    Swal.fire({
+        title: 'Sending...',
+        text: 'Please wait while we send your message.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Get form data
+    const form = document.getElementById('contactForm');
+    const formData = new FormData(form);
+    
+    // Send AJAX request
+    fetch('{{ route("contact.send") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Message Sent!',
+                text: data.message,
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#00A9A5'
+            });
+            form.reset(); // Reset the form
+        } else {
+            throw new Error(data.message);
+        }
+    })
+    .catch(error => {
         Swal.fire({
-            icon: 'success',
-            title: 'Message Sent!',
-            text: 'Thank you for contacting us. We will respond within 24 hours.',
+            icon: 'error',
+            title: 'Error!',
+            text: error.message || 'There was a problem sending your message. Please try again.',
             confirmButtonText: 'OK',
             confirmButtonColor: '#00A9A5'
         });
-
-        document.getElementById('contactForm').reset();
-    }
+    });
+}
 </script>
 
 @endsection
