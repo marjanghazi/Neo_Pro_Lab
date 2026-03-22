@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Payment;
 use App\Services\PaymentService;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Mail;
 
 class ClientController extends Controller
 {
@@ -665,6 +666,38 @@ class ClientController extends Controller
         if ($specimenRequest->estimated_price > 0) {
             $paymentService = new PaymentService();
             $paymentService->createPayment($specimenRequest, $user);
+        }
+
+        // ============================================
+        // SEND EMAIL NOTIFICATION TO ADMIN
+        // ============================================
+        try {
+            // Prepare email data
+            $emailData = [
+                'request' => $specimenRequest,
+                'client' => $user,
+                'facility' => $facility,
+                'price_data' => $priceData,
+                'validated_data' => $validated,
+                'request_url' => route('admin.requests.show', $specimenRequest->id),
+                'dashboard_url' => route('admin.dashboard'),
+            ];
+
+            // Send email to admin
+            Mail::to('admin@neoprolab.com')->send(new \App\Mail\NewOrderNotification($emailData));
+
+            Log::info('New order notification sent to admin', [
+                'request_id' => $specimenRequest->id,
+                'request_number' => $specimenRequest->request_number,
+                'client_email' => $user->email,
+                'admin_email' => 'admin@neoprolab.com'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send admin notification email: ' . $e->getMessage(), [
+                'request_id' => $specimenRequest->id,
+                'error' => $e->getMessage()
+            ]);
+            // Don't stop the process if email fails - just log it
         }
 
         // Use notification service instead of manual creation
