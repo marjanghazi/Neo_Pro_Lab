@@ -78,6 +78,9 @@ class AdminRequestController extends Controller
             'courier_id' => 'required|exists:users,id',
         ]);
 
+        $courier = User::find($validated['courier_id']);
+        $admin = auth()->user();
+
         $request->update([
             'assigned_to' => $validated['courier_id'],
             'assigned_by' => auth()->id(),
@@ -85,6 +88,42 @@ class AdminRequestController extends Controller
             'status'      => 'assigned',
         ]);
 
+        // ============================================
+        // SEND EMAIL TO COURIER WHEN ASSIGNED
+        // ============================================
+        try {
+            $emailData = [
+                'request' => $request,
+                'courier' => $courier,
+                'admin' => $admin,
+                'client' => $request->client,
+                'assigned_at' => now(),
+                'dashboard_url' => route('courier.requests.show', $request->id),
+                'pickup_address' => $request->pickup_address,
+                'delivery_address' => $request->delivery_address,
+                'scheduled_pickup' => $request->scheduled_pickup_time,
+                'priority_level' => $request->priority_level,
+                'specimen_type' => $request->specimen_type,
+                'estimated_price' => $request->estimated_price,
+                'special_instructions' => $request->special_instructions,
+            ];
+
+            Mail::to($courier->email)->send(new \App\Mail\CourierAssignedMail($emailData));
+
+            Log::info('Courier assignment email sent', [
+                'request_id' => $request->id,
+                'courier_id' => $validated['courier_id'],
+                'courier_email' => $courier->email
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to send courier assignment email: ' . $e->getMessage(), [
+                'request_id' => $request->id,
+                'courier_id' => $validated['courier_id']
+            ]);
+            // Don't stop the process if email fails - just log it
+        }
+
+        // Send in-app notification to courier
         $this->notifyCourier(
             $validated['courier_id'],
             'request_assigned',
@@ -102,12 +141,13 @@ class AdminRequestController extends Controller
         $this->notifyAdmins(
             'request_assigned',
             'Request Assigned',
-            "Request #{$request->request_number} has been assigned to a courier",
+            "Request #{$request->request_number} has been assigned to {$courier->first_name} {$courier->last_name}",
             $request->id,
             [
                 'request_id'     => $request->id,
                 'request_number' => $request->request_number,
                 'courier_id'     => $validated['courier_id'],
+                'courier_name'   => $courier->first_name . ' ' . $courier->last_name,
                 'assigned_by'    => auth()->user()->first_name . ' ' . auth()->user()->last_name,
             ]
         );
@@ -115,13 +155,13 @@ class AdminRequestController extends Controller
         if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
             return response()->json([
                 'success'  => true,
-                'message'  => 'Courier assigned successfully.',
+                'message'  => 'Courier assigned successfully and notified via email.',
                 'redirect' => route('admin.requests.show', $request),
             ]);
         }
 
         return redirect()->route('admin.requests.show', $request)
-            ->with('success', 'Courier assigned successfully.');
+            ->with('success', 'Courier assigned successfully and notified via email.');
     }
 
     // ─── Update Status (approve / reject / cancel) ────────────────────────────
@@ -405,6 +445,45 @@ class AdminRequestController extends Controller
             ]);
 
             $courier = User::find($validated['courier_id']);
+            $admin = auth()->user();
+
+            // ============================================
+            // SEND EMAIL TO COURIER FOR QUOTE ASSIGNMENT
+            // ============================================
+            try {
+                $emailData = [
+                    'request' => $request,
+                    'courier' => $courier,
+                    'admin' => $admin,
+                    'client' => $request->client,
+                    'quote' => $quote,
+                    'assigned_at' => now(),
+                    'deadline' => $quote->valid_until,
+                    'dashboard_url' => route('courier.requests.quote', $request->id),
+                    'pickup_address' => $request->pickup_address,
+                    'delivery_address' => $request->delivery_address,
+                    'scheduled_pickup' => $request->scheduled_pickup_time,
+                    'priority_level' => $request->priority_level,
+                    'specimen_type' => $request->specimen_type,
+                    'estimated_price' => $quote->total_price,
+                    'courier_fee' => $quote->courier_fee,
+                    'special_instructions' => $request->special_instructions,
+                ];
+
+                Mail::to($courier->email)->send(new \App\Mail\CourierQuoteMail($emailData));
+
+                Log::info('Courier quote email sent', [
+                    'request_id' => $request->id,
+                    'courier_id' => $validated['courier_id'],
+                    'quote_id' => $quote->id,
+                    'courier_email' => $courier->email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send courier quote email: ' . $e->getMessage(), [
+                    'request_id' => $request->id,
+                    'courier_id' => $validated['courier_id']
+                ]);
+            }
 
             $this->notifyCourier(
                 $validated['courier_id'],
