@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Mail;
+
+
 
 class AdminRequestController extends Controller
 {
@@ -37,7 +40,7 @@ class AdminRequestController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('request_number', 'LIKE', "%{$search}%")
-                  ->orWhere('recipient_name', 'LIKE', "%{$search}%");
+                    ->orWhere('recipient_name', 'LIKE', "%{$search}%");
             });
         }
 
@@ -127,6 +130,7 @@ class AdminRequestController extends Controller
     {
         $validated = $httpRequest->validate([
             'status' => 'required|in:approved,rejected,cancelled',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string|max:500',
         ]);
 
         $updates = ['status' => $validated['status']];
@@ -134,6 +138,12 @@ class AdminRequestController extends Controller
         if ($validated['status'] === 'cancelled') {
             $updates['cancelled_at'] = now();
             $updates['cancelled_by'] = Auth::id();
+        }
+
+        if ($validated['status'] === 'rejected') {
+            $updates['rejection_reason'] = $validated['rejection_reason'] ?? null;
+            $updates['rejected_at'] = now();
+            $updates['rejected_by'] = Auth::id();
         }
 
         $request->update($updates);
@@ -144,12 +154,54 @@ class AdminRequestController extends Controller
                 ->update(['status' => 'expired']);
         }
 
+        // ============================================
+        // SEND EMAIL TO CLIENT WHEN REQUEST IS APPROVED OR REJECTED
+        // ============================================
         if (in_array($validated['status'], ['approved', 'rejected']) && $request->client_id) {
+
+            // Send email to client
+            try {
+
+                $emailData = [
+                    'request' => $request,
+                    'client' => $request->client,
+                    'status' => $validated['status'],
+                    'rejection_reason' => $validated['rejection_reason'] ?? null,
+                    'admin_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'approved_at' => now(),
+                    'dashboard_url' => route('client.requests.show', $request->id),
+                ];
+
+                // Send appropriate email based on status
+                if ($validated['status'] === 'approved') {
+                    Mail::to($request->client->email)->send(new \App\Mail\RequestApprovedMail($emailData));
+                    Log::info('Request approval email sent to client', [
+                        'request_id' => $request->id,
+                        'client_email' => $request->client->email
+                    ]);
+                } else {
+                    Mail::to($request->client->email)->send(new \App\Mail\RequestRejectedMail($emailData));
+                    Log::info('Request rejection email sent to client', [
+                        'request_id' => $request->id,
+                        'client_email' => $request->client->email,
+                        'reason' => $validated['rejection_reason']
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to send status update email to client: ' . $e->getMessage(), [
+                    'request_id' => $request->id,
+                    'status' => $validated['status']
+                ]);
+                // Don't stop the process if email fails - just log it
+            }
+
+            // Also send in-app notification
             $this->notifyClient(
                 $request->client_id,
                 'status_update',
                 'Request ' . ucfirst($validated['status']),
-                "Your request #{$request->request_number} has been {$validated['status']}.",
+                "Your request #{$request->request_number} has been {$validated['status']}." .
+                    ($validated['status'] === 'rejected' && !empty($validated['rejection_reason']) ? " Reason: {$validated['rejection_reason']}" : ""),
                 $request->id,
                 [
                     'request_id'     => $request->id,
@@ -157,6 +209,7 @@ class AdminRequestController extends Controller
                     'status'         => $validated['status'],
                     'updated_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
                     'updated_at'     => now()->toDateTimeString(),
+                    'rejection_reason' => $validated['rejection_reason'] ?? null,
                 ]
             );
         }
@@ -185,7 +238,6 @@ class AdminRequestController extends Controller
         return redirect()->route('admin.requests.show', $request)
             ->with('success', "Request {$validated['status']} successfully!");
     }
-
     // ─── Calculate Price ──────────────────────────────────────────────────────
 
     public function calculatePrice(Request $httpRequest, SpecimenRequest $request)
@@ -212,7 +264,6 @@ class AdminRequestController extends Controller
 
             return redirect()->route('admin.requests.show', $request)
                 ->with('success', "Price calculated! Total: $" . number_format($pricing['fields']['total_price'], 2));
-
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
@@ -308,7 +359,6 @@ class AdminRequestController extends Controller
 
             return redirect()->route('admin.requests.show', $request)
                 ->with('success', 'Price quote sent to courier. Awaiting response.');
-
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
@@ -404,7 +454,6 @@ class AdminRequestController extends Controller
 
             return redirect()->route('admin.requests.show', $request)
                 ->with('success', 'Price quote sent to courier. Waiting for acceptance.');
-
         } catch (\Exception $e) {
             if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
@@ -552,7 +601,7 @@ class AdminRequestController extends Controller
                     'name'         => $courier->full_name,
                     'phone'        => $courier->phone,
                     'vehicle_type' => $courier->vehicle_type ?? null,
-                    'profile_image'=> $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
+                    'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
                 ],
                 'location' => null,
                 'status'   => 'offline',
@@ -573,16 +622,20 @@ class AdminRequestController extends Controller
 
         if ($request->pickup_latitude && $request->pickup_longitude) {
             $distanceToPickup = $this->calculateDistance(
-                $cachedLocation['latitude'], $cachedLocation['longitude'],
-                $request->pickup_latitude,  $request->pickup_longitude
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->pickup_latitude,
+                $request->pickup_longitude
             );
             $etaToPickup = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
         }
 
         if ($request->delivery_latitude && $request->delivery_longitude) {
             $distanceToDelivery = $this->calculateDistance(
-                $cachedLocation['latitude'], $cachedLocation['longitude'],
-                $request->delivery_latitude, $request->delivery_longitude
+                $cachedLocation['latitude'],
+                $cachedLocation['longitude'],
+                $request->delivery_latitude,
+                $request->delivery_longitude
             );
             $etaToDelivery = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
         }
@@ -617,7 +670,8 @@ class AdminRequestController extends Controller
                 'coordinates'       => [
                     'latitude'  => (float) ($cachedLocation['latitude'] ?? 0),
                     'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
-                    'formatted' => sprintf('%.6f, %.6f',
+                    'formatted' => sprintf(
+                        '%.6f, %.6f',
                         (float) ($cachedLocation['latitude'] ?? 0),
                         (float) ($cachedLocation['longitude'] ?? 0)
                     ),
@@ -693,15 +747,19 @@ class AdminRequestController extends Controller
         if ($courierLocation && $courierLocation['latitude'] && $courierLocation['longitude']) {
             if ($request->pickup_latitude && $request->pickup_longitude) {
                 $distances['to_pickup_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'], $courierLocation['longitude'],
-                    $request->pickup_latitude,   $request->pickup_longitude
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->pickup_latitude,
+                    $request->pickup_longitude
                 ), 2);
             }
 
             if ($request->delivery_latitude && $request->delivery_longitude) {
                 $distances['to_delivery_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'], $courierLocation['longitude'],
-                    $request->delivery_latitude, $request->delivery_longitude
+                    $courierLocation['latitude'],
+                    $courierLocation['longitude'],
+                    $request->delivery_latitude,
+                    $request->delivery_longitude
                 ), 2);
             }
         }
@@ -751,7 +809,7 @@ class AdminRequestController extends Controller
             ]) : null,
             'stops'    => $stopsWithCoords,
             'progress' => $progress,
-            'distances'=> $distances,
+            'distances' => $distances,
             'timestamps' => [
                 'created_at'                => $request->created_at->format('Y-m-d H:i:s'),
                 'accepted_at'               => $request->accepted_at?->format('Y-m-d H:i:s'),
@@ -826,7 +884,7 @@ class AdminRequestController extends Controller
         $additionalStopCharge = ($request->relationLoaded('stops') ? $request->stops->count() : 0) * 10.00;
 
         $totalPrice   = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge
-                      + $weekendCharge + $coldChainCharge + $additionalStopCharge;
+            + $weekendCharge + $coldChainCharge + $additionalStopCharge;
         $courierFee   = round($totalPrice * 0.70, 2);
         $adminFee     = round($totalPrice * 0.20, 2);
         $profitMargin = round($totalPrice * 0.10, 2);
@@ -884,7 +942,7 @@ class AdminRequestController extends Controller
             $latDelta    = $latTo - $latFrom;
             $lonDelta    = $lonTo - $lonFrom;
             $angle       = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-                           cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+                cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
             return $angle * $earthRadius;
         }
         return 10.00;
@@ -900,7 +958,7 @@ class AdminRequestController extends Controller
         $latDelta    = $latTo - $latFrom;
         $lonDelta    = $lonTo - $lonFrom;
         $angle       = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-                       cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
         return $angle * $earthRadius;
     }
 
