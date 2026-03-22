@@ -972,7 +972,7 @@
                         <div class="input-wrapper {{ $errors->has('password') ? 'error' : '' }}">
                             <input type="password" id="password" name="password"
                                 placeholder="Create a password" required
-                                oninput="checkPasswordStrength(this.value)">
+                                oninput="checkPasswordStrength(this.value); updatePasswordRequirements(this.value)">
                             <button type="button" class="toggle-password" onclick="togglePassword('password')" aria-label="Toggle password visibility">
                                 <svg viewBox="0 0 24 24" width="20" height="20">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -1050,7 +1050,7 @@
         }
     }
 
-    // Password strength checker
+    // Password strength checker with special character requirement for "Strong"
     function checkPasswordStrength(password) {
         const strengthBars = document.querySelectorAll('#passwordStrength .strength-bar');
         const strengthText = document.getElementById('strengthText');
@@ -1062,21 +1062,21 @@
 
         if (!password) {
             strengthText.textContent = 'Enter a password';
+            strengthText.style.color = 'var(--gray)';
             return;
         }
 
+        // Check individual requirements
+        const hasMinLength = password.length >= 8;
+        const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+
         let strength = 0;
-
-        // Check length
-        if (password.length >= 8) strength++;
-        if (password.length >= 12) strength++;
-
-        // Check for mixed case
-        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-
-        // Check for numbers and special characters
-        if (/[0-9]/.test(password)) strength++;
-        if (/[^a-zA-Z0-9]/.test(password)) strength++;
+        if (hasMinLength) strength++;
+        if (hasMixedCase) strength++;
+        if (hasNumber) strength++;
+        if (hasSpecialChar) strength++;
 
         // Update bars
         for (let i = 0; i < Math.min(strength, 4); i++) {
@@ -1089,16 +1089,53 @@
             }
         }
 
-        // Update text
-        if (strength <= 2) {
-            strengthText.textContent = 'Weak password';
-            strengthText.style.color = 'var(--danger)';
-        } else if (strength <= 3) {
-            strengthText.textContent = 'Medium password';
-            strengthText.style.color = 'var(--warning)';
-        } else {
+        // Update text with accurate feedback
+        if (strength >= 4 && hasSpecialChar && hasNumber && hasMixedCase && hasMinLength) {
             strengthText.textContent = 'Strong password';
             strengthText.style.color = 'var(--success)';
+        } else {
+            let missing = [];
+            if (!hasMinLength) missing.push('at least 8 characters');
+            if (!hasMixedCase) missing.push('uppercase and lowercase letters');
+            if (!hasNumber) missing.push('numbers');
+            if (!hasSpecialChar) missing.push('special characters (e.g., @$!%*?&)');
+            
+            if (missing.length > 0) {
+                strengthText.textContent = `Weak password - needs: ${missing.join(', ')}`;
+                strengthText.style.color = 'var(--danger)';
+            } else if (strength >= 3) {
+                strengthText.textContent = 'Medium password - add special characters to make it strong';
+                strengthText.style.color = 'var(--warning)';
+            }
+        }
+    }
+
+    // Update password requirements display
+    function updatePasswordRequirements(password) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[^a-zA-Z0-9]/.test(password)
+        };
+        
+        let requirementsHtml = '<div style="margin-top: 8px; font-size: 12px; line-height: 1.4;">';
+        requirementsHtml += `<span style="color: ${requirements.length ? 'var(--success)' : 'var(--danger)'}">✓</span> At least 8 characters<br>`;
+        requirementsHtml += `<span style="color: ${requirements.uppercase && requirements.lowercase ? 'var(--success)' : 'var(--danger)'}">✓</span> Uppercase and lowercase letters<br>`;
+        requirementsHtml += `<span style="color: ${requirements.number ? 'var(--success)' : 'var(--danger)'}">✓</span> At least one number<br>`;
+        requirementsHtml += `<span style="color: ${requirements.special ? 'var(--success)' : 'var(--danger)'}">✓</span> At least one special character (!@#$%^&* etc.)<br>`;
+        requirementsHtml += '</div>';
+        
+        const existingReqs = document.getElementById('passwordRequirements');
+        if (existingReqs) {
+            existingReqs.innerHTML = requirementsHtml;
+        } else {
+            const reqsDiv = document.createElement('div');
+            reqsDiv.id = 'passwordRequirements';
+            reqsDiv.innerHTML = requirementsHtml;
+            const strengthDiv = document.getElementById('passwordStrength');
+            strengthDiv.insertAdjacentElement('afterend', reqsDiv);
         }
     }
 
@@ -1234,6 +1271,26 @@
     // Form validation before submit
     document.getElementById('registrationForm').addEventListener('submit', function(e) {
         const role = document.getElementById('role').value;
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('password_confirmation').value;
+        
+        // Check password requirements
+        const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasMinLength = password.length >= 8;
+        
+        if (!hasSpecialChar || !hasNumber || !hasUpperCase || !hasLowerCase || !hasMinLength) {
+            e.preventDefault();
+            let message = 'Password must contain:\n';
+            if (!hasMinLength) message += '• At least 8 characters\n';
+            if (!hasUpperCase || !hasLowerCase) message += '• Both uppercase and lowercase letters\n';
+            if (!hasNumber) message += '• At least one number\n';
+            if (!hasSpecialChar) message += '• At least one special character (!@#$%^&* etc.)\n';
+            alert(message);
+            return;
+        }
 
         if (role === 'courier') {
             const requiredFiles = ['profile_image', 'government_id', 'proof_of_residency', 'drivers_license'];
@@ -1259,9 +1316,6 @@
         }
 
         // Validate password match
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('password_confirmation').value;
-
         if (password !== confirmPassword) {
             e.preventDefault();
             alert('Passwords do not match. Please try again.');
@@ -1279,6 +1333,7 @@
         const password = document.getElementById('password').value;
         if (password) {
             checkPasswordStrength(password);
+            updatePasswordRequirements(password);
         }
     });
 
