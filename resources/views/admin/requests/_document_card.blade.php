@@ -48,9 +48,9 @@
         </div>
     </div>
 
-    {{-- Download button --}}
+    {{-- Download — uses the ADMIN route so no client_id ownership check fires --}}
     <div class="mt-2.5">
-        <a href="{{ route('client.request-documents.download', $document) }}"
+        <a href="{{ route('admin.request-documents.download', $document) }}"
            class="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 bg-teal-50 text-teal-600 rounded text-xs font-medium hover:bg-teal-100 transition-colors border border-teal-100">
             <i class="fas fa-download"></i> Download
         </a>

@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\CourierQuote;
 use App\Models\CourierLocation;
 use App\Models\AuditLog;
+use App\Models\RequestDocument;
 use App\Traits\Notifiable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
@@ -53,7 +55,9 @@ class AdminRequestController extends Controller
 
     public function show(SpecimenRequest $request)
     {
-        $request->load(['client', 'facility', 'courier', 'stops', 'documents', 'pickupProofs', 'signatures']);
+        // Eager-load documents with their stop and uploader so the blade
+        // can group by stop and display uploader name without extra queries.
+        $request->load(['client', 'facility', 'courier', 'stops', 'documents.stop', 'documents.uploader', 'pickupProofs', 'signatures']);
 
         $activeQuote = CourierQuote::where('request_id', $request->id)
             ->orderBy('created_at', 'desc')
@@ -68,6 +72,19 @@ class AdminRequestController extends Controller
             'couriers'    => $couriers,
             'activeQuote' => $activeQuote,
         ]);
+    }
+
+    // ─── Download a client-uploaded RequestDocument (admin only) ─────────────
+
+    public function downloadRequestDocument(RequestDocument $document)
+    {
+        // Admins can download any RequestDocument — no client_id check needed.
+        // We just verify the file actually exists on disk before streaming.
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            abort(404, 'File not found on disk.');
+        }
+
+        return Storage::disk('public')->download($document->file_path, $document->file_name);
     }
 
     // ─── Assign Courier (direct, no quote) ────────────────────────────────────
@@ -120,10 +137,8 @@ class AdminRequestController extends Controller
                 'request_id' => $request->id,
                 'courier_id' => $validated['courier_id']
             ]);
-            // Don't stop the process if email fails - just log it
         }
 
-        // Send in-app notification to courier
         $this->notifyCourier(
             $validated['courier_id'],
             'request_assigned',
@@ -194,14 +209,8 @@ class AdminRequestController extends Controller
                 ->update(['status' => 'expired']);
         }
 
-        // ============================================
-        // SEND EMAIL TO CLIENT WHEN REQUEST IS APPROVED OR REJECTED
-        // ============================================
         if (in_array($validated['status'], ['approved', 'rejected']) && $request->client_id) {
-
-            // Send email to client
             try {
-
                 $emailData = [
                     'request' => $request,
                     'client' => $request->client,
@@ -212,30 +221,18 @@ class AdminRequestController extends Controller
                     'dashboard_url' => route('client.requests.show', $request->id),
                 ];
 
-                // Send appropriate email based on status
                 if ($validated['status'] === 'approved') {
                     Mail::to($request->client->email)->send(new \App\Mail\RequestApprovedMail($emailData));
-                    Log::info('Request approval email sent to client', [
-                        'request_id' => $request->id,
-                        'client_email' => $request->client->email
-                    ]);
                 } else {
                     Mail::to($request->client->email)->send(new \App\Mail\RequestRejectedMail($emailData));
-                    Log::info('Request rejection email sent to client', [
-                        'request_id' => $request->id,
-                        'client_email' => $request->client->email,
-                        'reason' => $validated['rejection_reason']
-                    ]);
                 }
             } catch (\Exception $e) {
                 Log::error('Failed to send status update email to client: ' . $e->getMessage(), [
                     'request_id' => $request->id,
                     'status' => $validated['status']
                 ]);
-                // Don't stop the process if email fails - just log it
             }
 
-            // Also send in-app notification
             $this->notifyClient(
                 $request->client_id,
                 'status_update',
@@ -244,11 +241,11 @@ class AdminRequestController extends Controller
                     ($validated['status'] === 'rejected' && !empty($validated['rejection_reason']) ? " Reason: {$validated['rejection_reason']}" : ""),
                 $request->id,
                 [
-                    'request_id'     => $request->id,
-                    'request_number' => $request->request_number,
-                    'status'         => $validated['status'],
-                    'updated_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
-                    'updated_at'     => now()->toDateTimeString(),
+                    'request_id'       => $request->id,
+                    'request_number'   => $request->request_number,
+                    'status'           => $validated['status'],
+                    'updated_by'       => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'updated_at'       => now()->toDateTimeString(),
                     'rejection_reason' => $validated['rejection_reason'] ?? null,
                 ]
             );
@@ -278,6 +275,7 @@ class AdminRequestController extends Controller
         return redirect()->route('admin.requests.show', $request)
             ->with('success', "Request {$validated['status']} successfully!");
     }
+
     // ─── Calculate Price ──────────────────────────────────────────────────────
 
     public function calculatePrice(Request $httpRequest, SpecimenRequest $request)
@@ -431,12 +429,10 @@ class AdminRequestController extends Controller
                 $request->refresh();
             }
 
-            // ─── Determine final prices ───────────────────────────────────────
             $useOverride = $httpRequest->boolean('override_price');
 
             if ($useOverride) {
                 $totalPrice = (float) $validated['custom_total_price'];
-                // If courier fee is not provided or empty, auto-calculate at 70%
                 $courierFee = (isset($validated['custom_courier_fee']) && $validated['custom_courier_fee'] !== null && $validated['custom_courier_fee'] !== '')
                     ? (float) $validated['custom_courier_fee']
                     : round($totalPrice * 0.70, 2);
@@ -445,7 +441,6 @@ class AdminRequestController extends Controller
                 $courierFee = $request->courier_fee;
             }
 
-            // ─── Build breakdown, recording override details if applicable ────
             $breakdown = $this->buildBreakdown($request);
             if ($useOverride) {
                 $breakdown['price_override']   = true;
@@ -474,40 +469,29 @@ class AdminRequestController extends Controller
             ]);
 
             $courier = User::find($validated['courier_id']);
-            $admin = auth()->user();
+            $admin   = auth()->user();
 
-            // ============================================
-            // SEND EMAIL TO COURIER FOR QUOTE ASSIGNMENT
-            // ============================================
             try {
                 $emailData = [
-                    'request' => $request,
-                    'courier' => $courier,
-                    'admin' => $admin,
-                    'client' => $request->client,
-                    'quote' => $quote,
-                    'assigned_at' => now(),
-                    'deadline' => $quote->valid_until,
-                    'dashboard_url' => route('courier.requests.quote', $request->id),
-                    'pickup_address' => $request->pickup_address,
-                    'delivery_address' => $request->delivery_address,
-                    'scheduled_pickup' => $request->scheduled_pickup_time,
-                    'priority_level' => $request->priority_level,
-                    'specimen_type' => $request->specimen_type,
-                    'estimated_price' => $quote->total_price,
-                    'courier_fee' => $quote->courier_fee,
+                    'request'              => $request,
+                    'courier'              => $courier,
+                    'admin'                => $admin,
+                    'client'               => $request->client,
+                    'quote'                => $quote,
+                    'assigned_at'          => now(),
+                    'deadline'             => $quote->valid_until,
+                    'dashboard_url'        => route('courier.requests.quote', $request->id),
+                    'pickup_address'       => $request->pickup_address,
+                    'delivery_address'     => $request->delivery_address,
+                    'scheduled_pickup'     => $request->scheduled_pickup_time,
+                    'priority_level'       => $request->priority_level,
+                    'specimen_type'        => $request->specimen_type,
+                    'estimated_price'      => $quote->total_price,
+                    'courier_fee'          => $quote->courier_fee,
                     'special_instructions' => $request->special_instructions,
                 ];
 
                 Mail::to($courier->email)->send(new \App\Mail\CourierQuoteMail($emailData));
-
-                Log::info('Courier quote email sent', [
-                    'request_id'   => $request->id,
-                    'courier_id'   => $validated['courier_id'],
-                    'quote_id'     => $quote->id,
-                    'courier_email' => $courier->email,
-                    'price_overridden' => $useOverride,
-                ]);
             } catch (\Exception $e) {
                 Log::error('Failed to send courier quote email: ' . $e->getMessage(), [
                     'request_id' => $request->id,
@@ -538,13 +522,13 @@ class AdminRequestController extends Controller
                 "Quote sent to {$courier->first_name} {$courier->last_name} for request #{$request->request_number} — awaiting acceptance.",
                 $request->id,
                 [
-                    'request_id'      => $request->id,
-                    'request_number'  => $request->request_number,
-                    'courier_id'      => $validated['courier_id'],
-                    'quote_id'        => $quote->id,
-                    'total_price'     => $quote->total_price,
+                    'request_id'       => $request->id,
+                    'request_number'   => $request->request_number,
+                    'courier_id'       => $validated['courier_id'],
+                    'quote_id'         => $quote->id,
+                    'total_price'      => $quote->total_price,
                     'price_overridden' => $useOverride,
-                    'assigned_by'     => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                    'assigned_by'      => auth()->user()->first_name . ' ' . auth()->user()->last_name,
                 ]
             );
 
@@ -553,11 +537,11 @@ class AdminRequestController extends Controller
                     'success' => true,
                     'message' => 'Price quote sent to courier. Waiting for acceptance.',
                     'data'    => [
-                        'quote_id'        => $quote->id,
-                        'courier_fee'     => $quote->courier_fee,
-                        'total_price'     => $quote->total_price,
-                        'valid_until'     => $quote->valid_until->format('Y-m-d H:i:s'),
-                        'status'          => 'quote_sent',
+                        'quote_id'         => $quote->id,
+                        'courier_fee'      => $quote->courier_fee,
+                        'total_price'      => $quote->total_price,
+                        'valid_until'      => $quote->valid_until->format('Y-m-d H:i:s'),
+                        'status'           => 'quote_sent',
                         'price_overridden' => $useOverride,
                     ],
                 ]);
@@ -708,10 +692,10 @@ class AdminRequestController extends Controller
         if (! $cachedLocation) {
             return response()->json([
                 'courier' => [
-                    'id'           => $courier->id,
-                    'name'         => $courier->full_name,
-                    'phone'        => $courier->phone,
-                    'vehicle_type' => $courier->vehicle_type ?? null,
+                    'id'            => $courier->id,
+                    'name'          => $courier->full_name,
+                    'phone'         => $courier->phone,
+                    'vehicle_type'  => $courier->vehicle_type ?? null,
                     'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
                 ],
                 'location' => null,
@@ -720,34 +704,19 @@ class AdminRequestController extends Controller
             ]);
         }
 
-        $formattedAddress = $this->reverseGeocode(
-            $cachedLocation['latitude'] ?? null,
-            $cachedLocation['longitude'] ?? null
-        );
-
-        // Calculate distances
+        $formattedAddress   = $this->reverseGeocode($cachedLocation['latitude'] ?? null, $cachedLocation['longitude'] ?? null);
         $distanceToPickup   = null;
         $distanceToDelivery = null;
         $etaToPickup        = null;
         $etaToDelivery      = null;
 
         if ($request->pickup_latitude && $request->pickup_longitude) {
-            $distanceToPickup = $this->calculateDistance(
-                $cachedLocation['latitude'],
-                $cachedLocation['longitude'],
-                $request->pickup_latitude,
-                $request->pickup_longitude
-            );
+            $distanceToPickup = $this->calculateDistance($cachedLocation['latitude'], $cachedLocation['longitude'], $request->pickup_latitude, $request->pickup_longitude);
             $etaToPickup = $this->calculateETA($distanceToPickup, $cachedLocation['speed'] ?? 0);
         }
 
         if ($request->delivery_latitude && $request->delivery_longitude) {
-            $distanceToDelivery = $this->calculateDistance(
-                $cachedLocation['latitude'],
-                $cachedLocation['longitude'],
-                $request->delivery_latitude,
-                $request->delivery_longitude
-            );
+            $distanceToDelivery = $this->calculateDistance($cachedLocation['latitude'], $cachedLocation['longitude'], $request->delivery_latitude, $request->delivery_longitude);
             $etaToDelivery = $this->calculateETA($distanceToDelivery, $cachedLocation['speed'] ?? 0);
         }
 
@@ -761,9 +730,7 @@ class AdminRequestController extends Controller
                 'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
                 'last_seen'     => isset($cachedLocation['last_update'])
                     ? Carbon::parse($cachedLocation['last_update'])->diffForHumans()
-                    : (isset($cachedLocation['timestamp'])
-                        ? Carbon::createFromTimestamp($cachedLocation['timestamp'])->diffForHumans()
-                        : 'Just now'),
+                    : (isset($cachedLocation['timestamp']) ? Carbon::createFromTimestamp($cachedLocation['timestamp'])->diffForHumans() : 'Just now'),
                 'rating'        => $courier->rating ?? 4.5,
             ],
             'location' => [
@@ -781,18 +748,14 @@ class AdminRequestController extends Controller
                 'coordinates'       => [
                     'latitude'  => (float) ($cachedLocation['latitude'] ?? 0),
                     'longitude' => (float) ($cachedLocation['longitude'] ?? 0),
-                    'formatted' => sprintf(
-                        '%.6f, %.6f',
-                        (float) ($cachedLocation['latitude'] ?? 0),
-                        (float) ($cachedLocation['longitude'] ?? 0)
-                    ),
+                    'formatted' => sprintf('%.6f, %.6f', (float) ($cachedLocation['latitude'] ?? 0), (float) ($cachedLocation['longitude'] ?? 0)),
                 ],
             ],
             'distances' => [
-                'to_pickup_km'              => $distanceToPickup   ? round($distanceToPickup, 2)   : null,
-                'to_delivery_km'            => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
-                'eta_to_pickup_minutes'     => $etaToPickup,
-                'eta_to_delivery_minutes'   => $etaToDelivery,
+                'to_pickup_km'            => $distanceToPickup   ? round($distanceToPickup, 2)   : null,
+                'to_delivery_km'          => $distanceToDelivery ? round($distanceToDelivery, 2) : null,
+                'eta_to_pickup_minutes'   => $etaToPickup,
+                'eta_to_delivery_minutes' => $etaToDelivery,
             ],
             'status'         => ($cachedLocation['is_online'] ?? false) ? 'online' : 'offline',
             'request_status' => $request->status,
@@ -813,10 +776,7 @@ class AdminRequestController extends Controller
             $cachedLocation = Cache::get('courier_location_' . $courier->id);
 
             if (! $cachedLocation && class_exists(CourierLocation::class)) {
-                $dbLoc = CourierLocation::where('courier_id', $courier->id)
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-
+                $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('created_at', 'desc')->first();
                 if ($dbLoc) {
                     $cachedLocation = [
                         'latitude'      => (float) $dbLoc->latitude,
@@ -838,62 +798,48 @@ class AdminRequestController extends Controller
             }
         }
 
-        $progress = $this->calculateDeliveryProgress($request);
-
-        $stopsWithCoords = $request->stops->map(function ($stop) {
-            return [
-                'id'           => $stop->id,
-                'type'         => $stop->stop_type,
-                'address'      => $stop->address,
-                'contact_name' => $stop->contact_name,
-                'instructions' => $stop->instructions,
-                'completed'    => $stop->completed,
-                'completed_at' => $stop->completed_at?->format('Y-m-d H:i:s'),
-                'latitude'     => $stop->latitude  ? (float) $stop->latitude  : null,
-                'longitude'    => $stop->longitude ? (float) $stop->longitude : null,
-            ];
-        });
+        $progress        = $this->calculateDeliveryProgress($request);
+        $stopsWithCoords = $request->stops->map(fn($stop) => [
+            'id'           => $stop->id,
+            'type'         => $stop->stop_type,
+            'address'      => $stop->address,
+            'contact_name' => $stop->contact_name,
+            'instructions' => $stop->instructions,
+            'completed'    => $stop->completed,
+            'completed_at' => $stop->completed_at?->format('Y-m-d H:i:s'),
+            'latitude'     => $stop->latitude  ? (float) $stop->latitude  : null,
+            'longitude'    => $stop->longitude ? (float) $stop->longitude : null,
+        ]);
 
         $distances = [];
         if ($courierLocation && $courierLocation['latitude'] && $courierLocation['longitude']) {
             if ($request->pickup_latitude && $request->pickup_longitude) {
-                $distances['to_pickup_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'],
-                    $courierLocation['longitude'],
-                    $request->pickup_latitude,
-                    $request->pickup_longitude
-                ), 2);
+                $distances['to_pickup_km'] = round($this->calculateDistance($courierLocation['latitude'], $courierLocation['longitude'], $request->pickup_latitude, $request->pickup_longitude), 2);
             }
-
             if ($request->delivery_latitude && $request->delivery_longitude) {
-                $distances['to_delivery_km'] = round($this->calculateDistance(
-                    $courierLocation['latitude'],
-                    $courierLocation['longitude'],
-                    $request->delivery_latitude,
-                    $request->delivery_longitude
-                ), 2);
+                $distances['to_delivery_km'] = round($this->calculateDistance($courierLocation['latitude'], $courierLocation['longitude'], $request->delivery_latitude, $request->delivery_longitude), 2);
             }
         }
 
         return response()->json([
             'request' => [
-                'id'                  => $request->id,
-                'request_number'      => $request->request_number,
-                'status'              => $request->status,
-                'status_display'      => str_replace('_', ' ', $request->status),
-                'pickup_address'      => $request->pickup_address,
-                'pickup_latitude'     => $request->pickup_latitude     ? (float) $request->pickup_latitude     : null,
-                'pickup_longitude'    => $request->pickup_longitude    ? (float) $request->pickup_longitude    : null,
-                'delivery_address'    => $request->delivery_address,
-                'delivery_latitude'   => $request->delivery_latitude   ? (float) $request->delivery_latitude   : null,
-                'delivery_longitude'  => $request->delivery_longitude  ? (float) $request->delivery_longitude  : null,
+                'id'                      => $request->id,
+                'request_number'          => $request->request_number,
+                'status'                  => $request->status,
+                'status_display'          => str_replace('_', ' ', $request->status),
+                'pickup_address'          => $request->pickup_address,
+                'pickup_latitude'         => $request->pickup_latitude     ? (float) $request->pickup_latitude     : null,
+                'pickup_longitude'        => $request->pickup_longitude    ? (float) $request->pickup_longitude    : null,
+                'delivery_address'        => $request->delivery_address,
+                'delivery_latitude'       => $request->delivery_latitude   ? (float) $request->delivery_latitude   : null,
+                'delivery_longitude'      => $request->delivery_longitude  ? (float) $request->delivery_longitude  : null,
                 'scheduled_pickup_time'   => $request->scheduled_pickup_time?->format('Y-m-d H:i:s'),
                 'scheduled_delivery_time' => $request->scheduled_delivery_time?->format('Y-m-d H:i:s'),
-                'priority_level'      => $request->priority_level,
-                'specimen_type'       => $request->specimen_type,
+                'priority_level'          => $request->priority_level,
+                'specimen_type'           => $request->specimen_type,
                 'temperature_requirement' => $request->temperature_requirement,
-                'quantity'            => $request->quantity,
-                'payment_status'      => $request->payment_status,
+                'quantity'                => $request->quantity,
+                'payment_status'          => $request->payment_status,
             ],
             'courier' => $courier ? [
                 'id'             => $courier->id,
@@ -906,17 +852,14 @@ class AdminRequestController extends Controller
                 'rating'         => $courier->rating ?? 4.5,
             ] : null,
             'courier_location' => $courierLocation ? array_merge($courierLocation, [
-                'formatted_address' => $this->reverseGeocode(
-                    $courierLocation['latitude'] ?? null,
-                    $courierLocation['longitude'] ?? null
-                ),
-                'coordinates' => [
+                'formatted_address' => $this->reverseGeocode($courierLocation['latitude'] ?? null, $courierLocation['longitude'] ?? null),
+                'coordinates'       => [
                     'latitude'  => $courierLocation['latitude']  ?? null,
                     'longitude' => $courierLocation['longitude'] ?? null,
                     'formatted' => ($courierLocation['latitude'] && $courierLocation['longitude'])
                         ? sprintf('%.6f, %.6f', $courierLocation['latitude'], $courierLocation['longitude'])
                         : null,
-                ]
+                ],
             ]) : null,
             'stops'    => $stopsWithCoords,
             'progress' => $progress,
@@ -994,8 +937,7 @@ class AdminRequestController extends Controller
         $coldChainCharge      = in_array($request->temperature_requirement, ['2-8c', '-20c', '-80c']) ? 7.00 : 0.00;
         $additionalStopCharge = ($request->relationLoaded('stops') ? $request->stops->count() : 0) * 10.00;
 
-        $totalPrice   = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge
-            + $weekendCharge + $coldChainCharge + $additionalStopCharge;
+        $totalPrice   = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge + $weekendCharge + $coldChainCharge + $additionalStopCharge;
         $courierFee   = round($totalPrice * 0.70, 2);
         $adminFee     = round($totalPrice * 0.20, 2);
         $profitMargin = round($totalPrice * 0.10, 2);
@@ -1041,36 +983,29 @@ class AdminRequestController extends Controller
 
     private function calculateDistanceMiles(SpecimenRequest $request): float
     {
-        if (
-            $request->pickup_latitude  && $request->pickup_longitude &&
-            $request->delivery_latitude && $request->delivery_longitude
-        ) {
-            $earthRadius = 3959;
-            $latFrom     = deg2rad($request->pickup_latitude);
-            $lonFrom     = deg2rad($request->pickup_longitude);
-            $latTo       = deg2rad($request->delivery_latitude);
-            $lonTo       = deg2rad($request->delivery_longitude);
-            $latDelta    = $latTo - $latFrom;
-            $lonDelta    = $lonTo - $lonFrom;
-            $angle       = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-                cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
-            return $angle * $earthRadius;
+        if ($request->pickup_latitude && $request->pickup_longitude && $request->delivery_latitude && $request->delivery_longitude) {
+            $R       = 3959;
+            $latFrom = deg2rad($request->pickup_latitude);
+            $lonFrom = deg2rad($request->pickup_longitude);
+            $latTo   = deg2rad($request->delivery_latitude);
+            $lonTo   = deg2rad($request->delivery_longitude);
+            $dLat    = $latTo - $latFrom;
+            $dLon    = $lonTo - $lonFrom;
+            return $R * 2 * asin(sqrt(sin($dLat / 2) ** 2 + cos($latFrom) * cos($latTo) * sin($dLon / 2) ** 2));
         }
         return 10.00;
     }
 
     private function calculateDistance($lat1, $lon1, $lat2, $lon2): float
     {
-        $earthRadius = 6371; // kilometres
-        $latFrom     = deg2rad($lat1);
-        $lonFrom     = deg2rad($lon1);
-        $latTo       = deg2rad($lat2);
-        $lonTo       = deg2rad($lon2);
-        $latDelta    = $latTo - $latFrom;
-        $lonDelta    = $lonTo - $lonFrom;
-        $angle       = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
-            cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
-        return $angle * $earthRadius;
+        $R       = 6371;
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo   = deg2rad($lat2);
+        $lonTo   = deg2rad($lon2);
+        $dLat    = $latTo - $latFrom;
+        $dLon    = $lonTo - $lonFrom;
+        return $R * 2 * asin(sqrt(sin($dLat / 2) ** 2 + cos($latFrom) * cos($latTo) * sin($dLon / 2) ** 2));
     }
 
     private function calculateETA(float $distanceKm, $speedRaw): int
@@ -1082,27 +1017,16 @@ class AdminRequestController extends Controller
 
     private function calculateDeliveryProgress(SpecimenRequest $request): int
     {
-        $statusProgress = [
-            'pending_approval'           => 5,
-            'approved'                   => 15,
-            'pending_courier_acceptance' => 20,
-            'assigned'                   => 25,
-            'accepted_by_courier'        => 35,
-            'awaiting_pickup_proof'      => 45,
-            'picked_up'                  => 55,
-            'in_transit'                 => 70,
-            'arrived_at_destination'     => 85,
-            'delivered'                  => 95,
-            'completed'                  => 100,
-            'cancelled'                  => 0,
+        $map = [
+            'pending_approval' => 5, 'approved' => 15, 'pending_courier_acceptance' => 20,
+            'assigned' => 25, 'accepted_by_courier' => 35, 'awaiting_pickup_proof' => 45,
+            'picked_up' => 55, 'in_transit' => 70, 'arrived_at_destination' => 85,
+            'delivered' => 95, 'completed' => 100, 'cancelled' => 0,
         ];
-
-        $progress = $statusProgress[$request->status] ?? 0;
-
+        $progress = $map[$request->status] ?? 0;
         if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier', 'awaiting_pickup_proof', 'arrived_at_destination']) && $request->courier) {
             $progress += 5;
         }
-
         return min(100, $progress);
     }
 
@@ -1111,14 +1035,11 @@ class AdminRequestController extends Controller
         if (! $latitude || ! $longitude) {
             return 'Location not available';
         }
-
         $cacheKey      = 'reverse_geocode_eng_' . round($latitude, 6) . '_' . round($longitude, 6);
         $cachedAddress = Cache::get($cacheKey);
-
         if ($cachedAddress) {
             return $cachedAddress;
         }
-
         try {
             $response = Http::withHeaders([
                 'User-Agent'      => config('app.name') . '/1.0',
@@ -1132,7 +1053,6 @@ class AdminRequestController extends Controller
                 'addressdetails'  => 1,
                 'accept-language' => 'en',
             ]);
-
             if ($response->successful()) {
                 $data = $response->json();
                 if (isset($data['display_name'])) {
@@ -1143,7 +1063,6 @@ class AdminRequestController extends Controller
         } catch (\Exception $e) {
             Log::info('Admin reverse geocoding failed: ' . $e->getMessage());
         }
-
         return sprintf('%.4f, %.4f', $latitude, $longitude);
     }
 }
