@@ -12,6 +12,7 @@ use App\Models\RequestDocument;
 use App\Models\Signature;
 use App\Models\SystemSetting;
 use App\Models\CourierLocation;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -138,19 +139,9 @@ class ClientController extends Controller
 
     // ====================================================================
     // PREVIEW REQUEST
-    // Validates the form, calculates price, saves uploaded files to the
-    // LOCAL disk as temp files (paths only go into session — never the
-    // UploadedFile objects themselves, which cannot be serialized).
     // ====================================================================
     public function previewRequest(Request $request)
     {
-        // ----------------------------------------------------------------
-        // 1. Validate — but do NOT include the file rules inside the same
-        //    validate() call that produces $validated, because Laravel
-        //    puts the validated values (including UploadedFile objects)
-        //    directly into the returned array and we store that in session.
-        //    Validate files separately, then unset them from $validated.
-        // ----------------------------------------------------------------
         $validated = $request->validate([
             'recipient_name'          => 'required|string|max:200',
             'contact_phone'           => 'required|string|max:20',
@@ -175,8 +166,6 @@ class ClientController extends Controller
             'stops.*.latitude'        => 'nullable|numeric',
             'stops.*.longitude'       => 'nullable|numeric',
             'stops.*.instructions'    => 'nullable|string',
-            // Validate file fields too — but we will remove them from
-            // $validated before touching the session (see step 3 below).
             'documents'               => 'nullable|array',
             'documents.*'             => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
             'stop_documents'          => 'nullable|array',
@@ -187,18 +176,12 @@ class ClientController extends Controller
         $user     = Auth::user();
         $facility = $user->facilities()->first();
 
-        // ----------------------------------------------------------------
-        // 2. Save uploaded files to local (private) disk as temp files.
-        //    We store only the metadata + path in the session.
-        // ----------------------------------------------------------------
         $sessionDocs     = [];
         $sessionStopDocs = [];
 
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $file) {
-                if (!$file || !$file->isValid()) {
-                    continue;
-                }
+                if (!$file || !$file->isValid()) continue;
                 $tmpPath = $file->store('tmp_uploads', 'local');
                 $sessionDocs[] = [
                     'tmp_path'      => $tmpPath,
@@ -211,13 +194,9 @@ class ClientController extends Controller
 
         if ($request->hasFile('stop_documents')) {
             foreach ($request->file('stop_documents') as $stopIndex => $stopFiles) {
-                if (!is_array($stopFiles)) {
-                    $stopFiles = [$stopFiles];
-                }
+                if (!is_array($stopFiles)) $stopFiles = [$stopFiles];
                 foreach ($stopFiles as $file) {
-                    if (!$file || !$file->isValid()) {
-                        continue;
-                    }
+                    if (!$file || !$file->isValid()) continue;
                     $tmpPath = $file->store('tmp_uploads', 'local');
                     $sessionStopDocs[$stopIndex][] = [
                         'tmp_path'      => $tmpPath,
@@ -229,17 +208,8 @@ class ClientController extends Controller
             }
         }
 
-        // ----------------------------------------------------------------
-        // 3. CRITICAL: Remove UploadedFile objects from $validated before
-        //    putting anything in the session.  UploadedFile cannot be
-        //    serialized and will crash with:
-        //    "Serialization of 'Illuminate\Http\UploadedFile' is not allowed"
-        // ----------------------------------------------------------------
         unset($validated['documents'], $validated['stop_documents']);
 
-        // ----------------------------------------------------------------
-        // 4. Calculate price
-        // ----------------------------------------------------------------
         $priceData = null;
         try {
             $priceResult = $this->calculateRequestPrice(new Request([
@@ -254,52 +224,36 @@ class ClientController extends Controller
             ]));
             if ($priceResult->getStatusCode() === 200) {
                 $decoded = json_decode($priceResult->getContent(), true);
-                if (!empty($decoded['success'])) {
-                    $priceData = $decoded['data'];
-                }
+                if (!empty($decoded['success'])) $priceData = $decoded['data'];
             }
         } catch (\Exception $e) {
             Log::warning('Price calculation in preview failed: ' . $e->getMessage());
         }
 
-        // Fallback so the view always has a valid breakdown array
         if (!$priceData) {
             $priceData = [
-                'base_price'              => '50.00',
-                'distance_miles'          => 0,
-                'distance_charge'         => '0.00',
-                'priority_charge'         => '0.00',
-                'night_charge'            => '0.00',
-                'weekend_charge'          => '0.00',
-                'temperature_charge'      => '0.00',
-                'additional_stops'        => count($validated['stops'] ?? []),
-                'additional_stops_charge' => '0.00',
-                'subtotal'                => '50.00',
-                'tax_rate'                => 8.5,
-                'tax_amount'              => '4.25',
-                'total_price'             => '54.25',
-                'estimated_total'         => '54.25',
+                'base_price' => '50.00', 'distance_miles' => 0, 'distance_charge' => '0.00',
+                'priority_charge' => '0.00', 'night_charge' => '0.00', 'weekend_charge' => '0.00',
+                'temperature_charge' => '0.00', 'additional_stops' => count($validated['stops'] ?? []),
+                'additional_stops_charge' => '0.00', 'subtotal' => '50.00', 'tax_rate' => 8.5,
+                'tax_amount' => '4.25', 'total_price' => '54.25', 'estimated_total' => '54.25',
             ];
         }
 
-        // ----------------------------------------------------------------
-        // 5. Store ONLY serializable data in session
-        // ----------------------------------------------------------------
         $request->session()->put('request_preview_data', [
-            'form_data'      => $validated,       // scalar values only — no UploadedFile
+            'form_data'      => $validated,
             'price_data'     => $priceData,
-            'documents'      => $sessionDocs,     // paths + metadata only
-            'stop_documents' => $sessionStopDocs, // paths + metadata only
+            'documents'      => $sessionDocs,
+            'stop_documents' => $sessionStopDocs,
         ]);
 
-        // Cast price values to float for the view
         $priceBreakdown = array_map(fn($v) => is_numeric($v) ? (float) $v : $v, $priceData);
 
         return view('client.requests.preview', compact('validated', 'priceBreakdown', 'facility'));
     }
 
     // ====================================================================
-    // CALCULATE PRICE  (AJAX endpoint + called internally)
+    // CALCULATE PRICE  (AJAX)
     // ====================================================================
     public function calculateRequestPrice(Request $httpRequest)
     {
@@ -362,12 +316,446 @@ class ClientController extends Controller
         }
     }
 
+    // ====================================================================
+    // STORE REQUEST
+    // ====================================================================
+    public function storeRequest(Request $request)
+    {
+        $previewData = $request->session()->get('request_preview_data');
+
+        if ($previewData) {
+            $validated       = $previewData['form_data'];
+            $priceData       = $previewData['price_data'];
+            $sessionDocs     = $previewData['documents'] ?? [];
+            $sessionStopDocs = $previewData['stop_documents'] ?? [];
+            $request->session()->forget('request_preview_data');
+        } else {
+            $validated = $request->validate([
+                'recipient_name'          => 'required|string|max:200',
+                'contact_phone'           => 'required|string|max:20',
+                'pickup_address'          => 'required|string',
+                'pickup_date'             => 'required|date',
+                'pickup_time'             => 'required|string',
+                'delivery_address'        => 'required|string',
+                'delivery_instructions'   => 'nullable|string',
+                'specimen_type'           => 'required|string',
+                'temperature_requirement' => 'required|string',
+                'quantity'                => 'required|integer|min:1',
+                'priority_level'          => 'required|string',
+                'special_instructions'    => 'nullable|string',
+                'stops'                   => 'nullable|array',
+                'stops.*.type'            => 'required|string',
+                'stops.*.contact_name'    => 'nullable|string',
+                'stops.*.address'         => 'required|string',
+                'stops.*.instructions'    => 'nullable|string',
+            ]);
+
+            $priceData = null;
+            try {
+                $priceResult = $this->calculateRequestPrice(new Request($validated));
+                if ($priceResult->getStatusCode() === 200) {
+                    $decoded = json_decode($priceResult->getContent(), true);
+                    $priceData = $decoded['success'] ? $decoded['data'] : null;
+                }
+            } catch (\Exception $e) { /* non-fatal */ }
+
+            $sessionDocs     = [];
+            $sessionStopDocs = [];
+        }
+
+        $user     = Auth::user();
+        $facility = $user->facilities()->first();
+
+        $pickupCoords    = $this->geocodeAddress($validated['pickup_address']);
+        $deliveryCoords  = $this->geocodeAddress($validated['delivery_address']);
+        $scheduledPickup = $this->parsePickupDateTime($validated['pickup_date'], $validated['pickup_time']);
+
+        $specimenRequest = SpecimenRequest::create([
+            'facility_id'             => $facility ? $facility->id : null,
+            'client_id'               => $user->id,
+            'recipient_name'          => $validated['recipient_name'],
+            'pickup_address'          => $validated['pickup_address'],
+            'pickup_latitude'         => $pickupCoords['latitude'] ?? null,
+            'pickup_longitude'        => $pickupCoords['longitude'] ?? null,
+            'delivery_address'        => $validated['delivery_address'],
+            'delivery_latitude'       => $deliveryCoords['latitude'] ?? null,
+            'delivery_longitude'      => $deliveryCoords['longitude'] ?? null,
+            'delivery_instructions'   => $validated['delivery_instructions'] ?? null,
+            'specimen_type'           => $validated['specimen_type'],
+            'temperature_requirement' => $validated['temperature_requirement'],
+            'quantity'                => $validated['quantity'],
+            'priority_level'          => $validated['priority_level'],
+            'special_instructions'    => $validated['special_instructions'] ?? null,
+            'scheduled_pickup_time'   => $scheduledPickup,
+            'status'                  => 'pending_approval',
+            'payment_status'          => 'pending',
+            'payment_required'        => true,
+            'estimated_price'         => $priceData ? $priceData['estimated_total'] : null,
+            'price_breakdown'         => $priceData ? json_encode($priceData) : null,
+            'is_price_estimated'      => $priceData ? true : false,
+            'distance_miles'          => $priceData ? $priceData['distance_miles'] : null,
+            'additional_stops'        => $priceData ? $priceData['additional_stops'] : 0,
+        ]);
+
+        $savedStopIds = [];
+        if (!empty($validated['stops'])) {
+            $order = 1;
+            foreach ($validated['stops'] as $index => $stop) {
+                $coords    = $this->geocodeAddress($stop['address']);
+                $savedStop = $specimenRequest->stops()->create([
+                    'stop_type'    => $stop['type'],
+                    'stop_order'   => $order++,
+                    'contact_name' => $stop['contact_name'] ?? null,
+                    'address'      => $stop['address'],
+                    'instructions' => $stop['instructions'] ?? null,
+                    'latitude'     => $coords['latitude'] ?? null,
+                    'longitude'    => $coords['longitude'] ?? null,
+                ]);
+                $savedStopIds[$index] = $savedStop->id;
+            }
+        }
+
+        // General docs — session
+        foreach ($sessionDocs as $docInfo) {
+            if (!Storage::disk('local')->exists($docInfo['tmp_path'])) continue;
+            $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
+            Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
+            Storage::disk('local')->delete($docInfo['tmp_path']);
+            $specimenRequest->documents()->create([
+                'stop_id' => null, 'title' => $docInfo['original_name'],
+                'document_type' => 'other', 'file_name' => $docInfo['original_name'],
+                'file_path' => $finalPath, 'file_size' => $docInfo['file_size'],
+                'mime_type' => $docInfo['mime_type'], 'uploaded_by' => $user->id,
+            ]);
+        }
+
+        // General docs — direct
+        if ($request->hasFile('documents')) {
+            foreach ($request->file('documents') as $file) {
+                $path = $file->store('request_documents', 'public');
+                $specimenRequest->documents()->create([
+                    'stop_id' => null, 'title' => $file->getClientOriginalName(),
+                    'document_type' => 'other', 'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path, 'file_size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(), 'uploaded_by' => $user->id,
+                ]);
+            }
+        }
+
+        // Per-stop docs — session
+        foreach ($sessionStopDocs as $stopIndex => $docInfos) {
+            if (!isset($savedStopIds[$stopIndex])) continue;
+            foreach ($docInfos as $docInfo) {
+                if (!Storage::disk('local')->exists($docInfo['tmp_path'])) continue;
+                $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
+                Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
+                Storage::disk('local')->delete($docInfo['tmp_path']);
+                $specimenRequest->documents()->create([
+                    'stop_id' => $savedStopIds[$stopIndex], 'title' => $docInfo['original_name'],
+                    'document_type' => 'other', 'file_name' => $docInfo['original_name'],
+                    'file_path' => $finalPath, 'file_size' => $docInfo['file_size'],
+                    'mime_type' => $docInfo['mime_type'], 'uploaded_by' => $user->id,
+                ]);
+            }
+        }
+
+        // Per-stop docs — direct
+        if ($request->hasFile('stop_documents')) {
+            foreach ($request->file('stop_documents') as $stopIndex => $stopFiles) {
+                if (!isset($savedStopIds[$stopIndex])) continue;
+                if (!is_array($stopFiles)) $stopFiles = [$stopFiles];
+                foreach ($stopFiles as $file) {
+                    if (!$file || !$file->isValid()) continue;
+                    $path = $file->store('request_documents', 'public');
+                    $specimenRequest->documents()->create([
+                        'stop_id' => $savedStopIds[$stopIndex], 'title' => $file->getClientOriginalName(),
+                        'document_type' => 'other', 'file_name' => $file->getClientOriginalName(),
+                        'file_path' => $path, 'file_size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType(), 'uploaded_by' => $user->id,
+                    ]);
+                }
+            }
+        }
+
+        if ($specimenRequest->estimated_price > 0) {
+            (new PaymentService())->createPayment($specimenRequest, $user);
+        }
+
+        try {
+            Mail::to('admin@neoprolab.com')->send(new \App\Mail\NewOrderNotification([
+                'request'        => $specimenRequest,
+                'client'         => $user,
+                'facility'       => $facility,
+                'price_data'     => $priceData,
+                'validated_data' => $validated,
+                'request_url'    => route('admin.requests.show', $specimenRequest->id),
+                'dashboard_url'  => route('admin.dashboard'),
+            ]));
+        } catch (\Exception $e) {
+            Log::error('Failed to send admin notification email: ' . $e->getMessage());
+        }
+
+        return redirect()->route('client.requests.index')
+            ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
+    }
+
+    // ====================================================================
+    // REPORTS
+    // The existing view (resources/views/client/reports/index.blade.php)
+    // requires: $startDate, $endDate, $stats, $requests,
+    //           $specimenTypes, $priorities, $monthlyTrend
+    // ====================================================================
+    public function reports(Request $httpRequest)
+    {
+        $user = Auth::user();
+
+        // Date range — default to last 30 days, honour query-string overrides
+        $startDate = $httpRequest->get('start_date', now()->subDays(30)->format('Y-m-d'));
+        $endDate   = $httpRequest->get('end_date',   now()->format('Y-m-d'));
+
+        // Base query scoped to the date range
+        $baseQuery = $user->createdRequests()
+            ->whereBetween('created_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ]);
+
+        // ── Stats ────────────────────────────────────────────────────────
+        $stats = [
+            'total'       => (clone $baseQuery)->count(),
+            'completed'   => (clone $baseQuery)->where('status', 'completed')->count(),
+            'cancelled'   => (clone $baseQuery)->where('status', 'cancelled')->count(),
+            'pending'     => (clone $baseQuery)->where('status', 'pending_approval')->count(),
+            'in_progress' => (clone $baseQuery)->whereIn('status', [
+                'approved', 'assigned', 'accepted_by_courier',
+                'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination',
+            ])->count(),
+        ];
+
+        // ── Recent requests for the table ────────────────────────────────
+        $requests = (clone $baseQuery)
+            ->with(['courier', 'facility'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // ── Specimen type distribution ───────────────────────────────────
+        $specimenTypes = (clone $baseQuery)
+            ->selectRaw('specimen_type, count(*) as count')
+            ->groupBy('specimen_type')
+            ->orderByDesc('count')
+            ->get()
+            ->pluck('count', 'specimen_type');
+
+        // ── Priority distribution ────────────────────────────────────────
+        $priorities = (clone $baseQuery)
+            ->selectRaw('priority_level, count(*) as count')
+            ->groupBy('priority_level')
+            ->orderByDesc('count')
+            ->get()
+            ->pluck('count', 'priority_level');
+
+        // ── Monthly trend (last 6 months, or within the selected range) ──
+        $monthlyTrend = (clone $baseQuery)
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count")
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->pluck('count', 'month');
+
+        return view('client.reports.index', compact(
+            'startDate', 'endDate', 'stats', 'requests',
+            'specimenTypes', 'priorities', 'monthlyTrend'
+        ));
+    }
+
+    public function downloadReport(Request $httpRequest)
+    {
+        $user      = Auth::user();
+        $format    = $httpRequest->input('format', 'csv');
+        $startDate = $httpRequest->input('start_date', now()->subDays(30)->format('Y-m-d'));
+        $endDate   = $httpRequest->input('end_date',   now()->format('Y-m-d'));
+
+        $requests = $user->createdRequests()
+            ->whereBetween('created_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ])
+            ->with(['courier', 'facility'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $headers  = ['Request #', 'Status', 'Specimen', 'Priority', 'Pickup Address', 'Delivery Address', 'Created'];
+        $filename = 'requests-report-' . now()->format('Y-m-d') . '.csv';
+
+        $callback = function () use ($headers, $requests) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            foreach ($requests as $r) {
+                fputcsv($handle, [
+                    $r->request_number,
+                    $r->status,
+                    $r->specimen_type,
+                    $r->priority_level,
+                    $r->pickup_address,
+                    $r->delivery_address,
+                    $r->created_at->format('Y-m-d'),
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return response()->streamDownload($callback, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    // ====================================================================
+    // PAYMENTS
+    // ====================================================================
+
+    public function showPayment(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $payment = $request->payment;
+        return view('client.payment', compact('request', 'payment'));
+    }
+
+    public function processPayment(Request $httpRequest, SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        try {
+            $result = (new PaymentService())->processPayment($request, $httpRequest->all());
+            if ($result['success'] ?? false) {
+                return redirect()->route('client.payments.success', $result['payment'] ?? $request->id)
+                    ->with('success', 'Payment processed successfully!');
+            }
+            return back()->with('error', $result['message'] ?? 'Payment failed. Please try again.');
+        } catch (\Exception $e) {
+            Log::error('Payment processing failed: ' . $e->getMessage());
+            return back()->with('error', 'Payment processing failed. Please try again.');
+        }
+    }
+
+    public function paymentSuccess(Request $httpRequest, $payment)
+    {
+        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
+        return view('client.payments.success', compact('request'));
+    }
+
+    public function paymentCallback(Request $httpRequest, $payment)
+    {
+        try {
+            (new PaymentService())->handleCallback($payment, $httpRequest->all());
+        } catch (\Exception $e) {
+            Log::error('Payment callback failed: ' . $e->getMessage());
+        }
+        return redirect()->route('client.requests.index');
+    }
+
+    public function downloadReceipt(Request $httpRequest, $payment)
+    {
+        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
+        $content = "RECEIPT\nRequest #: {$request->request_number}\nDate: {$request->created_at->format('Y-m-d')}\nStatus: {$request->status}\nAmount: \${$request->estimated_price}\n";
+        return response($content, 200, [
+            'Content-Type'        => 'text/plain',
+            'Content-Disposition' => "attachment; filename=\"receipt-{$request->request_number}.txt\"",
+        ]);
+    }
+
+    public function paymentHistory()
+    {
+        $payments = Auth::user()->createdRequests()
+            ->with(['facility'])
+            ->whereNotNull('payment_status')
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+        return view('client.payments.history', compact('payments'));
+    }
+
+    public function viewPayment(Request $httpRequest, $payment)
+    {
+        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
+        return view('client.payments.view', compact('request'));
+    }
+
+    // ====================================================================
+    // TRACKING API ENDPOINTS
+    // ====================================================================
+
+    public function getTrackingDetails(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $request->load(['courier', 'stops', 'pickupProofs']);
+
+        $courierLocation = null;
+        if ($request->courier_id) {
+            $courierLocation = Cache::get('courier_location_' . $request->courier_id);
+            if (!$courierLocation) {
+                $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+                if ($dbLoc) {
+                    $courierLocation = [
+                        'latitude'  => (float) $dbLoc->latitude,
+                        'longitude' => (float) $dbLoc->longitude,
+                        'is_online' => (bool) $dbLoc->is_online,
+                        'timestamp' => $dbLoc->created_at->timestamp,
+                    ];
+                }
+            }
+        }
+
+        return response()->json([
+            'request_status'     => $request->status,
+            'pickup_latitude'    => $request->pickup_latitude    ? (float) $request->pickup_latitude    : null,
+            'pickup_longitude'   => $request->pickup_longitude   ? (float) $request->pickup_longitude   : null,
+            'delivery_latitude'  => $request->delivery_latitude  ? (float) $request->delivery_latitude  : null,
+            'delivery_longitude' => $request->delivery_longitude ? (float) $request->delivery_longitude : null,
+            'courier_location'   => $courierLocation,
+            'stops'              => $request->stops->map(fn($s) => [
+                'id'        => $s->id,
+                'address'   => $s->address,
+                'type'      => $s->stop_type,
+                'completed' => $s->completed,
+                'latitude'  => $s->latitude  ? (float) $s->latitude  : null,
+                'longitude' => $s->longitude ? (float) $s->longitude : null,
+            ]),
+        ]);
+    }
+
+    public function getCourierLocationApi(Request $httpRequest, User $courier)
+    {
+        $hasRequest = SpecimenRequest::where('client_id', Auth::id())
+            ->where('courier_id', $courier->id)
+            ->whereIn('status', ['assigned', 'accepted_by_courier', 'picked_up', 'in_transit', 'arrived_at_destination'])
+            ->exists();
+
+        if (!$hasRequest) abort(403);
+
+        $location = Cache::get('courier_location_' . $courier->id);
+        if (!$location) {
+            $dbLoc = CourierLocation::where('courier_id', $courier->id)->latest()->first();
+            if ($dbLoc) {
+                $location = [
+                    'latitude'  => (float) $dbLoc->latitude,
+                    'longitude' => (float) $dbLoc->longitude,
+                    'is_online' => (bool) $dbLoc->is_online,
+                    'timestamp' => $dbLoc->created_at->timestamp,
+                ];
+            }
+        }
+
+        return response()->json([
+            'courier'  => ['id' => $courier->id, 'name' => $courier->full_name],
+            'location' => $location,
+            'status'   => ($location && ($location['is_online'] ?? false)) ? 'online' : 'offline',
+        ]);
+    }
+
+    // ====================================================================
+    // PRIVATE HELPERS
+    // ====================================================================
+
     private function calculateDistanceWithGoogleMaps($origin, $destination)
     {
         $cacheKey = 'distance_' . md5($origin . $destination);
-        if (($cached = Cache::get($cacheKey)) !== null) {
-            return $cached;
-        }
+        if (($cached = Cache::get($cacheKey)) !== null) return $cached;
         try {
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
@@ -416,242 +804,12 @@ class ClientController extends Controller
         return Carbon::parse($date)->setHour($hours[$time] ?? 8)->setMinute(0)->setSecond(0);
     }
 
-    // ====================================================================
-    // STORE REQUEST
-    // Reads from session (preview path) or validates directly (fallback).
-    // Moves temp files from local disk to public disk.
-    // ====================================================================
-    public function storeRequest(Request $request)
-    {
-        $previewData = $request->session()->get('request_preview_data');
-
-        if ($previewData) {
-            $validated       = $previewData['form_data'];
-            $priceData       = $previewData['price_data'];
-            $sessionDocs     = $previewData['documents'] ?? [];
-            $sessionStopDocs = $previewData['stop_documents'] ?? [];
-
-            $request->session()->forget('request_preview_data');
-        } else {
-            // Direct submit fallback — no preview step
-            $validated = $request->validate([
-                'recipient_name'          => 'required|string|max:200',
-                'contact_phone'           => 'required|string|max:20',
-                'pickup_address'          => 'required|string',
-                'pickup_date'             => 'required|date',
-                'pickup_time'             => 'required|string',
-                'delivery_address'        => 'required|string',
-                'delivery_instructions'   => 'nullable|string',
-                'specimen_type'           => 'required|string',
-                'temperature_requirement' => 'required|string',
-                'quantity'                => 'required|integer|min:1',
-                'priority_level'          => 'required|string',
-                'special_instructions'    => 'nullable|string',
-                'stops'                   => 'nullable|array',
-                'stops.*.type'            => 'required|string',
-                'stops.*.contact_name'    => 'nullable|string',
-                'stops.*.address'         => 'required|string',
-                'stops.*.instructions'    => 'nullable|string',
-            ]);
-
-            $priceData = null;
-            try {
-                $priceResult = $this->calculateRequestPrice(new Request($validated));
-                if ($priceResult->getStatusCode() === 200) {
-                    $decoded = json_decode($priceResult->getContent(), true);
-                    $priceData = $decoded['success'] ? $decoded['data'] : null;
-                }
-            } catch (\Exception $e) {
-                // non-fatal
-            }
-
-            $sessionDocs     = [];
-            $sessionStopDocs = [];
-        }
-
-        $user     = Auth::user();
-        $facility = $user->facilities()->first();
-
-        $pickupCoords    = $this->geocodeAddress($validated['pickup_address']);
-        $deliveryCoords  = $this->geocodeAddress($validated['delivery_address']);
-        $scheduledPickup = $this->parsePickupDateTime($validated['pickup_date'], $validated['pickup_time']);
-
-        $specimenRequest = SpecimenRequest::create([
-            'facility_id'             => $facility ? $facility->id : null,
-            'client_id'               => $user->id,
-            'recipient_name'          => $validated['recipient_name'],
-            'pickup_address'          => $validated['pickup_address'],
-            'pickup_latitude'         => $pickupCoords['latitude'] ?? null,
-            'pickup_longitude'        => $pickupCoords['longitude'] ?? null,
-            'delivery_address'        => $validated['delivery_address'],
-            'delivery_latitude'       => $deliveryCoords['latitude'] ?? null,
-            'delivery_longitude'      => $deliveryCoords['longitude'] ?? null,
-            'delivery_instructions'   => $validated['delivery_instructions'] ?? null,
-            'specimen_type'           => $validated['specimen_type'],
-            'temperature_requirement' => $validated['temperature_requirement'],
-            'quantity'                => $validated['quantity'],
-            'priority_level'          => $validated['priority_level'],
-            'special_instructions'    => $validated['special_instructions'] ?? null,
-            'scheduled_pickup_time'   => $scheduledPickup,
-            'status'                  => 'pending_approval',
-            'payment_status'          => 'pending',
-            'payment_required'        => true,
-            'estimated_price'         => $priceData ? $priceData['estimated_total'] : null,
-            'price_breakdown'         => $priceData ? json_encode($priceData) : null,
-            'is_price_estimated'      => $priceData ? true : false,
-            'distance_miles'          => $priceData ? $priceData['distance_miles'] : null,
-            'additional_stops'        => $priceData ? $priceData['additional_stops'] : 0,
-        ]);
-
-        // Save stops, track index → DB id for doc linking
-        $savedStopIds = [];
-        if (!empty($validated['stops'])) {
-            $order = 1;
-            foreach ($validated['stops'] as $index => $stop) {
-                $coords    = $this->geocodeAddress($stop['address']);
-                $savedStop = $specimenRequest->stops()->create([
-                    'stop_type'    => $stop['type'],
-                    'stop_order'   => $order++,
-                    'contact_name' => $stop['contact_name'] ?? null,
-                    'address'      => $stop['address'],
-                    'instructions' => $stop['instructions'] ?? null,
-                    'latitude'     => $coords['latitude'] ?? null,
-                    'longitude'    => $coords['longitude'] ?? null,
-                ]);
-                $savedStopIds[$index] = $savedStop->id;
-            }
-        }
-
-        // ----------------------------------------------------------------
-        // General docs — from session temp files (preview path)
-        // ----------------------------------------------------------------
-        foreach ($sessionDocs as $docInfo) {
-            if (!Storage::disk('local')->exists($docInfo['tmp_path'])) {
-                continue;
-            }
-            $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
-            Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
-            Storage::disk('local')->delete($docInfo['tmp_path']);
-
-            $specimenRequest->documents()->create([
-                'stop_id'       => null,
-                'title'         => $docInfo['original_name'],
-                'document_type' => 'other',
-                'file_name'     => $docInfo['original_name'],
-                'file_path'     => $finalPath,
-                'file_size'     => $docInfo['file_size'],
-                'mime_type'     => $docInfo['mime_type'],
-                'uploaded_by'   => $user->id,
-            ]);
-        }
-
-        // General docs — direct upload (no preview / fallback path)
-        if ($request->hasFile('documents')) {
-            foreach ($request->file('documents') as $file) {
-                $path = $file->store('request_documents', 'public');
-                $specimenRequest->documents()->create([
-                    'stop_id'       => null,
-                    'title'         => $file->getClientOriginalName(),
-                    'document_type' => 'other',
-                    'file_name'     => $file->getClientOriginalName(),
-                    'file_path'     => $path,
-                    'file_size'     => $file->getSize(),
-                    'mime_type'     => $file->getMimeType(),
-                    'uploaded_by'   => $user->id,
-                ]);
-            }
-        }
-
-        // ----------------------------------------------------------------
-        // Per-stop docs — from session temp files (preview path)
-        // ----------------------------------------------------------------
-        foreach ($sessionStopDocs as $stopIndex => $docInfos) {
-            if (!isset($savedStopIds[$stopIndex])) {
-                continue;
-            }
-            foreach ($docInfos as $docInfo) {
-                if (!Storage::disk('local')->exists($docInfo['tmp_path'])) {
-                    continue;
-                }
-                $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
-                Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
-                Storage::disk('local')->delete($docInfo['tmp_path']);
-
-                $specimenRequest->documents()->create([
-                    'stop_id'       => $savedStopIds[$stopIndex],
-                    'title'         => $docInfo['original_name'],
-                    'document_type' => 'other',
-                    'file_name'     => $docInfo['original_name'],
-                    'file_path'     => $finalPath,
-                    'file_size'     => $docInfo['file_size'],
-                    'mime_type'     => $docInfo['mime_type'],
-                    'uploaded_by'   => $user->id,
-                ]);
-            }
-        }
-
-        // Per-stop docs — direct upload (fallback path)
-        if ($request->hasFile('stop_documents')) {
-            foreach ($request->file('stop_documents') as $stopIndex => $stopFiles) {
-                if (!isset($savedStopIds[$stopIndex])) {
-                    continue;
-                }
-                if (!is_array($stopFiles)) {
-                    $stopFiles = [$stopFiles];
-                }
-                foreach ($stopFiles as $file) {
-                    if (!$file || !$file->isValid()) {
-                        continue;
-                    }
-                    $path = $file->store('request_documents', 'public');
-                    $specimenRequest->documents()->create([
-                        'stop_id'       => $savedStopIds[$stopIndex],
-                        'title'         => $file->getClientOriginalName(),
-                        'document_type' => 'other',
-                        'file_name'     => $file->getClientOriginalName(),
-                        'file_path'     => $path,
-                        'file_size'     => $file->getSize(),
-                        'mime_type'     => $file->getMimeType(),
-                        'uploaded_by'   => $user->id,
-                    ]);
-                }
-            }
-        }
-
-        // Payment record
-        if ($specimenRequest->estimated_price > 0) {
-            (new PaymentService())->createPayment($specimenRequest, $user);
-        }
-
-        // Admin email notification
-        try {
-            Mail::to('admin@neoprolab.com')->send(new \App\Mail\NewOrderNotification([
-                'request'        => $specimenRequest,
-                'client'         => $user,
-                'facility'       => $facility,
-                'price_data'     => $priceData,
-                'validated_data' => $validated,
-                'request_url'    => route('admin.requests.show', $specimenRequest->id),
-                'dashboard_url'  => route('admin.dashboard'),
-            ]));
-        } catch (\Exception $e) {
-            Log::error('Failed to send admin notification email: ' . $e->getMessage());
-        }
-
-        return redirect()->route('client.requests.index')
-            ->with('success', 'Specimen request submitted successfully! It is now pending approval. Please complete payment to schedule pickup.');
-    }
-
     private function geocodeAddress($address)
     {
-        if (empty($address)) {
-            return ['latitude' => null, 'longitude' => null];
-        }
-        $cacheKey    = 'geocode_' . md5($address);
+        if (empty($address)) return ['latitude' => null, 'longitude' => null];
+        $cacheKey     = 'geocode_' . md5($address);
         $cachedResult = Cache::get($cacheKey);
-        if ($cachedResult) {
-            return $cachedResult;
-        }
+        if ($cachedResult) return $cachedResult;
         try {
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
@@ -686,120 +844,12 @@ class ClientController extends Controller
         return ['latitude' => null, 'longitude' => null];
     }
 
-    public function trackRequest(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures', 'payment']);
-        return view('client.requests.track', compact('request'));
-    }
-
-    public function showRequest(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        $request->load(['courier', 'stops', 'documents.stop', 'pickupProofs', 'signatures', 'payment']);
-        return view('client.requests.show', compact('request'));
-    }
-
-    public function cancelRequest(Request $request, SpecimenRequest $specimenRequest)
-    {
-        if ($specimenRequest->client_id != Auth::id()) {
-            abort(403);
-        }
-        if (!in_array($specimenRequest->status, ['pending_approval', 'approved'])) {
-            return back()->with('error', 'Request cannot be cancelled at this stage.');
-        }
-
-        $validated = $request->validate(['cancellation_reason' => 'required|string|min:10|max:500']);
-
-        if ($specimenRequest->payment && $specimenRequest->payment->isPaid()) {
-            (new PaymentService())->refundPayment(
-                $specimenRequest->payment, null,
-                'Request cancelled by client: ' . $validated['cancellation_reason']
-            );
-        }
-
-        $specimenRequest->update([
-            'status'              => 'cancelled',
-            'cancellation_reason' => $validated['cancellation_reason'],
-            'cancelled_at'        => now(),
-        ]);
-
-        return redirect()->route('client.requests.index')->with('success', 'Request has been cancelled successfully.');
-    }
-
-    public function confirmDelivery(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        return view('client.requests.confirm', compact('request'));
-    }
-
-    public function submitConfirmation(Request $httpRequest, SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-
-        $validated = $httpRequest->validate([
-            'recipient_name' => 'required|string|max:200',
-            'notes'          => 'nullable|string',
-        ]);
-
-        $request->update([
-            'status'         => 'completed',
-            'completed_at'   => now(),
-            'recipient_name' => $validated['recipient_name'],
-            'delivery_notes' => $validated['notes'],
-        ]);
-
-        return redirect()->route('client.requests.show', $request)
-            ->with('success', 'Delivery confirmed successfully! Thank you.');
-    }
-
-    public function documents(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        $documents = $request->documents()->with('stop')->orderBy('created_at', 'desc')->get();
-        return view('client.requests.documents', compact('request', 'documents'));
-    }
-
-    public function downloadDocument(RequestDocument $document)
-    {
-        if ($document->request->client_id != Auth::id()) {
-            abort(403);
-        }
-        if (!Storage::disk('public')->exists($document->file_path)) {
-            abort(404);
-        }
-        return Storage::disk('public')->download($document->file_path, $document->file_name);
-    }
-
-    public function proofs(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        $proofs = $request->pickupProofs()->orderBy('created_at', 'desc')->get();
-        return view('client.requests.proofs', compact('request', 'proofs'));
-    }
-
     private function reverseGeocode($latitude, $longitude)
     {
-        if (!$latitude || !$longitude) {
-            return 'Location not available';
-        }
-        $cacheKey    = 'reverse_geocode_' . md5($latitude . ',' . $longitude);
+        if (!$latitude || !$longitude) return 'Location not available';
+        $cacheKey     = 'reverse_geocode_' . md5($latitude . ',' . $longitude);
         $cachedResult = Cache::get($cacheKey);
-        if ($cachedResult) {
-            return $cachedResult;
-        }
+        if ($cachedResult) return $cachedResult;
         try {
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
@@ -822,13 +872,95 @@ class ClientController extends Controller
     }
 
     // ====================================================================
+    // REQUESTS — SHOW / TRACK / CANCEL / CONFIRM
+    // ====================================================================
+
+    public function trackRequest(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $request->load(['courier', 'stops', 'documents', 'pickupProofs', 'signatures', 'payment']);
+        return view('client.requests.track', compact('request'));
+    }
+
+    public function showRequest(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $request->load(['courier', 'stops', 'documents.stop', 'pickupProofs', 'signatures', 'payment']);
+        return view('client.requests.show', compact('request'));
+    }
+
+    public function cancelRequest(Request $request, SpecimenRequest $specimenRequest)
+    {
+        if ($specimenRequest->client_id != Auth::id()) abort(403);
+        if (!in_array($specimenRequest->status, ['pending_approval', 'approved'])) {
+            return back()->with('error', 'Request cannot be cancelled at this stage.');
+        }
+        $validated = $request->validate(['cancellation_reason' => 'required|string|min:10|max:500']);
+        if ($specimenRequest->payment && $specimenRequest->payment->isPaid()) {
+            (new PaymentService())->refundPayment($specimenRequest->payment, null, 'Request cancelled by client: ' . $validated['cancellation_reason']);
+        }
+        $specimenRequest->update([
+            'status'              => 'cancelled',
+            'cancellation_reason' => $validated['cancellation_reason'],
+            'cancelled_at'        => now(),
+        ]);
+        return redirect()->route('client.requests.index')->with('success', 'Request has been cancelled successfully.');
+    }
+
+    public function confirmDelivery(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        return view('client.requests.confirm', compact('request'));
+    }
+
+    public function submitConfirmation(Request $httpRequest, SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $validated = $httpRequest->validate([
+            'recipient_name' => 'required|string|max:200',
+            'notes'          => 'nullable|string',
+        ]);
+        $request->update([
+            'status'         => 'completed',
+            'completed_at'   => now(),
+            'recipient_name' => $validated['recipient_name'],
+            'delivery_notes' => $validated['notes'],
+        ]);
+        return redirect()->route('client.requests.show', $request)->with('success', 'Delivery confirmed successfully! Thank you.');
+    }
+
+    // ====================================================================
+    // DOCUMENTS
+    // ====================================================================
+
+    public function documents(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $documents = $request->documents()->with('stop')->orderBy('created_at', 'desc')->get();
+        return view('client.requests.documents', compact('request', 'documents'));
+    }
+
+    public function downloadDocument(RequestDocument $document)
+    {
+        if ($document->request->client_id != Auth::id()) abort(403);
+        if (!Storage::disk('public')->exists($document->file_path)) abort(404);
+        return Storage::disk('public')->download($document->file_path, $document->file_name);
+    }
+
+    public function proofs(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) abort(403);
+        $proofs = $request->pickupProofs()->orderBy('created_at', 'desc')->get();
+        return view('client.requests.proofs', compact('request', 'proofs'));
+    }
+
+    // ====================================================================
     // TRACKING
     // ====================================================================
 
     public function tracking()
     {
-        $user = Auth::user();
-        $activeRequests = $user->createdRequests()
+        $activeRequests = Auth::user()->createdRequests()
             ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
             ->with(['courier', 'stops'])
             ->get();
@@ -837,8 +969,7 @@ class ClientController extends Controller
 
     public function getActiveTracking()
     {
-        $user     = Auth::user();
-        $requests = $user->createdRequests()
+        $requests = Auth::user()->createdRequests()
             ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
             ->with(['courier'])
             ->get();
@@ -847,9 +978,7 @@ class ClientController extends Controller
 
     public function getCourierLocation(SpecimenRequest $request)
     {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
+        if ($request->client_id != Auth::id()) abort(403);
         $location = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
         return response()->json(['location' => $location]);
     }
@@ -866,33 +995,17 @@ class ClientController extends Controller
 
     public function updateProfile(Request $request)
     {
-        $user = Auth::user();
-
+        $user      = Auth::user();
         $validated = $request->validate([
             'first_name'    => 'required|string|max:100',
             'last_name'     => 'required|string|max:100',
             'phone'         => 'nullable|string|max:20',
             'profile_image' => 'nullable|image|max:2048',
         ]);
-
         if ($request->hasFile('profile_image')) {
             $validated['profile_image'] = $request->file('profile_image')->store('profile_images', 'public');
         }
-
         $user->update($validated);
         return back()->with('success', 'Profile updated successfully.');
-    }
-
-    // ====================================================================
-    // PAYMENT
-    // ====================================================================
-
-    public function showPayment(SpecimenRequest $request)
-    {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
-        $payment = $request->payment;
-        return view('client.payment', compact('request', 'payment'));
     }
 }

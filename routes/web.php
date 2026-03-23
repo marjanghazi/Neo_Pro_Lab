@@ -222,9 +222,6 @@ Route::prefix('admin')
         Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('requests.assign-with-quote');
         Route::post('/requests/{request}/cancel-quote', [AdminRequestController::class, 'cancelQuote'])->name('requests.cancel-quote');
 
-        // Request Document Download (admin can download client-uploaded docs)
-        Route::get('/request-documents/{document}/download', [AdminRequestController::class, 'downloadRequestDocument'])->name('request-documents.download');
-
         // Payments (Admin)
         Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('requests.update-payment');
         Route::get('/payments', [AdminRequestController::class, 'payments'])->name('payments.index');
@@ -290,7 +287,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
 
     // Request Documents
     Route::get('/requests/{request}/documents', [ClientController::class, 'documents'])->name('requests.documents');
-    Route::get('/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('documents.download');
+    Route::get('/request-documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('request-documents.download');
 
     // Proofs
     Route::get('/requests/{request}/proofs', [ClientController::class, 'proofs'])->name('requests.proofs');
