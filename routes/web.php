@@ -287,7 +287,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
 
     // Request Documents
     Route::get('/requests/{request}/documents', [ClientController::class, 'documents'])->name('requests.documents');
-    Route::get('/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('documents.download');
+    Route::get('/request-documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('request-documents.download');
 
     // Proofs
     Route::get('/requests/{request}/proofs', [ClientController::class, 'proofs'])->name('requests.proofs');

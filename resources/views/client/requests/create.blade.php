@@ -99,6 +99,24 @@
         align-items: center;
         gap: 6px;
     }
+
+    /* Stop file upload zone */
+    .stop-upload-zone {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    .stop-upload-zone:hover {
+        border-color: #0d9488;
+        background-color: #f0fdfa;
+    }
+    .stop-upload-zone.has-files {
+        border-color: #0d9488;
+        background-color: #f0fdfa;
+    }
 </style>
 @endpush
 
@@ -1053,23 +1071,29 @@ function mapStyles() {
 }
 
 // ======================================================================
-// ADDITIONAL STOPS
+// ADDITIONAL STOPS  — with per-stop file upload
 // ======================================================================
 document.getElementById('addStopBtn').addEventListener('click', function() {
     stopCounter++;
+    const stopIndex = stopCounter - 1; // 0-based index for array names
     const stopElement = document.createElement('div');
     stopElement.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50';
+    stopElement.dataset.stopIndex = stopIndex;
+
     stopElement.innerHTML = `
         <div class="flex justify-between items-center mb-4">
-            <h4 class="font-medium">Additional Stop #${stopCounter}</h4>
-            <button type="button" onclick="removeStop(this)" class="text-red-600 hover:text-red-800">
-                <i class="fas fa-times"></i>
+            <h4 class="font-medium text-gray-800 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 text-xs flex items-center justify-center font-bold">${stopCounter}</span>
+                Additional Stop #${stopCounter}
+            </h4>
+            <button type="button" onclick="removeStop(this)" class="text-red-500 hover:text-red-700 text-sm flex items-center gap-1">
+                <i class="fas fa-times"></i> Remove
             </button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Stop Type</label>
-                <select name="stops[${stopCounter - 1}][type]" class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-type">
+                <select name="stops[${stopIndex}][type]" class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-type focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                     <option value="pickup">Pickup</option>
                     <option value="delivery">Delivery</option>
                     <option value="intermediate">Intermediate</option>
@@ -1077,47 +1101,122 @@ document.getElementById('addStopBtn').addEventListener('click', function() {
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Contact Name</label>
-                <input type="text" name="stops[${stopCounter - 1}][contact_name]" class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-contact">
+                <input type="text" name="stops[${stopIndex}][contact_name]"
+                       placeholder="Contact person at this stop"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-contact focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
             </div>
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                <input type="text" name="stops[${stopCounter - 1}][address]" placeholder="Search for stop address..." class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-address-input" autocomplete="off">
-                <input type="hidden" name="stops[${stopCounter - 1}][latitude]" class="stop-lat">
-                <input type="hidden" name="stops[${stopCounter - 1}][longitude]" class="stop-lng">
+                <input type="text" name="stops[${stopIndex}][address]"
+                       placeholder="Search for stop address..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-address-input focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                       autocomplete="off">
+                <input type="hidden" name="stops[${stopIndex}][latitude]" class="stop-lat">
+                <input type="hidden" name="stops[${stopIndex}][longitude]" class="stop-lng">
             </div>
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Instructions</label>
-                <textarea name="stops[${stopCounter - 1}][instructions]" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-instructions"></textarea>
+                <textarea name="stops[${stopIndex}][instructions]" rows="2"
+                          placeholder="Special instructions for this stop..."
+                          class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-instructions focus:ring-2 focus:ring-teal-500 focus:border-teal-500"></textarea>
             </div>
+
+            {{-- ======= PER-STOP FILE UPLOAD ======= --}}
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-paperclip text-teal-500 mr-1"></i>
+                    Attach Files for this Stop
+                    <span class="text-xs text-gray-400 font-normal ml-1">(Optional — PDF, DOC, JPG, PNG · max 10MB each)</span>
+                </label>
+                <div class="stop-upload-zone" onclick="this.querySelector('.stop-file-input').click()">
+                    <input type="file"
+                           name="stop_documents[${stopIndex}][]"
+                           class="hidden stop-file-input"
+                           multiple
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                    <i class="fas fa-cloud-upload-alt text-teal-400 text-xl mb-1"></i>
+                    <p class="text-sm text-gray-500 mt-1">Click to attach files for this stop</p>
+                </div>
+                <div class="stop-file-list mt-2 hidden">
+                    <p class="text-xs font-semibold text-gray-600 mb-1">
+                        <i class="fas fa-check-circle text-teal-500 mr-1"></i> Attached:
+                    </p>
+                    <div class="stop-file-items space-y-1"></div>
+                </div>
+            </div>
+            {{-- ======= END PER-STOP FILE UPLOAD ======= --}}
         </div>
     `;
+
     document.getElementById('stopsContainer').appendChild(stopElement);
 
-    // Attach Places autocomplete to the new stop address input
+    // Attach Google Maps Places autocomplete to the new stop address input
     const stopInput = stopElement.querySelector('.stop-address-input');
-    const stopAC = new google.maps.places.Autocomplete(stopInput, {
-        fields: ['geometry', 'formatted_address']
-    });
-    stopAC.addListener('place_changed', function() {
-        const place = stopAC.getPlace();
-        if (place.geometry) {
-            stopInput.closest('.md\\:col-span-2').querySelector('.stop-lat').value = place.geometry.location.lat();
-            stopInput.closest('.md\\:col-span-2').querySelector('.stop-lng').value = place.geometry.location.lng();
-            debouncedPriceCalc();
+    if (typeof google !== 'undefined' && google.maps && google.maps.places) {
+        const stopAC = new google.maps.places.Autocomplete(stopInput, {
+            fields: ['geometry', 'formatted_address']
+        });
+        stopAC.addListener('place_changed', function() {
+            const place = stopAC.getPlace();
+            if (place.geometry) {
+                // The address col-span-2 div contains both the address input and the hidden lat/lng fields
+                const stopAddressWrapper = stopInput.closest('.md\\:col-span-2');
+                stopAddressWrapper.querySelector('.stop-lat').value = place.geometry.location.lat();
+                stopAddressWrapper.querySelector('.stop-lng').value = place.geometry.location.lng();
+                debouncedPriceCalc();
+            }
+        });
+    }
+    stopInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') e.preventDefault(); });
+    stopInput.addEventListener('change', debouncedPriceCalc);
+
+    // Handle per-stop file selection display
+    const stopFileInput = stopElement.querySelector('.stop-file-input');
+    const stopUploadZone = stopElement.querySelector('.stop-upload-zone');
+
+    stopFileInput.addEventListener('change', function() {
+        const fileList  = stopElement.querySelector('.stop-file-list');
+        const fileItems = stopElement.querySelector('.stop-file-items');
+        fileItems.innerHTML = '';
+
+        if (this.files.length > 0) {
+            fileList.classList.remove('hidden');
+            stopUploadZone.classList.add('has-files');
+            Array.from(this.files).forEach(function(file) {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-2 text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5';
+                item.innerHTML = `
+                    <i class="fas fa-file text-teal-400 flex-shrink-0"></i>
+                    <span class="truncate flex-1" title="${file.name}">${file.name}</span>
+                    <span class="text-gray-400 flex-shrink-0">${formatFileSize(file.size)}</span>
+                `;
+                fileItems.appendChild(item);
+            });
+        } else {
+            fileList.classList.add('hidden');
+            stopUploadZone.classList.remove('has-files');
         }
     });
-    stopInput.addEventListener('keydown', function(e) { if(e.key === 'Enter') e.preventDefault(); });
-    stopInput.addEventListener('change', debouncedPriceCalc);
+
+    debouncedPriceCalc();
 });
 
 function removeStop(button) {
     button.closest('.border').remove();
-    stopCounter--;
+    // Re-number displayed stop headings
+    document.querySelectorAll('#stopsContainer > div').forEach(function(el, i) {
+        const badge = el.querySelector('h4 span.rounded-full');
+        const heading = el.querySelector('h4');
+        if (badge) badge.textContent = i + 1;
+        // Update the visible heading text node (keep the badge)
+        const textNodes = Array.from(heading.childNodes).filter(n => n.nodeType === 3);
+        textNodes.forEach(n => { n.textContent = ` Additional Stop #${i + 1}`; });
+    });
     debouncedPriceCalc();
 }
 
 // ======================================================================
-// FILE UPLOAD
+// FILE UPLOAD (General documents)
 // ======================================================================
 document.getElementById('documentUpload').addEventListener('change', handleFiles);
 
@@ -1151,9 +1250,9 @@ function handleFiles(e) {
 }
 
 function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }

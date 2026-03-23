@@ -184,45 +184,69 @@
                 @endif
             </div>
 
-            <!-- Documents -->
-            @if($request->documents->count() > 0)
+            {{-- ==================== DOCUMENTS ==================== --}}
+            @php
+                $allDocs     = $request->documents;
+                $generalDocs = $allDocs->whereNull('stop_id');
+                $stopDocs    = $allDocs->whereNotNull('stop_id')->groupBy('stop_id');
+                $totalDocs   = $allDocs->count();
+            @endphp
+
+            @if($totalDocs > 0)
             <div class="card p-6">
-                <h3 class="text-lg font-bold mb-6">Documents</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    @foreach($request->documents as $document)
-                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-file text-gray-400"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium truncate">{{ $document->file_name }}</p>
-                                <p class="text-xs text-gray-500">
-                                    {{ round($document->file_size / 1024) }} KB · 
-                                    {{ $document->created_at->format('M d, Y') }}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4 flex space-x-2">
-                            <a href="{{ route('client.documents.download', $document) }}" 
-                               class="flex-1 text-center px-3 py-1 bg-teal-50 text-teal-600 rounded text-sm hover:bg-teal-100">
-                                <i class="fas fa-download mr-1"></i> Download
-                            </a>
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold">Documents</h3>
+                    <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full">
+                        <i class="fas fa-paperclip"></i>
+                        {{ $totalDocs }} {{ Str::plural('file', $totalDocs) }}
+                    </span>
+                </div>
+
+                {{-- General (not stop-specific) documents --}}
+                @if($generalDocs->count() > 0)
+                <div class="mb-6">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5">
+                        <i class="fas fa-file-alt text-gray-400"></i> General Documents
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        @foreach($generalDocs as $document)
+                            @include('client.requests._document_card', ['document' => $document])
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Per-stop documents --}}
+                @foreach($stopDocs as $stopId => $docs)
+                    @php
+                        $stop = $request->stops->firstWhere('id', $stopId);
+                    @endphp
+                    <div class="mb-6">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-3 flex items-center gap-1.5">
+                            <i class="fas fa-map-marker-alt text-teal-500"></i>
+                            Stop #{{ $stop->stop_order ?? '?' }}
+                            &mdash; {{ ucfirst($stop->stop_type ?? 'stop') }}
+                            @if($stop && $stop->contact_name)
+                                <span class="font-normal text-gray-400 normal-case tracking-normal">({{ $stop->contact_name }})</span>
+                            @endif
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            @foreach($docs as $document)
+                                @include('client.requests._document_card', ['document' => $document])
+                            @endforeach
                         </div>
                     </div>
-                    @endforeach
-                </div>
-                
-                <div class="mt-4 text-center">
-                    <a href="{{ route('client.requests.documents', $request) }}" 
-                       class="text-sm text-teal-600 hover:text-teal-800">
-                        View all documents
+                @endforeach
+
+                <div class="mt-2 text-center border-t border-gray-100 pt-4">
+                    <a href="{{ route('client.requests.documents', $request) }}"
+                       class="text-sm text-teal-600 hover:text-teal-800 font-medium">
+                        <i class="fas fa-folder-open mr-1"></i> View all documents
                     </a>
                 </div>
             </div>
             @endif
+            {{-- ==================== END DOCUMENTS ==================== --}}
 
             <!-- Proofs -->
             @if($request->pickupProofs->count() > 0)
@@ -247,15 +271,17 @@
                             @endif
                         </div>
                         @php
-        $clientPickupProof = $request->pickupProofs
-            ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
-            ->first();
-        $clientDeliveryProof = $request->signatures->first() ?? null;
-    @endphp
+                            $clientPickupProof = $request->pickupProofs
+                                ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
+                                ->first();
+                            $clientDeliveryProof = $request->signatures->first() ?? null;
+                        @endphp
                         <div class="p-2 bg-white">
+                            @if($clientPickupProof && $clientPickupProof->photo_path)
                             <img src="{{ asset('storage/' . $clientPickupProof->photo_path) }}" 
                                  alt="Proof Image" 
                                  class="w-full h-48 object-cover rounded-lg">
+                            @endif
                         </div>
                     </div>
                     @endforeach
@@ -402,6 +428,9 @@
                     <a href="{{ route('client.requests.documents', $request) }}" 
                        class="w-full px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center justify-center">
                         <i class="fas fa-file-download mr-2"></i> Download Documents
+                        <span class="ml-2 bg-blue-200 text-blue-800 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                            {{ $request->documents->count() }}
+                        </span>
                     </a>
                     @endif
                     
@@ -412,7 +441,7 @@
                     </a>
                     @endif
                     
-                    <a href="#" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center">
+                    <a href="#" onclick="window.print()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center">
                         <i class="fas fa-print mr-2"></i> Print Details
                     </a>
                 </div>

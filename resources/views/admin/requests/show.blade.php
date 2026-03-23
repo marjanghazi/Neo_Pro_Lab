@@ -3,11 +3,6 @@
   ADMIN REQUEST SHOW — Quote & Assignment Panel
   File: resources/views/admin/requests/show.blade.php
   ============================================================
-  This is the COMPLETE show blade. It includes:
-    - Request details header
-    - Quote + assignment workflow
-    - Status update (approve/reject)
-  ============================================================
 --}}
 
 @extends('layouts.admin')
@@ -31,10 +26,6 @@
 
 @section('content')
 @php
-// Resolve displayed total & courier fee.
-// If the active quote has a manual price override, use those values so
-// the admin sees what was actually sent. Otherwise fall back to the
-// auto-calculated fields stored on the request itself.
 $displayTotalPrice = $request->total_price;
 $displayCourierFee = $request->courier_fee;
 $displayAdminFee   = $request->admin_fee;
@@ -48,6 +39,12 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
     $displayAdminFee   = round($displayTotalPrice * 0.20, 2);
     $displayProfit     = round($displayTotalPrice * 0.10, 2);
 }
+
+// Group documents for display
+$allDocs     = $request->documents;
+$generalDocs = $allDocs->whereNull('stop_id');
+$stopDocs    = $allDocs->whereNotNull('stop_id')->groupBy('stop_id');
+$totalDocs   = $allDocs->count();
 @endphp
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -73,7 +70,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                         Live Track
                     </a>
                     @endif
-                    {{-- Priority Badge --}}
                     @if($request->priority_level == 'stat')
                         <span class="badge badge-danger"><i class="fas fa-bolt mr-1"></i> STAT</span>
                     @elseif($request->priority_level == 'routine')
@@ -82,7 +78,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                         <span class="badge badge-success">Scheduled</span>
                     @endif
 
-                    {{-- Status Badge --}}
                     @php
                     $statusColors = [
                         'draft'                      => 'gray',
@@ -173,6 +168,58 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
         </div>
 
         {{-- ═══════════════════════════════════════════════════════════════════
+             DOCUMENTS UPLOADED BY CLIENT
+             ═══════════════════════════════════════════════════════════════════ --}}
+        @if($totalDocs > 0)
+        <div class="card p-6" id="docs-section">
+            <div class="flex items-center justify-between mb-4 border-b pb-2">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fas fa-paperclip text-teal-600"></i>
+                    Client Documents
+                </h3>
+                <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full border border-teal-200">
+                    {{ $totalDocs }} {{ Str::plural('file', $totalDocs) }}
+                </span>
+            </div>
+
+            {{-- General (request-level) documents --}}
+            @if($generalDocs->count() > 0)
+            <div class="mb-5">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5">
+                    <i class="fas fa-file-alt text-gray-400"></i> General Documents
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    @foreach($generalDocs as $doc)
+                        @include('admin.requests._document_card', ['document' => $doc])
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            {{-- Per-stop documents --}}
+            @foreach($stopDocs as $stopId => $docs)
+                @php $stop = $request->stops->firstWhere('id', $stopId); @endphp
+                <div class="mb-5">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-3 flex items-center gap-1.5">
+                        <i class="fas fa-map-marker-alt text-teal-500"></i>
+                        Stop #{{ $stop->stop_order ?? '?' }}
+                        &mdash; {{ ucfirst($stop->stop_type ?? 'stop') }}
+                        @if($stop && $stop->contact_name)
+                            <span class="font-normal text-gray-400 normal-case tracking-normal">({{ $stop->contact_name }})</span>
+                        @endif
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        @foreach($docs as $doc)
+                            @include('admin.requests._document_card', ['document' => $doc])
+                        @endforeach
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        @endif
+        {{-- ═══ END DOCUMENTS ════════════════════════════════════════════════ --}}
+
+        {{-- ═══════════════════════════════════════════════════════════════════
              QUOTE & ASSIGNMENT WORKFLOW PANEL
              ═══════════════════════════════════════════════════════════════════ --}}
         <div class="card p-6" id="quote-panel">
@@ -181,7 +228,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                 Pricing & Courier Assignment
             </h3>
 
-            {{-- ─── STEP 1: Approve request first ────────────────────────────── --}}
+            {{-- STEP 1: Approve request first --}}
             @if($request->status === 'pending_approval')
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <p class="text-yellow-800 text-sm font-medium mb-3">
@@ -210,7 +257,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── PENDING COURIER ACCEPTANCE ───────────────────────────────── --}}
+            {{-- Pending courier acceptance --}}
             @if(in_array($request->status, ['quote_sent','pending_courier_acceptance']) && $activeQuote)
             <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-5 mb-5">
                 <div class="flex items-start justify-between">
@@ -228,7 +275,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                             <i class="fas fa-clock mr-1"></i>
                             Deadline: {{ $request->acceptance_deadline->format('M d, Y h:i A') }}
                             @if(now()->gt($request->acceptance_deadline))
-                                <span class="font-bold text-red-600 ml-1">(EXPIRED — courier can no longer respond)</span>
+                                <span class="font-bold text-red-600 ml-1">(EXPIRED)</span>
                             @else
                                 <span class="ml-1">({{ now()->diffForHumans($request->acceptance_deadline, true) }} remaining)</span>
                             @endif
@@ -240,8 +287,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                         <p class="text-xs text-gray-500">Courier Fee</p>
                     </div>
                 </div>
-
-                {{-- Price breakdown summary --}}
                 <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div class="bg-white rounded p-2 text-center">
                         <p class="text-gray-500 text-xs">Total Price</p>
@@ -260,8 +305,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                         <p class="font-bold">#{{ $activeQuote->id }}</p>
                     </div>
                 </div>
-
-                {{-- Cancel quote button --}}
                 <div class="mt-4 pt-3 border-t border-yellow-200 flex gap-3">
                     <form action="{{ route('admin.requests.cancel-quote', $request) }}" method="POST" class="inline">
                         @csrf
@@ -275,7 +318,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── QUOTE DECLINED ────────────────────────────────────────────── --}}
+            {{-- Quote declined --}}
             @if($request->status === 'approved' && $request->courier_declined_at)
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-5">
                 <h4 class="font-bold text-red-800 mb-1">
@@ -291,10 +334,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── PRICING SECTION ─────────────────────────────────────────────
-                 Shows the EFFECTIVE price: quote override values when a manual
-                 price was set, otherwise the auto-calculated fields.
-            ──────────────────────────────────────────────────────────────────── --}}
+            {{-- Pricing section --}}
             @if(in_array($request->status, ['approved', 'assigned', 'quote_sent', 'pending_courier_acceptance']) || $request->is_price_quoted)
             <div class="mb-5">
                 <div class="flex items-center justify-between mb-3">
@@ -320,7 +360,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                 @if($request->is_price_quoted)
                 <div class="bg-gray-50 rounded-lg p-4 text-sm">
                     @if($priceIsOverridden)
-                    {{-- Overridden: show quote values with original-price note --}}
                     <div class="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-start gap-2">
                         <i class="fas fa-info-circle flex-shrink-0 mt-0.5"></i>
                         <span>
@@ -349,7 +388,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                         </div>
                     </div>
                     @else
-                    {{-- Auto-calculated: show full line-item breakdown --}}
                     <div class="space-y-2">
                         @if($request->base_price > 0)
                         <div class="flex justify-between"><span class="text-gray-600">Base Price</span><span>${{ number_format($request->base_price, 2) }}</span></div>
@@ -396,7 +434,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── ASSIGN WITH QUOTE ──────────────────────────────────────────── --}}
+            {{-- Assign with quote --}}
             @if($request->status === 'approved' && $request->is_price_quoted)
             <div class="border border-teal-200 rounded-lg p-4 bg-teal-50">
                 <h4 class="font-semibold text-teal-800 mb-3">
@@ -407,7 +445,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                     Select a courier and send them the calculated price quote.
                     They will need to accept before being officially assigned.
                 </p>
-
                 <form action="{{ route('admin.requests.assign-with-quote', $request) }}" method="POST" id="assignWithQuoteForm">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -435,8 +472,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                             </select>
                         </div>
                     </div>
-
-                    {{-- Price Override Toggle --}}
                     <div class="mt-4 pt-3 border-t border-teal-200">
                         <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
                             <input type="checkbox" id="overridePriceToggle" name="override_price" value="1"
@@ -449,8 +484,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                             By default, the auto-calculated total of <strong>${{ number_format($request->total_price, 2) }}</strong> will be used.
                         </p>
                     </div>
-
-                    {{-- Custom Price Fields (hidden by default) --}}
                     <div id="customPriceFields" class="hidden mt-3 bg-white border border-teal-100 rounded-lg p-4 space-y-3">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
@@ -459,7 +492,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                                     <span class="absolute left-3 top-2 text-gray-400 text-sm">$</span>
                                     <input type="number" name="custom_total_price" step="0.01" min="0"
                                         value="{{ number_format($request->total_price, 2, '.', '') }}"
-                                        placeholder="{{ number_format($request->total_price, 2, '.', '') }}"
                                         class="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
                             </div>
@@ -469,7 +501,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                                     <span class="absolute left-3 top-2 text-gray-400 text-sm">$</span>
                                     <input type="number" name="custom_courier_fee" step="0.01" min="0"
                                         value="{{ number_format($request->courier_fee, 2, '.', '') }}"
-                                        placeholder="{{ number_format($request->courier_fee, 2, '.', '') }}"
                                         class="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
                                 </div>
                                 <p class="text-xs text-gray-400 mt-1">Leave blank to auto-calculate at 70% of total price.</p>
@@ -480,13 +511,11 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                             <input type="text" name="price_note" maxlength="200"
                                 placeholder="e.g. Price adjusted due to after-hours pickup"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-                            <p class="text-xs text-gray-400 mt-1">This note is for internal records only and will not be shown to the courier.</p>
                         </div>
                     </div>
-
                     <div class="mt-3 flex gap-2 flex-wrap">
                         <button type="submit"
-                            onclick="return confirm('Send price quote to selected courier and assign them to this request? They will need to accept the quote.')"
+                            onclick="return confirm('Send price quote to selected courier?')"
                             class="btn-primary text-sm px-5 py-2">
                             <i class="fas fa-paper-plane mr-2"></i>
                             Send Quote & Assign Courier
@@ -496,7 +525,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── Approved but no price yet ─────────────────────────────────── --}}
+            {{-- Approved but no price yet --}}
             @if($request->status === 'approved' && !$request->is_price_quoted)
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p class="text-blue-800 text-sm font-medium">
@@ -512,7 +541,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── Assigned (after quote accepted) ───────────────────────────── --}}
+            {{-- Assigned (after quote accepted) --}}
             @if(in_array($request->status, ['assigned', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'awaiting_transit_proof', 'in_transit', 'awaiting_arrival_proof', 'arrived_at_destination', 'delivered', 'completed']))
             <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h4 class="font-bold text-green-800 mb-2">
@@ -537,7 +566,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                     @endif
                 </div>
                 @endif
-
                 @if($activeQuote && $activeQuote->status === 'accepted')
                 <div class="mt-3 pt-3 border-t border-green-200 text-xs text-green-700">
                     <i class="fas fa-handshake mr-1"></i>
@@ -547,7 +575,7 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
             </div>
             @endif
 
-            {{-- ─── Cancelled / Rejected ───────────────────────────────────────── --}}
+            {{-- Cancelled / Rejected --}}
             @if(in_array($request->status, ['cancelled', 'rejected']))
             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-gray-500">
                 <i class="fas fa-ban text-2xl mb-2"></i>
@@ -560,12 +588,9 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
 
         </div>{{-- end quote-panel --}}
 
-
-        {{-- ═══ Proofs & Documentation ═══════════════════════════════════════ --}}
+        {{-- Proofs & Documentation --}}
         @php
-            $adminPickupProof = $request->pickupProofs
-                ->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')
-                ->first();
+            $adminPickupProof   = $request->pickupProofs->filter(fn($p) => is_null($p->proof_type) || $p->proof_type === 'pickup')->first();
             $adminDeliveryProof = $request->signatures->first() ?? null;
         @endphp
         @if($adminPickupProof || $adminDeliveryProof || in_array($request->status, ['picked_up','in_transit','arrived_at_destination','delivered','completed']))
@@ -722,15 +747,13 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
                     <div class="text-right">
                         <p class="font-bold">${{ number_format($q->total_price, 2) }}</p>
                         @if(!empty($q->breakdown['price_override']))
-                        <p class="text-xs text-amber-600">
-                            <i class="fas fa-pencil-alt mr-1"></i>Manual price
-                        </p>
+                        <p class="text-xs text-amber-600"><i class="fas fa-pencil-alt mr-1"></i>Manual price</p>
                         @endif
                         <span class="text-xs px-2 py-0.5 rounded-full
                             {{ $q->status === 'accepted' ? 'bg-green-100 text-green-700' : '' }}
                             {{ $q->status === 'declined' ? 'bg-red-100 text-red-700' : '' }}
-                            {{ $q->status === 'pending' ? 'bg-yellow-100 text-yellow-700' : '' }}
-                            {{ $q->status === 'expired' ? 'bg-gray-100 text-gray-600' : '' }}
+                            {{ $q->status === 'pending'  ? 'bg-yellow-100 text-yellow-700' : '' }}
+                            {{ $q->status === 'expired'  ? 'bg-gray-100 text-gray-600' : '' }}
                         ">
                             {{ ucfirst($q->status) }}
                         </span>
@@ -743,10 +766,9 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
 
     </div>{{-- end left column --}}
 
-    {{-- ─── RIGHT: Quick Actions & Approve/Reject ──────────────────────────── --}}
+    {{-- ─── RIGHT: Quick Actions ────────────────────────────────────────────── --}}
     <div class="space-y-6">
 
-        {{-- Quick Status Actions --}}
         @if($request->status === 'pending_approval')
         <div class="card p-5">
             <h3 class="font-bold text-base mb-4">Quick Actions</h3>
@@ -772,7 +794,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
         </div>
         @endif
 
-        {{-- Live Tracking --}}
         @if($request->courier && in_array($request->status, ['assigned','accepted_by_courier','awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered']))
         <div class="card p-5">
             <h3 class="font-bold text-base mb-3">
@@ -790,7 +811,37 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
         </div>
         @endif
 
-        {{-- Cancel Request --}}
+        {{-- Documents summary card in sidebar --}}
+        @if($totalDocs > 0)
+        <div class="card p-5">
+            <h3 class="font-bold text-base mb-3 flex items-center justify-between">
+                <span><i class="fas fa-paperclip mr-2 text-teal-600"></i>Documents</span>
+                <span class="text-xs font-normal text-gray-500">{{ $totalDocs }} file(s)</span>
+            </h3>
+            <div class="space-y-2 text-sm">
+                @if($generalDocs->count() > 0)
+                <div class="flex items-center justify-between text-gray-600">
+                    <span><i class="fas fa-file-alt mr-1.5 text-gray-400"></i> General</span>
+                    <span class="font-medium">{{ $generalDocs->count() }}</span>
+                </div>
+                @endif
+                @foreach($stopDocs as $stopId => $docs)
+                @php $stop = $request->stops->firstWhere('id', $stopId); @endphp
+                <div class="flex items-center justify-between text-teal-700">
+                    <span><i class="fas fa-map-marker-alt mr-1.5 text-teal-400"></i>
+                        Stop #{{ $stop->stop_order ?? '?' }}
+                    </span>
+                    <span class="font-medium">{{ $docs->count() }}</span>
+                </div>
+                @endforeach
+            </div>
+            <a href="#docs-section"
+               class="mt-3 text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1">
+                <i class="fas fa-arrow-down text-xs"></i> View documents
+            </a>
+        </div>
+        @endif
+
         @if(!in_array($request->status, ['cancelled', 'rejected', 'completed', 'delivered']))
         <div class="card p-5">
             <h3 class="font-bold text-base mb-3">Danger Zone</h3>
@@ -806,7 +857,6 @@ if ($activeQuote && !empty($activeQuote->breakdown['price_override'])) {
         </div>
         @endif
 
-        {{-- Request Timeline --}}
         <div class="card p-5">
             <h3 class="font-bold text-base mb-4">Timeline</h3>
             <div class="space-y-3 text-sm">
