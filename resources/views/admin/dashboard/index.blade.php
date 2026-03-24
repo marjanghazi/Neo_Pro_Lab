@@ -4,159 +4,142 @@
 @section('page-title', 'Dashboard')
 
 @section('content')
-<!-- Stats Cards - Compact & Professional -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-sm transition-shadow">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Total Requests</p>
-                <p class="text-xl font-bold mt-1 text-gray-900">{{ $stats['total_requests'] }}</p>
-            </div>
-            <div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
-                <i class="fas fa-boxes text-blue-600 text-sm"></i>
-            </div>
+
+{{-- ── Stats Row ──────────────────────────────────────────────── --}}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+
+    <div class="bg-white rounded-lg border border-gray-100 p-4 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-boxes text-blue-500 text-xs"></i>
         </div>
-        <div class="mt-2 flex items-center">
-            <span class="bg-green-50 text-green-600 text-xs font-medium px-1.5 py-0.5 rounded flex items-center">
-                <i class="fas fa-arrow-up mr-0.5 text-[9px]"></i>12%
-            </span>
-            <span class="text-gray-400 text-xs ml-2">vs last month</span>
+        <div class="min-w-0">
+            <p class="text-[11px] text-gray-400 font-medium truncate">Total Requests</p>
+            <p class="text-lg font-semibold text-gray-900 leading-tight mt-0.5">{{ $stats['total_requests'] }}</p>
         </div>
     </div>
 
-    <div class="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-sm transition-shadow">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Pending Approval</p>
-                <p class="text-xl font-bold mt-1 text-gray-900">{{ $stats['pending_requests'] }}</p>
-            </div>
-            <div class="w-9 h-9 bg-amber-50 rounded-lg flex items-center justify-center">
-                <i class="fas fa-clock text-amber-600 text-sm"></i>
-            </div>
+    <div class="bg-white rounded-lg border border-gray-100 p-4 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-clock text-amber-500 text-xs"></i>
         </div>
-        <div class="mt-2">
-            <a href="{{ route('admin.requests.index') }}?status=pending_approval" class="text-xs text-teal-600 hover:text-teal-700 font-medium inline-flex items-center">
-                View all
-                <i class="fas fa-arrow-right ml-1 text-[9px]"></i>
-            </a>
+        <div class="min-w-0">
+            <p class="text-[11px] text-gray-400 font-medium truncate">Pending Approval</p>
+            <div class="flex items-center gap-2 mt-0.5">
+                <p class="text-lg font-semibold text-gray-900 leading-tight">{{ $stats['pending_requests'] }}</p>
+                @if($stats['pending_requests'] > 0)
+                <a href="{{ route('admin.requests.index') }}?status=pending_approval" class="text-[10px] text-teal-600 hover:underline font-medium">View</a>
+                @endif
+            </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-sm transition-shadow">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Active Couriers</p>
-                <p class="text-xl font-bold mt-1 text-gray-900">{{ $stats['active_couriers'] }}</p>
-            </div>
-            <div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
-                <i class="fas fa-truck text-emerald-600 text-sm"></i>
-            </div>
+    <div class="bg-white rounded-lg border border-gray-100 p-4 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-truck text-emerald-500 text-xs"></i>
         </div>
-        <div class="mt-2">
-            <a href="{{ route('admin.couriers.index') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium inline-flex items-center">
-                Manage
-                <i class="fas fa-arrow-right ml-1 text-[9px]"></i>
-            </a>
+        <div class="min-w-0">
+            <p class="text-[11px] text-gray-400 font-medium truncate">Active Couriers</p>
+            <p class="text-lg font-semibold text-gray-900 leading-tight mt-0.5">{{ $stats['active_couriers'] }}</p>
         </div>
     </div>
 
-    <div class="bg-white rounded-lg p-4 border border-gray-100 hover:shadow-sm transition-shadow">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Total Facilities</p>
-                <p class="text-xl font-bold mt-1 text-gray-900">{{ $stats['total_facilities'] }}</p>
-            </div>
-            <div class="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center">
-                <i class="fas fa-hospital text-purple-600 text-sm"></i>
-            </div>
+    <div class="bg-white rounded-lg border border-gray-100 p-4 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-hospital text-violet-500 text-xs"></i>
         </div>
-        <div class="mt-2">
-            <a href="{{ route('admin.facilities.index') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium inline-flex items-center">
-                View
-                <i class="fas fa-arrow-right ml-1 text-[9px]"></i>
-            </a>
+        <div class="min-w-0">
+            <p class="text-[11px] text-gray-400 font-medium truncate">Facilities</p>
+            <p class="text-lg font-semibold text-gray-900 leading-tight mt-0.5">{{ $stats['total_facilities'] }}</p>
         </div>
     </div>
 </div>
 
-<!-- Recent Requests & Activities -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-    <!-- Recent Requests -->
+{{-- ── Quick Status Overview ────────────────────────────────────── --}}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+    @php
+    $quickStats = [
+        ['label' => 'Approved',   'color' => '#2563EB', 'bg' => '#EFF6FF', 'count' => $requestsByStatus['approved']   ?? 0],
+        ['label' => 'In Transit', 'color' => '#7C3AED', 'bg' => '#F5F3FF', 'count' => $requestsByStatus['in_transit'] ?? 0],
+        ['label' => 'Delivered',  'color' => '#059669', 'bg' => '#ECFDF5', 'count' => $requestsByStatus['delivered']  ?? 0],
+        ['label' => 'Completed',  'color' => '#0EA5A0', 'bg' => '#F0FDFA', 'count' => $requestsByStatus['completed']  ?? 0],
+    ];
+    @endphp
+
+    @foreach($quickStats as $stat)
+    <div class="bg-white rounded-lg border border-gray-100 px-4 py-3 flex items-center justify-between">
+        <div>
+            <p class="text-[11px] text-gray-400 font-medium">{{ $stat['label'] }}</p>
+            <p class="text-base font-semibold text-gray-900 mt-0.5">{{ $stat['count'] }}</p>
+        </div>
+        <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ $stat['color'] }}"></div>
+    </div>
+    @endforeach
+</div>
+
+{{-- ── Recent Requests + Activities ───────────────────────────── --}}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    {{-- Recent Requests --}}
     <div class="lg:col-span-2 bg-white rounded-lg border border-gray-100 overflow-hidden">
-        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-gray-900 flex items-center">
-                    <div class="w-6 h-6 bg-teal-50 rounded-lg flex items-center justify-center mr-2">
-                        <i class="fas fa-history text-teal-600 text-xs"></i>
-                    </div>
-                    Recent Requests
-                </h2>
-                <a href="{{ route('admin.requests.index') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium inline-flex items-center bg-teal-50 px-2 py-1 rounded">
-                    View all
-                    <i class="fas fa-arrow-right ml-1 text-[9px]"></i>
-                </a>
-            </div>
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-xs font-semibold text-gray-700">Recent Requests</h2>
+            <a href="{{ route('admin.requests.index') }}" class="text-[11px] text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
+                View all <i class="fas fa-arrow-right text-[9px]"></i>
+            </a>
         </div>
 
         <div class="overflow-x-auto">
-            <table class="min-w-full">
+            <table class="min-w-full" style="min-width:420px">
                 <thead>
                     <tr>
-                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">ID</th>
-                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Facility</th>
-                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Status</th>
-                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Date</th>
-                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase"></th>
+                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Facility</th>
+                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-gray-50">
                     @forelse($recentRequests as $request)
                     <tr class="hover:bg-gray-50/50 transition-colors">
                         <td class="px-4 py-2.5 whitespace-nowrap">
-                            <span class="font-mono text-xs font-medium text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded">#{{ str_pad($request->id, 5, '0', STR_PAD_LEFT) }}</span>
+                            <span class="font-mono text-[11px] font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">#{{ str_pad($request->id, 5, '0', STR_PAD_LEFT) }}</span>
                         </td>
                         <td class="px-4 py-2.5 whitespace-nowrap">
-                            <span class="text-xs text-gray-700">{{ $request->facility->name ?? 'N/A' }}</span>
+                            <span class="text-[12px] text-gray-700">{{ $request->facility->name ?? 'N/A' }}</span>
                         </td>
                         <td class="px-4 py-2.5 whitespace-nowrap">
                             @php
-                            $statusConfig = [
-                            'pending_approval' => ['bg-amber-50', 'text-amber-700', 'fa-clock'],
-                            'approved' => ['bg-blue-50', 'text-blue-700', 'fa-check-circle'],
-                            'assigned' => ['bg-purple-50', 'text-purple-700', 'fa-user-check'],
-                            'in_transit' => ['bg-indigo-50', 'text-indigo-700', 'fa-truck'],
-                            'picked_up' => ['bg-orange-50', 'text-orange-700', 'fa-box-open'],
-                            'delivered' => ['bg-green-50', 'text-green-700', 'fa-check-double'],
-                            'completed' => ['bg-emerald-50', 'text-emerald-700', 'fa-check-circle'],
-                            'cancelled' => ['bg-red-50', 'text-red-700', 'fa-times-circle']
-                            ];
-                            $status = $statusConfig[$request->status] ?? ['bg-gray-50', 'text-gray-700', 'fa-circle'];
+                            $sc = [
+                                'pending_approval' => ['bg-amber-50','text-amber-700'],
+                                'approved'         => ['bg-blue-50','text-blue-700'],
+                                'assigned'         => ['bg-violet-50','text-violet-700'],
+                                'in_transit'       => ['bg-indigo-50','text-indigo-700'],
+                                'picked_up'        => ['bg-orange-50','text-orange-700'],
+                                'delivered'        => ['bg-green-50','text-green-700'],
+                                'completed'        => ['bg-teal-50','text-teal-700'],
+                                'cancelled'        => ['bg-red-50','text-red-700'],
+                            ][$request->status] ?? ['bg-gray-50','text-gray-600'];
                             @endphp
-                            <span class="inline-flex items-center px-2 py-1 text-[10px] font-medium rounded {{ $status[0] }} {{ $status[1] }}">
-                                <i class="fas {{ $status[2] }} mr-1 text-[8px]"></i>
-                                <span class="hidden sm:inline">{{ ucwords(str_replace('_', ' ', $request->status)) }}</span>
-                                <span class="inline sm:hidden">{{ ucwords(substr(str_replace('_', ' ', $request->status), 0, 3)) }}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium {{ $sc[0] }} {{ $sc[1] }}">
+                                {{ ucwords(str_replace('_', ' ', $request->status)) }}
                             </span>
                         </td>
                         <td class="px-4 py-2.5 whitespace-nowrap">
-                            <span class="text-xs text-gray-500 flex items-center">
-                                <i class="far fa-calendar-alt mr-1 text-gray-400 text-[9px]"></i>
-                                {{ $request->created_at->format('M d') }}
-                            </span>
+                            <span class="text-[11px] text-gray-400">{{ $request->created_at->format('M d') }}</span>
                         </td>
                         <td class="px-4 py-2.5 whitespace-nowrap">
-                            <a href="{{ route('admin.requests.show', $request) }}" class="inline-flex items-center justify-center w-6 h-6 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="View">
-                                <i class="fas fa-eye text-[10px]"></i>
+                            <a href="{{ route('admin.requests.show', $request) }}"
+                                class="w-6 h-6 inline-flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-teal-50 hover:text-teal-600 transition-colors">
+                                <i class="fas fa-arrow-right text-[9px]"></i>
                             </a>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-gray-500">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-inbox text-xl text-gray-300 mb-1"></i>
-                                <p class="text-xs">No recent requests</p>
-                            </div>
+                        <td colspan="5" class="px-4 py-8 text-center">
+                            <i class="fas fa-inbox text-gray-300 text-xl mb-1.5 block"></i>
+                            <p class="text-xs text-gray-400">No recent requests</p>
                         </td>
                     </tr>
                     @endforelse
@@ -165,109 +148,46 @@
         </div>
     </div>
 
-    <!-- Recent Activities -->
-    <div class="lg:col-span-1 bg-white rounded-lg border border-gray-100 overflow-hidden">
-        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-            <h2 class="text-sm font-semibold text-gray-900 flex items-center">
-                <div class="w-6 h-6 bg-teal-50 rounded-lg flex items-center justify-center mr-2">
-                    <i class="fas fa-bell text-teal-600 text-xs"></i>
-                </div>
-                Recent Activities
-            </h2>
+    {{-- Recent Activities --}}
+    <!-- <div class="bg-white rounded-lg border border-gray-100 overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+            <h2 class="text-xs font-semibold text-gray-700">Recent Activity</h2>
         </div>
-
-        <div class="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
+        <div class="divide-y divide-gray-50 overflow-y-auto" style="max-height:320px">
             @forelse($recentActivities as $activity)
-            <div class="p-3 hover:bg-gray-50/50 transition-colors">
-                <div class="flex items-start space-x-2">
-                    <div class="flex-shrink-0">
-                        <div class="w-7 h-7 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user-circle text-white text-xs"></i>
-                        </div>
+            <div class="px-4 py-3">
+                <div class="flex items-start gap-2.5">
+                    <div class="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fas fa-user text-teal-500 text-[9px]"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium text-gray-900 truncate">{{ $activity->user->full_name ?? 'System' }}</p>
-                        <p class="text-[10px] text-gray-600 mt-0.5">
+                        <p class="text-[11px] font-medium text-gray-800 truncate">{{ $activity->user->full_name ?? 'System' }}</p>
+                        <p class="text-[10px] text-gray-500 mt-0.5 truncate">
                             <span class="font-medium">{{ $activity->action }}</span>
-                            <span class="text-gray-400">{{ $activity->model_type }}</span>
+                            <span class="text-gray-400"> {{ $activity->model_type }}</span>
                         </p>
-                        <p class="text-[9px] text-gray-400 mt-1 flex items-center">
-                            <i class="far fa-clock mr-1"></i>
-                            {{ $activity->created_at->diffForHumans() }}
-                        </p>
+                        <p class="text-[10px] text-gray-400 mt-1">{{ $activity->created_at->diffForHumans() }}</p>
                     </div>
-                    <div class="w-1 h-1 bg-teal-500 rounded-full mt-1.5"></div>
                 </div>
             </div>
             @empty
-            <div class="p-4 text-center text-gray-500">
-                <div class="flex flex-col items-center">
-                    <i class="fas fa-history text-xl text-gray-300 mb-1"></i>
-                    <p class="text-xs">No recent activities</p>
-                </div>
+            <div class="px-4 py-8 text-center">
+                <i class="fas fa-history text-gray-300 text-xl mb-1.5 block"></i>
+                <p class="text-xs text-gray-400">No recent activity</p>
             </div>
             @endforelse
         </div>
-    </div>
-</div>
+    </div> -->
 
-<!-- Quick Status Overview -->
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-    @php
-    $quickStats = [
-    ['label' => 'Approved', 'icon' => 'fa-check-circle', 'color' => 'blue', 'count' => $requestsByStatus['approved'] ?? 0],
-    ['label' => 'In Transit', 'icon' => 'fa-truck', 'color' => 'indigo', 'count' => $requestsByStatus['in_transit'] ?? 0],
-    ['label' => 'Delivered', 'icon' => 'fa-check-double', 'color' => 'green', 'count' => $requestsByStatus['delivered'] ?? 0],
-    ['label' => 'Completed', 'icon' => 'fa-star', 'color' => 'emerald', 'count' => $requestsByStatus['completed'] ?? 0],
-    ];
-    @endphp
-
-    @foreach($quickStats as $stat)
-    <div class="bg-white rounded-lg p-3 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-[10px] text-gray-500 font-medium">{{ $stat['label'] }}</p>
-                <p class="text-base font-bold text-gray-900 mt-0.5">{{ $stat['count'] }}</p>
-            </div>
-            <div class="w-7 h-7 bg-{{ $stat['color'] }}-50 rounded-lg flex items-center justify-center">
-                <i class="fas {{ $stat['icon'] }} text-{{ $stat['color'] }}-600 text-[10px]"></i>
-            </div>
-        </div>
-    </div>
-    @endforeach
 </div>
 
 @push('styles')
 <style>
-    /* Smooth transitions */
-    .stat-card, .hover\:shadow-sm {
-        transition: all 0.2s ease;
-    }
-
-    /* Custom scrollbar */
-    .overflow-y-auto::-webkit-scrollbar {
-        width: 3px;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-track {
-        background: #f1f1f1;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: #cbd5e0;
-        border-radius: 3px;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-
-    /* Table improvements */
-    @media (max-width: 640px) {
-        .overflow-x-auto {
-            -webkit-overflow-scrolling: touch;
-        }
-    }
+    .overflow-y-auto::-webkit-scrollbar { width: 3px; }
+    .overflow-y-auto::-webkit-scrollbar-track { background: transparent; }
+    .overflow-y-auto::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 3px; }
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
 </style>
 @endpush
+
 @endsection
