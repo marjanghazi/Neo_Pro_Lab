@@ -163,6 +163,10 @@ Route::prefix('admin')
         Route::patch('/couriers/{courier}/toggle-active', [AdminCourierController::class, 'toggleActive'])
             ->name('couriers.toggle-active');
 
+        // Add this route in the admin courier document routes section
+        Route::get('/couriers/{courier}/document/{documentType}/download', [AdminCourierController::class, 'downloadDocument'])
+            ->name('couriers.document.download');
+
         // Facilities - Updated with activate route
         Route::get('/facilities', [AdminFacilityController::class, 'index'])->name('facilities.index');
         Route::get('/facilities/create', [AdminFacilityController::class, 'create'])->name('facilities.create');

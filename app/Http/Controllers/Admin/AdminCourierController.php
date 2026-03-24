@@ -85,6 +85,52 @@ class AdminCourierController extends Controller
         return view('admin.couriers.index', compact('couriers'));
     }
 
+    public function downloadDocument(User $courier, $documentType)
+    {
+        // Verify the user is a courier
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $verification = $courier->courierVerification;
+
+        if (!$verification || !$verification->$documentType) {
+            abort(404, 'Document not found');
+        }
+
+        $allowedDocuments = ['profile_image', 'government_id', 'proof_of_residency', 'drivers_license', 'medical_transport_cert'];
+
+        if (!in_array($documentType, $allowedDocuments)) {
+            abort(404, 'Invalid document type');
+        }
+
+        $path = storage_path('app/public/' . $verification->$documentType);
+
+        if (!file_exists($path)) {
+            abort(404, 'File not found');
+        }
+
+        // Get the original filename
+        $originalName = basename($verification->$documentType);
+
+        // Create a descriptive filename
+        $documentNames = [
+            'profile_image' => 'profile_image',
+            'government_id' => 'government_id',
+            'proof_of_residency' => 'proof_of_residency',
+            'drivers_license' => 'drivers_license',
+            'medical_transport_cert' => 'medical_transport_cert'
+        ];
+
+        $descriptiveName = $courier->full_name . '_' . $documentNames[$documentType] . '_' . date('Y-m-d');
+
+        // Get file extension
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $fileName = $descriptiveName . '.' . $extension;
+
+        return response()->download($path, $fileName);
+    }
+
     public function show(User $courier)
     {
         // Verify the user is a courier
