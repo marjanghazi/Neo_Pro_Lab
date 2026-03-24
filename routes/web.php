@@ -280,6 +280,7 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
 
     Route::post('/requests', [ClientController::class, 'storeRequest'])->name('requests.store');
     Route::get('/requests/{request}', [ClientController::class, 'showRequest'])->name('requests.show');
+    Route::get('/requests/{request}/invoice', [ClientController::class, 'showInvoice'])->name('requests.invoice');
     Route::get('/requests/{request}/track', [ClientController::class, 'trackRequest'])->name('requests.track');
     Route::post('/requests/{request}/cancel', [ClientController::class, 'cancelRequest'])->name('requests.cancel');
     Route::get('/requests/{request}/confirm', [ClientController::class, 'confirmDelivery'])->name('requests.confirm');

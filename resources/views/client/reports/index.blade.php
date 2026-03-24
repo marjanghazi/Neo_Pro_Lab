@@ -205,6 +205,12 @@
                     @forelse($requests->take(10) as $request)
                     <tr>
                         <td>
+                             <a href="{{ route('client.requests.invoice', $request) }}"
+                               title="View Invoice"
+                               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-100 text-xs font-medium hover:bg-teal-100 transition-colors">
+                                <i class="fas fa-file-invoice-dollar text-xs"></i>
+                                <span>Invoice</span>
+                            </a>
                             <a href="{{ route('client.requests.show', $request) }}" class="font-medium text-teal-600 hover:underline">
                                 {{ $request->request_number }}
                             </a>

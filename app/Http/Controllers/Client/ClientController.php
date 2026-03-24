@@ -882,6 +882,16 @@ class ClientController extends Controller
         return view('client.requests.track', compact('request'));
     }
 
+
+    public function showInvoice(SpecimenRequest $request)
+    {
+        if ($request->client_id != Auth::id()) {
+            abort(403);
+        }
+        $request->load(['facility', 'stops', 'payment']);
+        return view('client.requests.invoice', compact('request'));
+    }
+
     public function showRequest(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
