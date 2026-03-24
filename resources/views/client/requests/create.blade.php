@@ -456,6 +456,19 @@ $prefilledData = session('prefilled_request_data', []);
                         @error('priority_level')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
+
+                        {{-- Specific time input — shown only when "Scheduled" is selected --}}
+                        <div id="scheduled_time_wrapper" class="mt-3 {{ old('priority_level', $prefilledData['priority_level'] ?? '') == 'scheduled' ? '' : 'hidden' }}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Specific Pickup Time *</label>
+                            <input type="time"
+                                name="scheduled_specific_time"
+                                id="scheduled_specific_time"
+                                value="{{ old('scheduled_specific_time', $prefilledData['scheduled_specific_time'] ?? '') }}"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                            @error('scheduled_specific_time')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
                     <div>
@@ -1346,6 +1359,21 @@ function calculatePriceEstimate() {
 ['pickup_date', 'pickup_time', 'priority_level', 'specimen_type', 'temperature_requirement'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', debouncedPriceCalc);
+});
+
+// Show/hide specific time input when Scheduled priority is selected
+document.getElementById('priority_level').addEventListener('change', function () {
+    var wrapper = document.getElementById('scheduled_time_wrapper');
+    var timeInput = document.getElementById('scheduled_specific_time');
+    if (this.value === 'scheduled') {
+        wrapper.classList.remove('hidden');
+        timeInput.required = true;
+    } else {
+        wrapper.classList.add('hidden');
+        timeInput.required = false;
+        timeInput.value = '';
+    }
+    debouncedPriceCalc();
 });
 
 // Form validation before submit

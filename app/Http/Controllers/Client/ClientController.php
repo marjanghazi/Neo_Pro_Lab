@@ -158,6 +158,7 @@ class ClientController extends Controller
             'temperature_requirement' => 'required|string',
             'quantity'                => 'required|integer|min:1',
             'priority_level'          => 'required|string',
+            'scheduled_specific_time' => 'required_if:priority_level,scheduled|nullable|date_format:H:i',
             'special_instructions'    => 'nullable|string',
             'stops'                   => 'nullable|array',
             'stops.*.type'            => 'required_with:stops|string',
@@ -209,6 +210,11 @@ class ClientController extends Controller
         }
 
         unset($validated['documents'], $validated['stop_documents']);
+
+        // Merge scheduled specific time into pickup_time field
+        if (($validated['priority_level'] ?? '') === 'scheduled' && !empty($validated['scheduled_specific_time'])) {
+            $validated['pickup_time'] = 'scheduled:' . $validated['scheduled_specific_time'];
+        }
 
         $priceData = null;
         try {
@@ -342,6 +348,7 @@ class ClientController extends Controller
                 'temperature_requirement' => 'required|string',
                 'quantity'                => 'required|integer|min:1',
                 'priority_level'          => 'required|string',
+                'scheduled_specific_time' => 'required_if:priority_level,scheduled|nullable|date_format:H:i',
                 'special_instructions'    => 'nullable|string',
                 'stops'                   => 'nullable|array',
                 'stops.*.type'            => 'required|string',
@@ -361,6 +368,11 @@ class ClientController extends Controller
 
             $sessionDocs     = [];
             $sessionStopDocs = [];
+
+            // Merge scheduled specific time into pickup_time field
+            if (($validated['priority_level'] ?? '') === 'scheduled' && !empty($validated['scheduled_specific_time'])) {
+                $validated['pickup_time'] = 'scheduled:' . $validated['scheduled_specific_time'];
+            }
         }
 
         $user     = Auth::user();
@@ -800,6 +812,13 @@ class ClientController extends Controller
 
     private function parsePickupDateTime($date, $time): Carbon
     {
+        // Handle "scheduled:HH:MM" format from the specific-time picker
+        if (str_starts_with($time, 'scheduled:')) {
+            $timePart = substr($time, strlen('scheduled:'));
+            [$h, $m] = explode(':', $timePart);
+            return Carbon::parse($date)->setHour((int)$h)->setMinute((int)$m)->setSecond(0);
+        }
+
         $hours = ['8-10' => 8, '10-12' => 10, '12-14' => 12, '14-16' => 14, '16-18' => 16, 'stat' => 18];
         return Carbon::parse($date)->setHour($hours[$time] ?? 8)->setMinute(0)->setSecond(0);
     }
