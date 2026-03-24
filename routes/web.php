@@ -215,6 +215,11 @@ Route::prefix('admin')
         Route::post('/requests/{request}/assign', [AdminRequestController::class, 'assignCourier'])->name('requests.assign');
         Route::post('/requests/{request}/status', [AdminRequestController::class, 'updateStatus'])->name('requests.status');
 
+        // ── Document download for request attachments uploaded by clients ──
+        // Named 'admin.requests.documents.download' to match _document_card partial.
+        Route::get('/requests/documents/{document}/download', [AdminRequestController::class, 'downloadRequestDocument'])
+            ->name('requests.documents.download');
+
         // Pricing & Quotes - Updated with new routes
         Route::post('/requests/{request}/calculate-price', [AdminRequestController::class, 'calculatePrice'])->name('requests.calculate-price');
         Route::get('/requests/{request}/price-data', [AdminRequestController::class, 'getPriceData'])->name('requests.price-data');
@@ -230,7 +235,7 @@ Route::prefix('admin')
         Route::post('/payments/{payment}/mark-paid', [AdminRequestController::class, 'markPaymentAsPaid'])->name('payments.mark-paid');
 
         // ─────────────────────────────────────────────────────────────────
-        // TRACKING  ← all routes live here, in order
+        // TRACKING
         // ─────────────────────────────────────────────────────────────────
 
         // 1. The tracking page view
@@ -401,50 +406,49 @@ Route::prefix('courier')
         // API Endpoints for real-time updates
         Route::post('/api/cache-location', function (Request $request) {
             $request->validate([
-                'latitude' => 'required|numeric',
-                'longitude' => 'required|numeric',
-                'accuracy' => 'nullable|numeric',
-                'speed' => 'nullable|numeric',
-                'heading' => 'nullable|numeric',
-                'altitude' => 'nullable|numeric',
+                'latitude'      => 'required|numeric',
+                'longitude'     => 'required|numeric',
+                'accuracy'      => 'nullable|numeric',
+                'speed'         => 'nullable|numeric',
+                'heading'       => 'nullable|numeric',
+                'altitude'      => 'nullable|numeric',
                 'battery_level' => 'nullable|numeric|min:0|max:100',
-                'request_id' => 'nullable|exists:specimen_requests,id'
+                'request_id'    => 'nullable|exists:specimen_requests,id'
             ]);
 
             $locationData = [
-                'latitude' => (float) $request->latitude,
-                'longitude' => (float) $request->longitude,
-                'accuracy' => $request->accuracy ? (float) $request->accuracy : 0,
-                'speed' => $request->speed ? (float) $request->speed : 0,
-                'heading' => $request->heading ? (float) $request->heading : 0,
-                'altitude' => $request->altitude ? (float) $request->altitude : 0,
+                'latitude'     => (float) $request->latitude,
+                'longitude'    => (float) $request->longitude,
+                'accuracy'     => $request->accuracy     ? (float) $request->accuracy     : 0,
+                'speed'        => $request->speed        ? (float) $request->speed        : 0,
+                'heading'      => $request->heading      ? (float) $request->heading      : 0,
+                'altitude'     => $request->altitude     ? (float) $request->altitude     : 0,
                 'battery_level' => $request->battery_level,
-                'timestamp' => now()->timestamp,
-                'last_update' => now(),
-                'courier_id' => auth()->id(),
+                'timestamp'    => now()->timestamp,
+                'last_update'  => now(),
+                'courier_id'   => auth()->id(),
                 'courier_name' => auth()->user()->full_name,
-                'is_online' => true,
-                'request_id' => $request->request_id
+                'is_online'    => true,
+                'request_id'   => $request->request_id
             ];
 
             cache()->put('courier_location_' . auth()->id(), $locationData, 35);
 
-            // Also store in database if CourierLocation model exists
             if (class_exists('App\Models\CourierLocation')) {
                 try {
                     \App\Models\CourierLocation::updateOrCreate(
                         ['courier_id' => auth()->id()],
                         [
-                            'latitude' => $request->latitude,
-                            'longitude' => $request->longitude,
-                            'accuracy' => $request->accuracy ?? 0,
-                            'speed' => $request->speed ?? 0,
-                            'heading' => $request->heading ?? 0,
-                            'altitude' => $request->altitude ?? 0,
+                            'latitude'      => $request->latitude,
+                            'longitude'     => $request->longitude,
+                            'accuracy'      => $request->accuracy ?? 0,
+                            'speed'         => $request->speed ?? 0,
+                            'heading'       => $request->heading ?? 0,
+                            'altitude'      => $request->altitude ?? 0,
                             'battery_level' => $request->battery_level,
-                            'is_online' => true,
-                            'last_update' => now(),
-                            'request_id' => $request->request_id
+                            'is_online'     => true,
+                            'last_update'   => now(),
+                            'request_id'    => $request->request_id
                         ]
                     );
                 } catch (\Exception $e) {
