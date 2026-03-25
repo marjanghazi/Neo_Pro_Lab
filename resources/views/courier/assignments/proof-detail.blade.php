@@ -1,252 +1,238 @@
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-start">
+<div class="space-y-4">
+
+    {{-- Header --}}
+    <div class="flex items-start justify-between gap-3">
         <div>
-            <h4 class="font-bold text-lg">
+            <p class="text-sm font-semibold text-gray-900">
                 @if($type === 'pickup')
-                Pickup Proof - Request #{{ $proof->request->request_number }}
+                    Pickup Proof — #{{ $proof->request->request_number }}
                 @else
-                Delivery Proof - Request #{{ $proof->request->request_number }}
+                    Delivery Proof — #{{ $proof->request->request_number }}
                 @endif
-            </h4>
-            <p class="text-gray-500">
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
                 @if($type === 'pickup')
-                Uploaded: {{ $proof->created_at->format('M d, Y h:i A') }}
+                    Uploaded: {{ $proof->created_at->format('M d, Y h:i A') }}
                 @else
-                Signed: {{ $proof->signed_at->format('M d, Y h:i A') }}
+                    Signed: {{ $proof->signed_at->format('M d, Y h:i A') }}
                 @endif
             </p>
         </div>
-        
-        <div class="flex items-center space-x-2">
-            <a href="{{ route('courier.requests.show', $proof->request) }}" 
-               class="btn-secondary">
-                <i class="fas fa-external-link-alt mr-2"></i>View Request
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <a href="{{ route('courier.requests.show', $proof->request) }}" class="btn-secondary text-xs px-2.5 py-1.5">
+                <i class="fas fa-external-link-alt mr-1"></i>View Request
             </a>
-            <button onclick="closeModal('proof-modal')" class="btn-secondary">
-                <i class="fas fa-times mr-2"></i>Close
+            <button onclick="closeModal('proof-modal')" class="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                <i class="fas fa-times text-xs"></i>
             </button>
         </div>
     </div>
 
     @if($type === 'pickup')
-    <!-- Pickup Proof Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Photo -->
+    {{-- PICKUP PROOF --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {{-- Photo --}}
         <div>
-            <h5 class="font-semibold mb-3">Pickup Photo</h5>
+            <p class="text-xs font-semibold text-gray-700 mb-2">Pickup Photo</p>
             @if($proof->photo_path)
-            <div class="border rounded-lg overflow-hidden">
-                <img src="{{ Storage::url($proof->photo_path) }}" 
-                     alt="Pickup Proof" 
-                     class="w-full h-auto max-h-96 object-contain">
+            <div class="border border-gray-100 rounded-lg overflow-hidden bg-gray-50">
+                <img src="{{ Storage::url($proof->photo_path) }}"
+                     alt="Pickup Proof"
+                     class="w-full h-auto max-h-80 object-contain cursor-pointer"
+                     onclick="window.open('{{ Storage::url($proof->photo_path) }}', '_blank')">
             </div>
+            <p class="text-[11px] text-gray-400 mt-1.5 text-center">Click to view full size</p>
             @else
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <i class="fas fa-camera text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-500">No photo available</p>
+            <div class="border border-dashed border-gray-200 rounded-lg p-10 text-center">
+                <i class="fas fa-camera text-3xl text-gray-300 mb-2 block"></i>
+                <p class="text-xs text-gray-400">No photo available</p>
             </div>
             @endif
         </div>
 
-        <!-- Details -->
-        <div class="space-y-6">
-            <!-- Request Info -->
-            <div class="border rounded-lg p-4">
-                <h5 class="font-semibold mb-3">Request Information</h5>
+        {{-- Details --}}
+        <div class="space-y-3">
+
+            {{-- Request Info --}}
+            <div class="border border-gray-100 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2.5">Request Information</p>
                 <div class="space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Request Number:</span>
-                        <span class="font-medium">#{{ $proof->request->request_number }}</span>
+                    <div class="flex justify-between items-start">
+                        <span class="text-[11px] text-gray-400">Request #</span>
+                        <span class="text-xs font-mono font-semibold text-gray-700">{{ $proof->request->request_number }}</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Specimen Type:</span>
-                        <span class="font-medium">{{ ucfirst($proof->request->specimen_type) }}</span>
+                    <div class="flex justify-between items-start">
+                        <span class="text-[11px] text-gray-400">Specimen</span>
+                        <span class="text-xs font-medium text-gray-700">{{ ucfirst($proof->request->specimen_type) }}</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Priority:</span>
-                        <span class="font-medium">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[11px] text-gray-400">Priority</span>
+                        <span class="text-xs font-medium">
                             @if($proof->request->priority_level == 'stat')
-                            <span class="text-red-600">STAT</span>
+                                <span class="badge badge-danger text-[10px] py-0.5"><i class="fas fa-bolt mr-1"></i>STAT</span>
                             @elseif($proof->request->priority_level == 'routine')
-                            Routine
+                                Routine
                             @else
-                            Scheduled
+                                Scheduled
                             @endif
                         </span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Pickup Location:</span>
-                        <span class="font-medium text-right">{{ $proof->request->pickup_address }}</span>
+                    <div class="pt-1.5 border-t border-gray-100">
+                        <p class="text-[11px] text-gray-400 mb-0.5">Pickup Location</p>
+                        <p class="text-xs text-gray-700">{{ $proof->request->pickup_address }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Proof Details -->
-            <div class="border rounded-lg p-4">
-                <h5 class="font-semibold mb-3">Proof Details</h5>
-                <div class="space-y-3">
+            {{-- Proof Details --}}
+            <div class="border border-gray-100 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2.5">Proof Details</p>
+                <div class="space-y-2">
                     <div>
-                        <p class="text-sm text-gray-500 mb-1">Specimen Condition</p>
-                        <p class="font-medium capitalize">{{ $proof->specimen_condition }}</p>
+                        <p class="text-[11px] text-gray-400 mb-0.5">Specimen Condition</p>
+                        <p class="text-xs font-medium text-gray-700 capitalize">{{ $proof->specimen_condition }}</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500 mb-1">Temperature Check</p>
-                        <p class="font-medium">{{ str_replace('_', ' ', $proof->temperature_check) }}</p>
+                        <p class="text-[11px] text-gray-400 mb-0.5">Temperature Check</p>
+                        <p class="text-xs font-medium text-gray-700">{{ str_replace('_', ' ', $proof->temperature_check) }}</p>
                     </div>
                     @if($proof->notes)
                     <div>
-                        <p class="text-sm text-gray-500 mb-1">Notes</p>
-                        <p class="text-gray-700 whitespace-pre-wrap">{{ $proof->notes }}</p>
+                        <p class="text-[11px] text-gray-400 mb-0.5">Notes</p>
+                        <p class="text-xs text-gray-600 whitespace-pre-wrap">{{ $proof->notes }}</p>
                     </div>
                     @endif
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Location</p>
-                        <p class="text-gray-700">
-                            {{ round($proof->latitude, 6) }}, {{ round($proof->longitude, 6) }}
-                            <br>
-                            <span class="text-xs">Accuracy: {{ round($proof->accuracy) }}m</span>
-                        </p>
+                    <div class="pt-1.5 border-t border-gray-100">
+                        <p class="text-[11px] text-gray-400 mb-0.5">GPS Location</p>
+                        <p class="text-xs text-gray-600 font-mono">{{ round($proof->latitude, 6) }}, {{ round($proof->longitude, 6) }}</p>
+                        <p class="text-[10px] text-gray-400">Accuracy: ±{{ round($proof->accuracy) }}m</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Verification Status -->
-            <div class="border rounded-lg p-4 {{ $proof->verified ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50' }}">
+            {{-- Verification --}}
+            <div class="border rounded-lg p-3 {{ $proof->verified ? 'border-green-200' : 'border-amber-200' }}" style="{{ $proof->verified ? 'background:#f0fdf4;' : 'background:#fffbeb;' }}">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h5 class="font-semibold mb-1">Verification Status</h5>
-                        <p class="text-sm {{ $proof->verified ? 'text-green-700' : 'text-yellow-700' }}">
+                        <p class="text-xs font-semibold {{ $proof->verified ? 'text-green-800' : 'text-amber-800' }} mb-0.5">Verification</p>
+                        <p class="text-[11px] {{ $proof->verified ? 'text-green-700' : 'text-amber-700' }}">
                             @if($proof->verified)
-                            <i class="fas fa-check-circle mr-1"></i>Verified by Admin
+                                <i class="fas fa-check-circle mr-1"></i>Verified by Admin
                             @else
-                            <i class="fas fa-clock mr-1"></i>Pending Verification
+                                <i class="fas fa-clock mr-1"></i>Pending Verification
                             @endif
                         </p>
                     </div>
                     @if($proof->verified)
-                    <span class="badge badge-success">
-                        <i class="fas fa-check"></i> Verified
-                    </span>
+                    <span class="badge badge-success text-[10px] py-0.5"><i class="fas fa-check mr-1"></i>Verified</span>
                     @else
-                    <span class="badge badge-warning">
-                        <i class="fas fa-clock"></i> Pending
-                    </span>
+                    <span class="badge badge-warning text-[10px] py-0.5"><i class="fas fa-clock mr-1"></i>Pending</span>
                     @endif
                 </div>
             </div>
         </div>
     </div>
+
     @else
-    <!-- Delivery Proof Details -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Signature -->
+    {{-- DELIVERY PROOF --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {{-- Signature --}}
         <div>
-            <h5 class="font-semibold mb-3">Signature</h5>
+            <p class="text-xs font-semibold text-gray-700 mb-2">Signature</p>
             @if($proof->signature_data)
-            <div class="border rounded-lg p-6 bg-white">
-                <div class="flex items-center justify-center h-64">
-                    <img src="{{ $proof->signature_data }}" 
-                         alt="Signature" 
-                         class="max-w-full max-h-full">
+            <div class="border border-gray-100 rounded-lg bg-white overflow-hidden">
+                <div class="flex items-center justify-center p-4" style="min-height:200px;">
+                    <img src="{{ $proof->signature_data }}"
+                         alt="Signature"
+                         class="max-w-full max-h-48 object-contain">
                 </div>
-                <div class="text-center mt-4">
-                    <p class="font-medium">{{ $proof->recipient_name }}</p>
-                    <p class="text-sm text-gray-500">{{ $proof->recipient_relationship }}</p>
+                <div class="border-t border-gray-100 px-4 py-2.5 text-center bg-gray-50">
+                    <p class="text-xs font-medium text-gray-700">{{ $proof->recipient_name }}</p>
+                    <p class="text-[11px] text-gray-400">{{ $proof->recipient_relationship }}</p>
                 </div>
             </div>
             @else
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <i class="fas fa-signature text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-500">No signature available</p>
+            <div class="border border-dashed border-gray-200 rounded-lg p-10 text-center">
+                <i class="fas fa-signature text-3xl text-gray-300 mb-2 block"></i>
+                <p class="text-xs text-gray-400">No signature available</p>
             </div>
             @endif
         </div>
 
-        <!-- Details -->
-        <div class="space-y-6">
-            <!-- Request Info -->
-            <div class="border rounded-lg p-4">
-                <h5 class="font-semibold mb-3">Request Information</h5>
+        {{-- Details --}}
+        <div class="space-y-3">
+
+            {{-- Request Info --}}
+            <div class="border border-gray-100 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2.5">Request Information</p>
                 <div class="space-y-2">
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Request Number:</span>
-                        <span class="font-medium">#{{ $proof->request->request_number }}</span>
+                        <span class="text-[11px] text-gray-400">Request #</span>
+                        <span class="text-xs font-mono font-semibold text-gray-700">{{ $proof->request->request_number }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-gray-600">Specimen Type:</span>
-                        <span class="font-medium">{{ ucfirst($proof->request->specimen_type) }}</span>
+                        <span class="text-[11px] text-gray-400">Specimen</span>
+                        <span class="text-xs font-medium text-gray-700">{{ ucfirst($proof->request->specimen_type) }}</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-600">Delivery Location:</span>
-                        <span class="font-medium text-right">{{ $proof->request->delivery_address }}</span>
+                    <div class="pt-1.5 border-t border-gray-100">
+                        <p class="text-[11px] text-gray-400 mb-0.5">Delivery Location</p>
+                        <p class="text-xs text-gray-700">{{ $proof->request->delivery_address }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Delivery Details -->
-            <div class="border rounded-lg p-4">
-                <h5 class="font-semibold mb-3">Delivery Details</h5>
-                <div class="space-y-3">
+            {{-- Delivery Details --}}
+            <div class="border border-gray-100 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2.5">Delivery Details</p>
+                <div class="space-y-2">
                     <div>
-                        <p class="text-sm text-gray-500 mb-1">Recipient Information</p>
-                        <p class="font-medium">{{ $proof->recipient_name }}</p>
-                        <p class="text-sm text-gray-600">{{ $proof->recipient_relationship }}</p>
+                        <p class="text-[11px] text-gray-400 mb-0.5">Recipient</p>
+                        <p class="text-xs font-medium text-gray-700">{{ $proof->recipient_name }}</p>
+                        <p class="text-[11px] text-gray-400">{{ $proof->recipient_relationship }}</p>
                     </div>
-                    
                     @if($proof->notes)
                     <div>
-                        <p class="text-sm text-gray-500 mb-1">Delivery Notes</p>
-                        <p class="text-gray-700 whitespace-pre-wrap">{{ $proof->notes }}</p>
+                        <p class="text-[11px] text-gray-400 mb-0.5">Notes</p>
+                        <p class="text-xs text-gray-600 whitespace-pre-wrap">{{ $proof->notes }}</p>
                     </div>
                     @endif
-                    
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Location & Time</p>
-                        <p class="text-gray-700">
-                            {{ $proof->signed_at->format('M d, Y h:i A') }}
-                            <br>
-                            <span class="text-sm">
-                                Coordinates: {{ round($proof->latitude, 6) }}, {{ round($proof->longitude, 6) }}
-                                <br>
-                                <span class="text-xs">Accuracy: {{ round($proof->accuracy) }}m</span>
-                            </span>
-                        </p>
+                    <div class="pt-1.5 border-t border-gray-100">
+                        <p class="text-[11px] text-gray-400 mb-0.5">Signed At</p>
+                        <p class="text-xs text-gray-700">{{ $proof->signed_at->format('M d, Y h:i A') }}</p>
+                        <p class="text-xs font-mono text-gray-400 mt-0.5">{{ round($proof->latitude, 6) }}, {{ round($proof->longitude, 6) }}</p>
+                        <p class="text-[10px] text-gray-400">Accuracy: ±{{ round($proof->accuracy) }}m</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Delivery Photo -->
+            {{-- Delivery Photo (thumbnail) --}}
             @if($proof->photo_path)
-            <div class="border rounded-lg p-4">
-                <h5 class="font-semibold mb-3">Delivery Photo</h5>
-                <div class="border rounded overflow-hidden">
-                    <img src="{{ Storage::url($proof->photo_path) }}" 
-                         alt="Delivery Photo" 
-                         class="w-full h-48 object-cover cursor-pointer"
+            <div class="border border-gray-100 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2">Delivery Photo</p>
+                <div class="border border-gray-100 rounded-lg overflow-hidden">
+                    <img src="{{ Storage::url($proof->photo_path) }}"
+                         alt="Delivery Photo"
+                         class="w-full h-36 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                          onclick="window.open('{{ Storage::url($proof->photo_path) }}', '_blank')">
                 </div>
-                <p class="text-xs text-gray-500 mt-2 text-center">Click to view full size</p>
+                <p class="text-[10px] text-gray-400 mt-1 text-center">Click to view full size</p>
             </div>
             @endif
         </div>
     </div>
     @endif
 
-    <!-- Actions -->
-    <div class="flex justify-end space-x-3 pt-6 border-t">
-        <button onclick="closeModal('proof-modal')" class="btn-secondary">
-            Close
-        </button>
-        <a href="#" onclick="downloadProof()" class="btn-primary">
-            <i class="fas fa-download mr-2"></i>Download Proof
+    {{-- Footer Actions --}}
+    <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+        <button onclick="closeModal('proof-modal')" class="btn-secondary text-xs px-3 py-1.5">Close</button>
+        <a href="#" onclick="downloadProof(); return false;" class="btn-primary text-xs px-3 py-1.5">
+            <i class="fas fa-download mr-1.5"></i>Download Proof
         </a>
     </div>
 </div>
 
 <script>
-    function downloadProof() {
-        // This would generate a PDF with the proof details
-        showAlert('Proof download feature coming soon!', 'info');
-    }
+function downloadProof() { showAlert('Proof download feature coming soon!', 'info'); }
 </script>
