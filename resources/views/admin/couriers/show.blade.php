@@ -188,7 +188,7 @@
                         <i class="fas {{ $icon }} {{ $ic }} text-sm"></i>
                         <div>
                             <p class="text-xs font-medium text-gray-800">{{ $name }}</p>
-                            <p class="text-[10px] text-gray-500 mt-0.5">Expires: {{ $exp }}</p>
+                            <!-- <p class="text-[10px] text-gray-500 mt-0.5">Expires: {{ $exp }}</p> -->
                         </div>
                     </div>
                     <span class="badge badge-success">Active</span>
