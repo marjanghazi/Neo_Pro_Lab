@@ -993,7 +993,7 @@ class ClientController extends Controller
             ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
             ->with(['courier', 'stops'])
             ->get();
-        return view('client.tracking', compact('activeRequests'));
+        return view('client.tracking.index', compact('activeRequests'));
     }
 
     public function getActiveTracking()
@@ -1019,7 +1019,7 @@ class ClientController extends Controller
     public function profile()
     {
         $user = Auth::user();
-        return view('client.profile', compact('user'));
+        return view('client.profile.index', compact('user'));
     }
 
     public function updateProfile(Request $request)
