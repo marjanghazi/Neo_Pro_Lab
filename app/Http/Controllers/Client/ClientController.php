@@ -1019,7 +1019,8 @@ class ClientController extends Controller
     public function profile()
     {
         $user = Auth::user();
-        return view('client.profile.index', compact('user'));
+        $facility = $user->facilities()->first();
+        return view('client.profile.index', compact('user', 'facility'));
     }
 
     public function updateProfile(Request $request)
