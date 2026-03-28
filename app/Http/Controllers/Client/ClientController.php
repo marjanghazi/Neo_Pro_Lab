@@ -182,17 +182,15 @@ class ClientController extends Controller
             'stops.*.instructions'    => 'nullable|string',
             'documents'               => 'nullable|array',
             'documents.*'             => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
-            'stop_documents'          => 'nullable|array',
-            'stop_documents.*'        => 'nullable|array',
-            'stop_documents.*.*'      => 'file|max:10240|mimes:pdf,doc,docx,jpg,jpeg,png',
+            // FIX: use a flattened key pattern that Laravel can actually match for nested file arrays
+            'stop_documents'          => 'nullable',
         ]);
 
         $user     = Auth::user();
         $facility = $user->facilities()->first();
 
-        $sessionDocs     = [];
-        $sessionStopDocs = [];
-
+        // Store main documents in temp location
+        $sessionDocs = [];
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $file) {
                 if (!$file || !$file->isValid()) continue;
@@ -206,9 +204,16 @@ class ClientController extends Controller
             }
         }
 
-        if ($request->hasFile('stop_documents')) {
-            foreach ($request->file('stop_documents') as $stopIndex => $stopFiles) {
-                if (!is_array($stopFiles)) $stopFiles = [$stopFiles];
+        // FIX: Store stop documents using $request->file() directly (not $validated)
+        // This avoids the issue where nested file arrays get lost during validation
+        $sessionStopDocs = [];
+        $rawStopDocs = $request->file('stop_documents');
+        if (!empty($rawStopDocs) && is_array($rawStopDocs)) {
+            foreach ($rawStopDocs as $stopIndex => $stopFiles) {
+                // stopFiles could be an array of files (from stop_documents[0][])
+                if (!is_array($stopFiles)) {
+                    $stopFiles = [$stopFiles];
+                }
                 foreach ($stopFiles as $file) {
                     if (!$file || !$file->isValid()) continue;
                     $tmpPath = $file->store('tmp_uploads', 'local');
@@ -267,6 +272,7 @@ class ClientController extends Controller
                 'estimated_total' => 54.25,
             ];
         }
+
         $request->session()->put('request_preview_data', [
             'form_data'      => $validated,
             'price_data'     => $priceData,
@@ -313,7 +319,6 @@ class ClientController extends Controller
             $taxAmount      = $subtotal * $taxRate;
             $total          = $subtotal + $taxAmount;
 
-            // Return numeric values instead of formatted strings
             return response()->json(['success' => true, 'data' => [
                 'base_price'               => $basePrice,
                 'distance_miles'           => round($distanceMiles, 1),
@@ -343,6 +348,7 @@ class ClientController extends Controller
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
+
     // ====================================================================
     // STORE REQUEST
     // ====================================================================
@@ -385,13 +391,11 @@ class ClientController extends Controller
                     $decoded = json_decode($priceResult->getContent(), true);
                     $priceData = $decoded['success'] ? $decoded['data'] : null;
                 }
-            } catch (\Exception $e) { /* non-fatal */
-            }
+            } catch (\Exception $e) { /* non-fatal */ }
 
             $sessionDocs     = [];
             $sessionStopDocs = [];
 
-            // Merge scheduled specific time into pickup_time field
             if (($validated['priority_level'] ?? '') === 'scheduled' && !empty($validated['scheduled_specific_time'])) {
                 $validated['pickup_time'] = 'scheduled:' . $validated['scheduled_specific_time'];
             }
@@ -424,13 +428,21 @@ class ClientController extends Controller
             'status'                  => 'pending_approval',
             'payment_status'          => 'pending',
             'payment_required'        => true,
-            'estimated_price'         => $priceData ? $priceData['estimated_total'] : null,
-            'price_breakdown'         => $priceData ? json_encode($priceData) : null,
-            'is_price_estimated'      => $priceData ? true : false,
-            'distance_miles'          => $priceData ? $priceData['distance_miles'] : null,
+            'total_price'             => $priceData ? $priceData['estimated_total'] : 0,
+            'base_price'              => $priceData ? $priceData['base_price'] : 50.00,
+            'distance_charge'         => $priceData ? $priceData['distance_charge'] : 0,
+            'stat_urgent_charge'      => $priceData ? $priceData['priority_charge'] : 0,
+            'night_hours_charge'      => $priceData ? $priceData['night_charge'] : 0,
+            'weekend_charge'          => $priceData ? $priceData['weekend_charge'] : 0,
+            'cold_chain_charge'       => $priceData ? $priceData['temperature_charge'] : 0,
+            'additional_stop_charge'  => $priceData ? $priceData['additional_stops_charge'] : 0,
+            'distance_miles'          => $priceData ? $priceData['distance_miles'] : 0,
             'additional_stops'        => $priceData ? $priceData['additional_stops'] : 0,
+            'has_stat_urgent'         => ($validated['priority_level'] ?? '') === 'stat',
+            'has_cold_chain'          => in_array($validated['temperature_requirement'] ?? '', ['2-8c', '-20c', '-80c']),
         ]);
 
+        // Save stops and build index → stop_id map
         $savedStopIds = [];
         if (!empty($validated['stops'])) {
             $order = 1;
@@ -449,81 +461,68 @@ class ClientController extends Controller
             }
         }
 
-        // General docs — session
+        // Save main documents from session temp files
         foreach ($sessionDocs as $docInfo) {
-            if (!Storage::disk('local')->exists($docInfo['tmp_path'])) continue;
-            $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
+            if (!Storage::disk('local')->exists($docInfo['tmp_path'])) {
+                Log::warning('Main doc temp file missing: ' . $docInfo['tmp_path']);
+                continue;
+            }
+            $finalPath = 'request_documents/' . Str::uuid() . '_' . $docInfo['original_name'];
             Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
             Storage::disk('local')->delete($docInfo['tmp_path']);
             $specimenRequest->documents()->create([
-                'stop_id' => null,
-                'title' => $docInfo['original_name'],
+                'stop_id'       => null,
+                'title'         => $docInfo['original_name'],
                 'document_type' => 'other',
-                'file_name' => $docInfo['original_name'],
-                'file_path' => $finalPath,
-                'file_size' => $docInfo['file_size'],
-                'mime_type' => $docInfo['mime_type'],
-                'uploaded_by' => $user->id,
+                'file_name'     => $docInfo['original_name'],
+                'file_path'     => $finalPath,
+                'file_size'     => $docInfo['file_size'],
+                'mime_type'     => $docInfo['mime_type'],
+                'uploaded_by'   => $user->id,
             ]);
         }
 
-        // General docs — direct
+        // Save main documents uploaded directly (non-preview flow)
         if ($request->hasFile('documents')) {
             foreach ($request->file('documents') as $file) {
                 $path = $file->store('request_documents', 'public');
                 $specimenRequest->documents()->create([
-                    'stop_id' => null,
-                    'title' => $file->getClientOriginalName(),
+                    'stop_id'       => null,
+                    'title'         => $file->getClientOriginalName(),
                     'document_type' => 'other',
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_path' => $path,
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                    'uploaded_by' => $user->id,
+                    'file_name'     => $file->getClientOriginalName(),
+                    'file_path'     => $path,
+                    'file_size'     => $file->getSize(),
+                    'mime_type'     => $file->getMimeType(),
+                    'uploaded_by'   => $user->id,
                 ]);
             }
         }
 
-        // Per-stop docs — session
+        // FIX: Save stop documents from session temp files
+        // $sessionStopDocs is keyed by the form's stop index (e.g. 0, 1, 2)
+        // $savedStopIds maps the same form index to the newly created stop's DB id
         foreach ($sessionStopDocs as $stopIndex => $docInfos) {
-            if (!isset($savedStopIds[$stopIndex])) continue;
+            $stopId = $savedStopIds[$stopIndex] ?? null;
             foreach ($docInfos as $docInfo) {
-                if (!Storage::disk('local')->exists($docInfo['tmp_path'])) continue;
-                $finalPath = 'request_documents/' . basename($docInfo['tmp_path']);
+                if (!Storage::disk('local')->exists($docInfo['tmp_path'])) {
+                    Log::warning('Stop doc temp file missing: ' . $docInfo['tmp_path'] . ' for stop index ' . $stopIndex);
+                    continue;
+                }
+                // Use a unique filename to avoid collisions between stops
+                $finalPath = 'request_documents/' . Str::uuid() . '_' . $docInfo['original_name'];
                 Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
                 Storage::disk('local')->delete($docInfo['tmp_path']);
                 $specimenRequest->documents()->create([
-                    'stop_id' => $savedStopIds[$stopIndex],
-                    'title' => $docInfo['original_name'],
+                    'stop_id'       => $stopId,
+                    'title'         => $docInfo['original_name'],
                     'document_type' => 'other',
-                    'file_name' => $docInfo['original_name'],
-                    'file_path' => $finalPath,
-                    'file_size' => $docInfo['file_size'],
-                    'mime_type' => $docInfo['mime_type'],
-                    'uploaded_by' => $user->id,
+                    'file_name'     => $docInfo['original_name'],
+                    'file_path'     => $finalPath,
+                    'file_size'     => $docInfo['file_size'],
+                    'mime_type'     => $docInfo['mime_type'],
+                    'uploaded_by'   => $user->id,
                 ]);
-            }
-        }
-
-        // Per-stop docs — direct
-        if ($request->hasFile('stop_documents')) {
-            foreach ($request->file('stop_documents') as $stopIndex => $stopFiles) {
-                if (!isset($savedStopIds[$stopIndex])) continue;
-                if (!is_array($stopFiles)) $stopFiles = [$stopFiles];
-                foreach ($stopFiles as $file) {
-                    if (!$file || !$file->isValid()) continue;
-                    $path = $file->store('request_documents', 'public');
-                    $specimenRequest->documents()->create([
-                        'stop_id' => $savedStopIds[$stopIndex],
-                        'title' => $file->getClientOriginalName(),
-                        'document_type' => 'other',
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $path,
-                        'file_size' => $file->getSize(),
-                        'mime_type' => $file->getMimeType(),
-                        'uploaded_by' => $user->id,
-                    ]);
-                }
             }
         }
 
@@ -551,49 +550,36 @@ class ClientController extends Controller
 
     // ====================================================================
     // REPORTS
-    // The existing view (resources/views/client/reports/index.blade.php)
-    // requires: $startDate, $endDate, $stats, $requests,
-    //           $specimenTypes, $priorities, $monthlyTrend
     // ====================================================================
     public function reports(Request $httpRequest)
     {
         $user = Auth::user();
 
-        // Date range — default to last 30 days, honour query-string overrides
         $startDate = $httpRequest->get('start_date', now()->subDays(30)->format('Y-m-d'));
         $endDate   = $httpRequest->get('end_date',   now()->format('Y-m-d'));
 
-        // Base query scoped to the date range
         $baseQuery = $user->createdRequests()
             ->whereBetween('created_at', [
                 Carbon::parse($startDate)->startOfDay(),
                 Carbon::parse($endDate)->endOfDay(),
             ]);
 
-        // ── Stats ────────────────────────────────────────────────────────
         $stats = [
             'total'       => (clone $baseQuery)->count(),
             'completed'   => (clone $baseQuery)->where('status', 'completed')->count(),
             'cancelled'   => (clone $baseQuery)->where('status', 'cancelled')->count(),
             'pending'     => (clone $baseQuery)->where('status', 'pending_approval')->count(),
             'in_progress' => (clone $baseQuery)->whereIn('status', [
-                'approved',
-                'assigned',
-                'accepted_by_courier',
-                'awaiting_pickup_proof',
-                'picked_up',
-                'in_transit',
-                'arrived_at_destination',
+                'approved', 'assigned', 'accepted_by_courier', 'awaiting_pickup_proof',
+                'picked_up', 'in_transit', 'arrived_at_destination',
             ])->count(),
         ];
 
-        // ── Recent requests for the table ────────────────────────────────
         $requests = (clone $baseQuery)
             ->with(['courier', 'facility'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // ── Specimen type distribution ───────────────────────────────────
         $specimenTypes = (clone $baseQuery)
             ->selectRaw('specimen_type, count(*) as count')
             ->groupBy('specimen_type')
@@ -601,7 +587,6 @@ class ClientController extends Controller
             ->get()
             ->pluck('count', 'specimen_type');
 
-        // ── Priority distribution ────────────────────────────────────────
         $priorities = (clone $baseQuery)
             ->selectRaw('priority_level, count(*) as count')
             ->groupBy('priority_level')
@@ -609,7 +594,6 @@ class ClientController extends Controller
             ->get()
             ->pluck('count', 'priority_level');
 
-        // ── Monthly trend (last 6 months, or within the selected range) ──
         $monthlyTrend = (clone $baseQuery)
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count")
             ->groupBy('month')
@@ -618,13 +602,8 @@ class ClientController extends Controller
             ->pluck('count', 'month');
 
         return view('client.reports.index', compact(
-            'startDate',
-            'endDate',
-            'stats',
-            'requests',
-            'specimenTypes',
-            'priorities',
-            'monthlyTrend'
+            'startDate', 'endDate', 'stats', 'requests',
+            'specimenTypes', 'priorities', 'monthlyTrend'
         ));
     }
 
@@ -863,7 +842,6 @@ class ClientController extends Controller
 
     private function parsePickupDateTime($date, $time): Carbon
     {
-        // Handle "scheduled:HH:MM" format from the specific-time picker
         if (str_starts_with($time, 'scheduled:')) {
             $timePart = substr($time, strlen('scheduled:'));
             [$h, $m] = explode(':', $timePart);
@@ -958,12 +936,9 @@ class ClientController extends Controller
         return view('client.requests.track', compact('request'));
     }
 
-
     public function showInvoice(SpecimenRequest $request)
     {
-        if ($request->client_id != Auth::id()) {
-            abort(403);
-        }
+        if ($request->client_id != Auth::id()) abort(403);
         $request->load(['facility', 'stops', 'payment']);
         return view('client.requests.invoice', compact('request'));
     }

@@ -1134,7 +1134,6 @@ document.getElementById('addStopBtn').addEventListener('click', function() {
                           class="w-full border border-gray-300 rounded-lg px-3 py-2 stop-instructions focus:ring-2 focus:ring-teal-500 focus:border-teal-500"></textarea>
             </div>
 
-            {{-- ======= PER-STOP FILE UPLOAD ======= --}}
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                     <i class="fas fa-paperclip text-teal-500 mr-1"></i>
@@ -1157,7 +1156,6 @@ document.getElementById('addStopBtn').addEventListener('click', function() {
                     <div class="stop-file-items space-y-1"></div>
                 </div>
             </div>
-            {{-- ======= END PER-STOP FILE UPLOAD ======= --}}
         </div>
     `;
 
