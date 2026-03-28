@@ -110,18 +110,31 @@ class ClientController extends Controller
     private function convertPickupTime($publicTime)
     {
         return [
-            '800-900' => '8-10', '900-1000' => '10-12', '1000-1100' => '10-12',
-            '1100-1200' => '10-12', '1200-100' => '12-14', '100-200' => '14-16',
-            '200-300' => '14-16', '300-400' => '16-18', '400-500' => '16-18', 'stat' => 'stat',
+            '800-900' => '8-10',
+            '900-1000' => '10-12',
+            '1000-1100' => '10-12',
+            '1100-1200' => '10-12',
+            '1200-100' => '12-14',
+            '100-200' => '14-16',
+            '200-300' => '14-16',
+            '300-400' => '16-18',
+            '400-500' => '16-18',
+            'stat' => 'stat',
         ][$publicTime] ?? '8-10';
     }
 
     private function convertSpecimenType($publicType)
     {
         return [
-            'blood' => 'blood', 'urine' => 'urine', 'biopsy' => 'biopsy',
-            'lab' => 'other', 'document' => 'other', 'medication' => 'other',
-            'vaccine' => 'other', 'supply' => 'other', 'other' => 'other',
+            'blood' => 'blood',
+            'urine' => 'urine',
+            'biopsy' => 'biopsy',
+            'lab' => 'other',
+            'document' => 'other',
+            'medication' => 'other',
+            'vaccine' => 'other',
+            'supply' => 'other',
+            'other' => 'other',
         ][$publicType] ?? 'other';
     }
 
@@ -238,14 +251,22 @@ class ClientController extends Controller
 
         if (!$priceData) {
             $priceData = [
-                'base_price' => '50.00', 'distance_miles' => 0, 'distance_charge' => '0.00',
-                'priority_charge' => '0.00', 'night_charge' => '0.00', 'weekend_charge' => '0.00',
-                'temperature_charge' => '0.00', 'additional_stops' => count($validated['stops'] ?? []),
-                'additional_stops_charge' => '0.00', 'subtotal' => '50.00', 'tax_rate' => 8.5,
-                'tax_amount' => '4.25', 'total_price' => '54.25', 'estimated_total' => '54.25',
+                'base_price' => 50.00,
+                'distance_miles' => 0,
+                'distance_charge' => 0.00,
+                'priority_charge' => 0.00,
+                'night_charge' => 0.00,
+                'weekend_charge' => 0.00,
+                'temperature_charge' => 0.00,
+                'additional_stops' => count($validated['stops'] ?? []),
+                'additional_stops_charge' => 0.00,
+                'subtotal' => 50.00,
+                'tax_rate' => 8.5,
+                'tax_amount' => 4.25,
+                'total_price' => 54.25,
+                'estimated_total' => 54.25,
             ];
         }
-
         $request->session()->put('request_preview_data', [
             'form_data'      => $validated,
             'price_data'     => $priceData,
@@ -292,27 +313,28 @@ class ClientController extends Controller
             $taxAmount      = $subtotal * $taxRate;
             $total          = $subtotal + $taxAmount;
 
+            // Return numeric values instead of formatted strings
             return response()->json(['success' => true, 'data' => [
-                'base_price'               => number_format($basePrice, 2),
+                'base_price'               => $basePrice,
                 'distance_miles'           => round($distanceMiles, 1),
-                'distance_charge'          => number_format($distCharge, 2),
-                'distance_calculation_note'=> 'One-way distance calculated via Google Maps',
-                'priority_charge'          => number_format($prioCharge, 2),
+                'distance_charge'          => $distCharge,
+                'distance_calculation_note' => 'One-way distance calculated via Google Maps',
+                'priority_charge'          => $prioCharge,
                 'priority_note'            => $prioCharge > 0 ? 'STAT / Urgent Delivery Surcharge' : 'Standard Priority',
-                'night_charge'             => number_format($nightCharge, 2),
+                'night_charge'             => $nightCharge,
                 'night_note'               => $nightCharge > 0 ? 'Night After-Hours Service (After 6PM)' : 'Daytime Service',
-                'weekend_charge'           => number_format($weekendCharge, 2),
+                'weekend_charge'           => $weekendCharge,
                 'weekend_note'             => $weekendCharge > 0 ? 'Weekend/Holiday Surcharge (35% of base rate)' : 'Weekday Service',
-                'temperature_charge'       => number_format($tempCharge, 2),
+                'temperature_charge'       => $tempCharge,
                 'temperature_note'         => $tempCharge > 0 ? 'Cold-Chain Handling' : 'No Temperature Control Required',
                 'additional_stops'         => $addStops,
-                'additional_stops_charge'  => number_format($addStopsCharge, 2),
+                'additional_stops_charge'  => $addStopsCharge,
                 'additional_stops_note'    => $addStops > 0 ? "{$addStops} additional stop(s) @ \$10.00 each" : 'No additional stops',
-                'subtotal'                 => number_format($subtotal, 2),
+                'subtotal'                 => $subtotal,
                 'tax_rate'                 => $taxRate * 100,
-                'tax_amount'               => number_format($taxAmount, 2),
-                'total_price'              => number_format($total, 2),
-                'estimated_total'          => number_format($total, 2),
+                'tax_amount'               => $taxAmount,
+                'total_price'              => $total,
+                'estimated_total'          => $total,
                 'currency'                 => 'USD',
                 'calculation_time'         => now()->toDateTimeString(),
             ]]);
@@ -321,7 +343,6 @@ class ClientController extends Controller
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
-
     // ====================================================================
     // STORE REQUEST
     // ====================================================================
@@ -364,7 +385,8 @@ class ClientController extends Controller
                     $decoded = json_decode($priceResult->getContent(), true);
                     $priceData = $decoded['success'] ? $decoded['data'] : null;
                 }
-            } catch (\Exception $e) { /* non-fatal */ }
+            } catch (\Exception $e) { /* non-fatal */
+            }
 
             $sessionDocs     = [];
             $sessionStopDocs = [];
@@ -434,10 +456,14 @@ class ClientController extends Controller
             Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
             Storage::disk('local')->delete($docInfo['tmp_path']);
             $specimenRequest->documents()->create([
-                'stop_id' => null, 'title' => $docInfo['original_name'],
-                'document_type' => 'other', 'file_name' => $docInfo['original_name'],
-                'file_path' => $finalPath, 'file_size' => $docInfo['file_size'],
-                'mime_type' => $docInfo['mime_type'], 'uploaded_by' => $user->id,
+                'stop_id' => null,
+                'title' => $docInfo['original_name'],
+                'document_type' => 'other',
+                'file_name' => $docInfo['original_name'],
+                'file_path' => $finalPath,
+                'file_size' => $docInfo['file_size'],
+                'mime_type' => $docInfo['mime_type'],
+                'uploaded_by' => $user->id,
             ]);
         }
 
@@ -446,10 +472,14 @@ class ClientController extends Controller
             foreach ($request->file('documents') as $file) {
                 $path = $file->store('request_documents', 'public');
                 $specimenRequest->documents()->create([
-                    'stop_id' => null, 'title' => $file->getClientOriginalName(),
-                    'document_type' => 'other', 'file_name' => $file->getClientOriginalName(),
-                    'file_path' => $path, 'file_size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(), 'uploaded_by' => $user->id,
+                    'stop_id' => null,
+                    'title' => $file->getClientOriginalName(),
+                    'document_type' => 'other',
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'uploaded_by' => $user->id,
                 ]);
             }
         }
@@ -463,10 +493,14 @@ class ClientController extends Controller
                 Storage::disk('public')->put($finalPath, Storage::disk('local')->get($docInfo['tmp_path']));
                 Storage::disk('local')->delete($docInfo['tmp_path']);
                 $specimenRequest->documents()->create([
-                    'stop_id' => $savedStopIds[$stopIndex], 'title' => $docInfo['original_name'],
-                    'document_type' => 'other', 'file_name' => $docInfo['original_name'],
-                    'file_path' => $finalPath, 'file_size' => $docInfo['file_size'],
-                    'mime_type' => $docInfo['mime_type'], 'uploaded_by' => $user->id,
+                    'stop_id' => $savedStopIds[$stopIndex],
+                    'title' => $docInfo['original_name'],
+                    'document_type' => 'other',
+                    'file_name' => $docInfo['original_name'],
+                    'file_path' => $finalPath,
+                    'file_size' => $docInfo['file_size'],
+                    'mime_type' => $docInfo['mime_type'],
+                    'uploaded_by' => $user->id,
                 ]);
             }
         }
@@ -480,10 +514,14 @@ class ClientController extends Controller
                     if (!$file || !$file->isValid()) continue;
                     $path = $file->store('request_documents', 'public');
                     $specimenRequest->documents()->create([
-                        'stop_id' => $savedStopIds[$stopIndex], 'title' => $file->getClientOriginalName(),
-                        'document_type' => 'other', 'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $path, 'file_size' => $file->getSize(),
-                        'mime_type' => $file->getMimeType(), 'uploaded_by' => $user->id,
+                        'stop_id' => $savedStopIds[$stopIndex],
+                        'title' => $file->getClientOriginalName(),
+                        'document_type' => 'other',
+                        'file_name' => $file->getClientOriginalName(),
+                        'file_path' => $path,
+                        'file_size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType(),
+                        'uploaded_by' => $user->id,
                     ]);
                 }
             }
@@ -539,8 +577,13 @@ class ClientController extends Controller
             'cancelled'   => (clone $baseQuery)->where('status', 'cancelled')->count(),
             'pending'     => (clone $baseQuery)->where('status', 'pending_approval')->count(),
             'in_progress' => (clone $baseQuery)->whereIn('status', [
-                'approved', 'assigned', 'accepted_by_courier',
-                'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination',
+                'approved',
+                'assigned',
+                'accepted_by_courier',
+                'awaiting_pickup_proof',
+                'picked_up',
+                'in_transit',
+                'arrived_at_destination',
             ])->count(),
         ];
 
@@ -575,8 +618,13 @@ class ClientController extends Controller
             ->pluck('count', 'month');
 
         return view('client.reports.index', compact(
-            'startDate', 'endDate', 'stats', 'requests',
-            'specimenTypes', 'priorities', 'monthlyTrend'
+            'startDate',
+            'endDate',
+            'stats',
+            'requests',
+            'specimenTypes',
+            'priorities',
+            'monthlyTrend'
         ));
     }
 
@@ -772,7 +820,10 @@ class ClientController extends Controller
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
                 $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/distancematrix/json', [
-                    'origins' => $origin, 'destinations' => $destination, 'units' => 'imperial', 'key' => $apiKey,
+                    'origins' => $origin,
+                    'destinations' => $destination,
+                    'units' => 'imperial',
+                    'key' => $apiKey,
                 ]);
                 if ($response->successful()) {
                     $data = $response->json();
@@ -833,7 +884,8 @@ class ClientController extends Controller
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
                 $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/geocode/json', [
-                    'address' => $address, 'key' => $apiKey,
+                    'address' => $address,
+                    'key' => $apiKey,
                 ]);
                 if ($response->successful()) {
                     $data = $response->json();
@@ -847,7 +899,10 @@ class ClientController extends Controller
             }
             $response = Http::withHeaders(['User-Agent' => config('app.name') . '/1.0'])->timeout(5)
                 ->get('https://nominatim.openstreetmap.org/search', [
-                    'format' => 'json', 'q' => $address, 'limit' => 1, 'addressdetails' => 1,
+                    'format' => 'json',
+                    'q' => $address,
+                    'limit' => 1,
+                    'addressdetails' => 1,
                 ]);
             if ($response->successful()) {
                 $data = $response->json();
@@ -873,7 +928,9 @@ class ClientController extends Controller
             $apiKey = config('services.google.maps_api_key');
             if (!empty($apiKey)) {
                 $response = Http::timeout(5)->get('https://maps.googleapis.com/maps/api/geocode/json', [
-                    'latlng' => $latitude . ',' . $longitude, 'key' => $apiKey, 'language' => 'en',
+                    'latlng' => $latitude . ',' . $longitude,
+                    'key' => $apiKey,
+                    'language' => 'en',
                 ]);
                 if ($response->successful()) {
                     $data = $response->json();

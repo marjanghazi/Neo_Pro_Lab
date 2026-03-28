@@ -13,130 +13,99 @@
 @endsection
 
 @section('content')
-<div class="card p-6">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-4 md:space-y-0">
+
+@push('styles')
+<style>
+    .tab-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:20px; font-size:11.5px; font-weight:500; white-space:nowrap; cursor:pointer; text-decoration:none; transition:background 0.12s, color 0.12s; background:#f1f5f9; color:#6b7280; }
+    .tab-pill.active { background:var(--teal-light); color:var(--teal); border:1px solid var(--teal-border); }
+    .tab-pill .count { font-size:10px; padding:1px 5px; background:rgba(255,255,255,0.7); border-radius:10px; font-weight:600; }
+    .tab-pill.active .count { background:rgba(14,165,160,0.12); color:var(--teal-dark); }
+    .filter-input { border:1px solid var(--border); border-radius:7px; padding:6px 10px; font-size:12px; color:var(--text-primary); outline:none; transition:border-color 0.12s; }
+    .filter-input:focus { border-color:var(--teal); box-shadow:0 0 0 2px var(--teal-light); }
+    .stat-num { font-size:1.5rem; font-weight:700; line-height:1; letter-spacing:-0.02em; }
+</style>
+@endpush
+
+<div class="card p-4">
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-            <h2 class="text-lg font-bold">My Assignments</h2>
-            <p class="text-sm text-gray-600">Manage your delivery assignments</p>
+            <h2 class="text-sm font-semibold text-gray-900">My Assignments</h2>
+            <p class="text-xs text-gray-400 mt-0.5">Manage your delivery assignments</p>
         </div>
-        
-        <div class="flex items-center space-x-3">
-            <!-- Filters -->
-            <div class="flex items-center space-x-2">
-                <select id="priority-filter" class="border rounded-lg px-3 py-2 text-sm">
-                    <option value="">All Priorities</option>
-                    <option value="stat" {{ request('priority') == 'stat' ? 'selected' : '' }}>STAT</option>
-                    <option value="routine" {{ request('priority') == 'routine' ? 'selected' : '' }}>Routine</option>
-                    <option value="scheduled" {{ request('priority') == 'scheduled' ? 'selected' : '' }}>Scheduled</option>
-                </select>
-                
-                <input type="date" id="date-filter" value="{{ request('date') }}" class="border rounded-lg px-3 py-2 text-sm">
-            </div>
-            
-            <button onclick="applyFilters()" class="px-4 py-2 bg-teal-600 rounded-lg hover:bg-teal-700">
-                <i class="fas fa-filter mr-2"></i>Apply
+        <div class="flex items-center gap-2 flex-wrap">
+            <select id="priority-filter" class="filter-input">
+                <option value="">All Priorities</option>
+                <option value="stat" {{ request('priority') == 'stat' ? 'selected' : '' }}>STAT</option>
+                <option value="routine" {{ request('priority') == 'routine' ? 'selected' : '' }}>Routine</option>
+                <option value="scheduled" {{ request('priority') == 'scheduled' ? 'selected' : '' }}>Scheduled</option>
+            </select>
+            <input type="date" id="date-filter" value="{{ request('date') }}" class="filter-input">
+            <button onclick="applyFilters()" class="btn-primary text-xs px-3 py-1.5">
+                <i class="fas fa-filter mr-1"></i>Filter
             </button>
-            
-            <button onclick="clearFilters()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-redo mr-2"></i>Clear
+            <button onclick="clearFilters()" class="btn-secondary text-xs px-3 py-1.5">
+                <i class="fas fa-redo mr-1"></i>Clear
             </button>
         </div>
     </div>
 
-    <!-- Status Tabs -->
-    <div class="flex space-x-2 mb-6 overflow-x-auto pb-2">
-        @php
-            $statusCounts = [
-                'total' => $assignments->total(),
-                'quote_sent' => isset($statusCounts['quote_sent']) ? $statusCounts['quote_sent'] : \App\Models\SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', auth()->id())->where('status', 'pending'))->count(),
-                'assigned' => auth()->user()->assignedRequests()->where('status', 'assigned')->count(),
-                'accepted_by_courier' => auth()->user()->assignedRequests()->where('status', 'accepted_by_courier')->count(),
-                'at_stop' => auth()->user()->assignedRequests()->where('status', 'at_stop')->count(),
-                'picked_up' => auth()->user()->assignedRequests()->where('status', 'picked_up')->count(),
-                'in_transit' => auth()->user()->assignedRequests()->where('status', 'in_transit')->count(),
-                'arrived_at_destination' => auth()->user()->assignedRequests()->where('status', 'arrived_at_destination')->count(),
-                'delivered' => auth()->user()->assignedRequests()->where('status', 'delivered')->count(),
-                'completed' => auth()->user()->assignedRequests()->where('status', 'completed')->count(),
-            ];
-        @endphp
-        
-        <a href="{{ route('courier.assignments.index') }}" 
-           class="flex-shrink-0 flex items-center px-4 py-2 rounded-lg {{ !request('status') ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
-            <span>All</span>
-            <span class="ml-2 bg-white text-gray-700 text-xs rounded-full px-2 py-1">{{ $statusCounts['total'] }}</span>
+    {{-- Status Tabs --}}
+    @php
+        $statusCounts = [
+            'total' => $assignments->total(),
+            'quote_sent' => isset($statusCounts['quote_sent']) ? $statusCounts['quote_sent'] : \App\Models\SpecimenRequest::where('status', 'quote_sent')->whereHas('quotes', fn($q) => $q->where('courier_id', auth()->id())->where('status', 'pending'))->count(),
+            'assigned' => auth()->user()->assignedRequests()->where('status', 'assigned')->count(),
+            'accepted_by_courier' => auth()->user()->assignedRequests()->where('status', 'accepted_by_courier')->count(),
+            'at_stop' => auth()->user()->assignedRequests()->where('status', 'at_stop')->count(),
+            'picked_up' => auth()->user()->assignedRequests()->where('status', 'picked_up')->count(),
+            'in_transit' => auth()->user()->assignedRequests()->where('status', 'in_transit')->count(),
+            'arrived_at_destination' => auth()->user()->assignedRequests()->where('status', 'arrived_at_destination')->count(),
+            'delivered' => auth()->user()->assignedRequests()->where('status', 'delivered')->count(),
+            'completed' => auth()->user()->assignedRequests()->where('status', 'completed')->count(),
+        ];
+    @endphp
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+        <a href="{{ route('courier.assignments.index') }}" class="tab-pill {{ !request('status') ? 'active' : '' }}">
+            All <span class="count">{{ $statusCounts['total'] }}</span>
         </a>
-        
         @foreach(['quote_sent', 'assigned', 'accepted_by_courier', 'at_stop', 'picked_up', 'in_transit', 'arrived_at_destination', 'delivered', 'completed'] as $status)
-        <a href="{{ route('courier.assignments.index', ['status' => $status]) }}" 
-           class="flex-shrink-0 flex items-center px-4 py-2 rounded-lg {{ request('status') == $status ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700' }}">
-            <span class="status-dot status-{{ $status }} mr-2"></span>
-            <span>{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
-            <span class="ml-2 bg-white text-gray-700 text-xs rounded-full px-2 py-1">{{ $statusCounts[$status] }}</span>
+        <a href="{{ route('courier.assignments.index', ['status' => $status]) }}" class="tab-pill {{ request('status') == $status ? 'active' : '' }}">
+            {{ ucfirst(str_replace('_', ' ', $status)) }}
+            <span class="count">{{ $statusCounts[$status] }}</span>
         </a>
         @endforeach
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="stat-card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-500">Pending Acceptance</p>
-                    <p class="text-2xl font-bold">{{ ($statusCounts['assigned'] ?? 0) + ($statusCounts['quote_sent'] ?? 0) }}</p>
-                </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-clock text-blue-600 text-xl"></i>
-                </div>
-            </div>
+    {{-- Stats --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div class="border border-gray-100 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1.5">Pending Acceptance</p>
+            <p class="stat-num text-gray-900">{{ ($statusCounts['assigned'] ?? 0) + ($statusCounts['quote_sent'] ?? 0) }}</p>
         </div>
-        
-        <div class="stat-card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-500">Active Pickups</p>
-                    <p class="text-2xl font-bold">{{ $statusCounts['accepted_by_courier'] + $statusCounts['at_stop'] }}</p>
-                </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-box text-orange-600 text-xl"></i>
-                </div>
-            </div>
+        <div class="border border-gray-100 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1.5">Active Pickups</p>
+            <p class="stat-num text-orange-500">{{ $statusCounts['accepted_by_courier'] + $statusCounts['at_stop'] }}</p>
         </div>
-        
-        <div class="stat-card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-500">In Transit</p>
-                    <p class="text-2xl font-bold">{{ $statusCounts['picked_up'] + $statusCounts['in_transit'] + $statusCounts['arrived_at_destination'] }}</p>
-                </div>
-                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-truck text-purple-600 text-xl"></i>
-                </div>
-            </div>
+        <div class="border border-gray-100 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1.5">In Transit</p>
+            <p class="stat-num text-purple-500">{{ $statusCounts['picked_up'] + $statusCounts['in_transit'] + $statusCounts['arrived_at_destination'] }}</p>
         </div>
-        
-        <div class="stat-card p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-500">Completed Today</p>
-                    <p class="text-2xl font-bold">{{ auth()->user()->assignedRequests()->where('status', 'completed')->whereDate('completed_at', today())->count() }}</p>
-                </div>
-                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-check-double text-green-600 text-xl"></i>
-                </div>
-            </div>
+        <div class="border border-gray-100 rounded-lg p-3">
+            <p class="text-xs text-gray-400 mb-1.5">Completed Today</p>
+            <p class="stat-num text-green-500">{{ auth()->user()->assignedRequests()->where('status', 'completed')->whereDate('completed_at', today())->count() }}</p>
         </div>
     </div>
 
-    <!-- Assignments Table -->
+    {{-- Table --}}
     <div class="table-container">
         <table>
             <thead>
                 <tr>
                     <th>Order ID</th>
                     <th>Client</th>
-                    <th>Pickup Location</th>
-                    <th>Delivery Location</th>
+                    <th>Pickup</th>
+                    <th>Delivery</th>
                     <th>Specimen</th>
                     <th>Priority</th>
                     <th>Status</th>
@@ -148,147 +117,89 @@
                 @forelse($assignments as $assignment)
                 <tr>
                     <td>
-                        <a href="{{ route('courier.requests.show', $assignment) }}" class="font-medium text-teal-600 hover:underline">
+                        <a href="{{ route('courier.requests.show', $assignment) }}" class="font-mono text-xs font-semibold text-teal-600 hover:text-teal-700">
                             {{ $assignment->request_number }}
                         </a>
                     </td>
                     <td>
-                        <div class="flex items-center space-x-2">
-                            <img src="https://ui-avatars.com/api/?name={{ $assignment->client->first_name }}+{{ $assignment->client->last_name }}&background=0D8ABC&color=fff" 
-                                 alt="{{ $assignment->client->full_name }}" class="w-6 h-6 rounded-full">
-                            <span>{{ $assignment->client->first_name }}</span>
+                        <div class="flex items-center gap-2">
+                            <img src="https://ui-avatars.com/api/?name={{ $assignment->client->first_name }}+{{ $assignment->client->last_name }}&background=0D8ABC&color=fff&size=24"
+                                 alt="{{ $assignment->client->full_name }}" class="w-5 h-5 rounded-full flex-shrink-0">
+                            <span class="text-xs">{{ $assignment->client->first_name }}</span>
                         </div>
                     </td>
                     <td>
-                        <div class="truncate max-w-xs" title="{{ $assignment->pickup_address }}">
-                            <i class="fas fa-map-pin text-blue-500 mr-1"></i>
-                            {{ Str::limit($assignment->pickup_address, 30) }}
+                        <div class="truncate max-w-xs text-xs" title="{{ $assignment->pickup_address }}">
+                            <i class="fas fa-map-pin text-blue-400 mr-1"></i>{{ Str::limit($assignment->pickup_address, 28) }}
                         </div>
                     </td>
                     <td>
-                        <div class="truncate max-w-xs" title="{{ $assignment->delivery_address }}">
-                            <i class="fas fa-flag-checkered text-green-500 mr-1"></i>
-                            {{ Str::limit($assignment->delivery_address, 30) }}
+                        <div class="truncate max-w-xs text-xs" title="{{ $assignment->delivery_address }}">
+                            <i class="fas fa-flag-checkered text-green-400 mr-1"></i>{{ Str::limit($assignment->delivery_address, 28) }}
                         </div>
                     </td>
                     <td>
-                        <span class="badge badge-primary">
-                            {{ ucfirst($assignment->specimen_type) }}
-                        </span>
+                        <span class="badge badge-primary text-[10px]">{{ ucfirst($assignment->specimen_type) }}</span>
                     </td>
                     <td>
                         @if($assignment->priority_level == 'stat')
-                        <span class="badge badge-danger">
-                            <i class="fas fa-bolt mr-1"></i> STAT
-                        </span>
+                        <span class="badge badge-danger text-[10px]"><i class="fas fa-bolt mr-1"></i>STAT</span>
                         @elseif($assignment->priority_level == 'routine')
-                        <span class="badge badge-info">Routine</span>
+                        <span class="badge badge-info text-[10px]">Routine</span>
                         @else
-                        <span class="badge badge-success">Scheduled</span>
+                        <span class="badge badge-success text-[10px]">Scheduled</span>
                         @endif
                     </td>
                     <td>
                         @php
                             $statusColors = [
-                                'quote_sent' => 'warning',
-                                'assigned' => 'warning',
-                                'accepted_by_courier' => 'info',
-                                'at_stop' => 'warning',
-                                'picked_up' => 'info',
-                                'in_transit' => 'primary',
-                                'arrived_at_destination' => 'warning',
-                                'delivered' => 'success',
-                                'completed' => 'success'
+                                'quote_sent' => 'warning', 'assigned' => 'warning', 'accepted_by_courier' => 'info',
+                                'at_stop' => 'warning', 'picked_up' => 'info', 'in_transit' => 'primary',
+                                'arrived_at_destination' => 'warning', 'delivered' => 'success', 'completed' => 'success'
                             ];
                         @endphp
-                        <span class="badge badge-{{ $statusColors[$assignment->status] ?? 'info' }}">
-                            <span class="status-dot status-{{ $assignment->status }}"></span>
+                        <span class="badge badge-{{ $statusColors[$assignment->status] ?? 'info' }} text-[10px]">
                             {{ str_replace('_', ' ', $assignment->status) }}
                         </span>
                     </td>
-                    <td class="text-sm text-gray-500">
+                    <td class="text-xs text-gray-400">
                         @if($assignment->scheduled_pickup_time)
                         {{ $assignment->scheduled_pickup_time->format('M d, h:i A') }}
-                        @else
-                        ASAP
-                        @endif
+                        @else ASAP @endif
                     </td>
                     <td>
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center gap-1.5">
                             @if($assignment->status == 'quote_sent')
-                            <a href="{{ route('courier.requests.quote', $assignment->id) }}"
-                               class="text-teal-600 hover:text-teal-800 p-1"
-                               title="Review Price Quote">
-                                <i class="fas fa-tag"></i>
-                            </a>
+                            <a href="{{ route('courier.requests.quote', $assignment->id) }}" class="text-teal-600 hover:text-teal-700 p-1" title="Review Quote"><i class="fas fa-tag text-sm"></i></a>
                             @elseif($assignment->status == 'assigned')
                             <form action="{{ route('courier.assignments.accept', $assignment) }}" method="POST" class="inline">
                                 @csrf
-                                <button type="submit" 
-                                        class="text-green-600 hover:text-green-800 p-1"
-                                        title="Accept Assignment"
-                                        onclick="return confirm('Accept this assignment? Location tracking will start automatically.')">
-                                    <i class="fas fa-check-circle"></i>
-                                </button>
+                                <button type="submit" class="text-green-600 hover:text-green-700 p-1" title="Accept" onclick="return confirm('Accept this assignment?')"><i class="fas fa-check-circle text-sm"></i></button>
                             </form>
                             @elseif($assignment->status == 'accepted_by_courier')
-                            <button onclick="handleWorkflowAction('start-pickup', {{ $assignment->id }})" 
-                                    class="text-blue-600 hover:text-blue-800 p-1" 
-                                    title="Start Pickup">
-                                <i class="fas fa-play-circle"></i>
-                            </button>
+                            <button onclick="handleWorkflowAction('start-pickup', {{ $assignment->id }})" class="text-blue-600 hover:text-blue-700 p-1" title="Start Pickup"><i class="fas fa-play-circle text-sm"></i></button>
                             @elseif($assignment->status == 'at_stop')
-                            <button onclick="openPhotoModal({{ $assignment->id }}, 'pickup')" 
-                                    class="text-teal-600 hover:text-teal-800 p-1" 
-                                    title="Upload Pickup Proof">
-                                <i class="fas fa-camera"></i>
-                            </button>
+                            <button onclick="openPhotoModal({{ $assignment->id }}, 'pickup')" class="text-teal-600 hover:text-teal-700 p-1" title="Upload Proof"><i class="fas fa-camera text-sm"></i></button>
                             @elseif($assignment->status == 'picked_up')
-                            <button onclick="handleWorkflowAction('start-transit', {{ $assignment->id }})" 
-                                    class="text-teal-600 hover:text-teal-800 p-1" 
-                                    title="Start Delivery">
-                                <i class="fas fa-truck"></i>
-                            </button>
+                            <button onclick="handleWorkflowAction('start-transit', {{ $assignment->id }})" class="text-teal-600 hover:text-teal-700 p-1" title="Start Transit"><i class="fas fa-truck text-sm"></i></button>
                             @elseif($assignment->status == 'in_transit')
-                            <button onclick="handleWorkflowAction('arrive-destination', {{ $assignment->id }})" 
-                                    class="text-orange-600 hover:text-orange-800 p-1" 
-                                    title="Mark Arrival">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </button>
+                            <button onclick="handleWorkflowAction('arrive-destination', {{ $assignment->id }})" class="text-orange-600 hover:text-orange-700 p-1" title="Mark Arrival"><i class="fas fa-map-marker-alt text-sm"></i></button>
                             @elseif($assignment->status == 'arrived_at_destination')
-                            <button onclick="openSignatureModal({{ $assignment->id }})" 
-                                    class="text-green-600 hover:text-green-800 p-1" 
-                                    title="Complete Delivery">
-                                <i class="fas fa-signature"></i>
-                            </button>
+                            <button onclick="openSignatureModal({{ $assignment->id }})" class="text-green-600 hover:text-green-700 p-1" title="Complete Delivery"><i class="fas fa-signature text-sm"></i></button>
                             @elseif($assignment->status == 'delivered')
-                            <button onclick="handleWorkflowAction('complete', {{ $assignment->id }})" 
-                                    class="text-green-600 hover:text-green-800 p-1" 
-                                    title="Mark as Completed">
-                                <i class="fas fa-check-double"></i>
-                            </button>
+                            <button onclick="handleWorkflowAction('complete', {{ $assignment->id }})" class="text-green-600 hover:text-green-700 p-1" title="Mark Completed"><i class="fas fa-check-double text-sm"></i></button>
                             @endif
-                            
-                            <a href="{{ route('courier.requests.show', $assignment) }}" 
-                               class="text-gray-600 hover:text-gray-800 p-1" 
-                               title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            
-                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $assignment->pickup_latitude }},{{ $assignment->pickup_longitude }}" 
-                               target="_blank" class="text-blue-600 hover:text-blue-800 p-1" 
-                               title="Get Directions">
-                                <i class="fas fa-directions"></i>
-                            </a>
+                            <a href="{{ route('courier.requests.show', $assignment) }}" class="text-gray-400 hover:text-gray-600 p-1" title="View Details"><i class="fas fa-eye text-sm"></i></a>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $assignment->pickup_latitude }},{{ $assignment->pickup_longitude }}" target="_blank" class="text-blue-400 hover:text-blue-600 p-1" title="Directions"><i class="fas fa-directions text-sm"></i></a>
                         </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="text-center py-8 text-gray-500">
-                        <i class="fas fa-truck text-3xl mb-2"></i>
-                        <p>No assignments found</p>
-                        <p class="text-sm mt-1">You'll see new assignments here when they're assigned to you</p>
+                    <td colspan="9" class="text-center py-12">
+                        <i class="fas fa-truck text-3xl text-gray-200 mb-3 block"></i>
+                        <p class="text-sm text-gray-400">No assignments found</p>
+                        <p class="text-xs text-gray-300 mt-1">You'll see new assignments here when they're assigned to you</p>
                     </td>
                 </tr>
                 @endforelse
@@ -296,43 +207,27 @@
         </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="mt-6">
-        {{ $assignments->links() }}
-    </div>
+    <div class="mt-4">{{ $assignments->links() }}</div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    function applyFilters() {
-        const status = new URLSearchParams(window.location.search).get('status');
-        const priority = document.getElementById('priority-filter').value;
-        const date = document.getElementById('date-filter').value;
-        
-        let url = '{{ route("courier.assignments.index") }}?';
-        const params = [];
-        
-        if (status) params.push(`status=${status}`);
-        if (priority) params.push(`priority=${priority}`);
-        if (date) params.push(`date=${date}`);
-        
-        if (params.length > 0) {
-            url += params.join('&');
-        }
-        
-        window.location.href = url;
-    }
-    
-    function clearFilters() {
-        window.location.href = '{{ route("courier.assignments.index") }}';
-    }
-    
-    // Auto-refresh page every 2 minutes if there are pending assignments
-    @if(($statusCounts['assigned'] ?? 0) > 0 || ($statusCounts['accepted_by_courier'] ?? 0) > 0 || ($statusCounts['quote_sent'] ?? 0) > 0)
-        setTimeout(() => {
-            window.location.reload();
-        }, 120000);
-    @endif
+function applyFilters() {
+    const status = new URLSearchParams(window.location.search).get('status');
+    const priority = document.getElementById('priority-filter').value;
+    const date = document.getElementById('date-filter').value;
+    let url = '{{ route("courier.assignments.index") }}?';
+    const params = [];
+    if (status) params.push(`status=${status}`);
+    if (priority) params.push(`priority=${priority}`);
+    if (date) params.push(`date=${date}`);
+    if (params.length > 0) url += params.join('&');
+    window.location.href = url;
+}
+function clearFilters() { window.location.href = '{{ route("courier.assignments.index") }}'; }
+@if(($statusCounts['assigned'] ?? 0) > 0 || ($statusCounts['accepted_by_courier'] ?? 0) > 0 || ($statusCounts['quote_sent'] ?? 0) > 0)
+    setTimeout(() => { window.location.reload(); }, 120000);
+@endif
 </script>
 @endpush
