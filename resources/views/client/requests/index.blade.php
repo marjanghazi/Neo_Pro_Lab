@@ -63,6 +63,7 @@
                     <th>Specimen</th>
                     <th>Pickup Location</th>
                     <th>Priority</th>
+                    <th>Price</th>  
                     <th>Status</th>
                     <th>Courier</th>
                     <th>Created</th>
@@ -98,6 +99,25 @@
                         <span class="badge badge-success">Scheduled</span>
                         @endif
                     </td>
+
+                    <!-- New Price Column -->
+                <td class="whitespace-nowrap">
+                    <div class="flex flex-col">
+                        <span class="font-bold text-teal-600">
+                            ${{ number_format($request->total_price, 2) }}
+                        </span>
+                        @if($request->payment_status == 'paid')
+                        <span class="text-xs text-green-600">
+                            <i class="fas fa-check-circle"></i> Paid
+                        </span>
+                        @elseif($request->payment_status == 'pending' && $request->total_price > 0)
+                        <span class="text-xs text-orange-500">
+                            <i class="fas fa-clock"></i> Unpaid
+                        </span>
+                        @endif
+                    </div>
+                </td>
+                
                     <td>
                         @php
                             $statusColors = [

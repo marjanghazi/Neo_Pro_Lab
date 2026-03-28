@@ -20,7 +20,7 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
     <div class="stat-card card p-6">
         <div class="flex items-center justify-between">
             <div>
@@ -88,6 +88,22 @@
             </span>
         </div>
     </div>
+
+    <!-- NEW: Total Spent Card -->
+    <div class="stat-card card p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Total Spent</p>
+                <p class="text-3xl font-bold mt-2 text-teal-600">
+                    ${{ number_format(auth()->user()->createdRequests()->where('payment_status', 'paid')->sum('total_price'), 2) }}
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                <i class="fas fa-dollar-sign text-teal-600 text-xl"></i>
+            </div>
+        </div>
+        
+    </div>
 </div>
 
 <!-- Active Tracking Section -->
@@ -124,8 +140,27 @@
                 </p>
             </div>
             
+            <!-- Price Display in Active Deliveries -->
+            <div class="flex items-center justify-between pt-3 border-t border-gray-100 mb-3">
+                <div>
+                    <span class="text-xs text-gray-500">Amount:</span>
+                    <span class="font-bold text-teal-600 ml-2">
+                        ${{ number_format($request->total_price, 2) }}
+                    </span>
+                </div>
+                @if($request->payment_status == 'paid')
+                <span class="text-xs text-green-600">
+                    <i class="fas fa-check-circle"></i> Paid
+                </span>
+                @else
+                <span class="text-xs text-orange-500">
+                    <i class="fas fa-clock"></i> Pending
+                </span>
+                @endif
+            </div>
+            
             @if($request->courier)
-            <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+            <div class="flex items-center justify-between">
                 <div class="flex items-center">
                     <img src="{{ $request->courier->profile_image ? '/storage/' . $request->courier->profile_image : 'https://ui-avatars.com/api/?name=' . urlencode($request->courier->full_name) . '&background=0D8ABC&color=fff' }}" 
                          alt="{{ $request->courier->full_name }}" 
@@ -144,7 +179,7 @@
 @endif
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Recent Requests -->
+    <!-- Recent Requests with Price -->
     <div class="card p-6">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-lg font-bold">Recent Requests</h2>
@@ -161,13 +196,15 @@
                         </a>
                         <p class="text-sm text-gray-500">{{ $request->created_at->format('M d, Y') }}</p>
                     </div>
-                    <span class="badge badge-{{ 
-                        $request->status == 'completed' ? 'success' : 
-                        ($request->status == 'in_transit' ? 'info' : 
-                        ($request->status == 'pending_approval' ? 'warning' : 'primary')) 
-                    }}">
-                        {{ str_replace('_', ' ', $request->status) }}
-                    </span>
+                    <div class="text-right">
+                        <span class="badge badge-{{ 
+                            $request->status == 'completed' ? 'success' : 
+                            ($request->status == 'in_transit' ? 'info' : 
+                            ($request->status == 'pending_approval' ? 'warning' : 'primary')) 
+                        }}">
+                            {{ str_replace('_', ' ', $request->status) }}
+                        </span>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4 text-sm">
@@ -181,6 +218,23 @@
                     </div>
                 </div>
                 
+                <!-- Price Display -->
+                <div class="mt-2 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-gray-500">Total:</span>
+                        <span class="font-semibold text-teal-600 ml-1">
+                            ${{ number_format($request->total_price, 2) }}
+                        </span>
+                    </div>
+                    @if($request->payment_status == 'paid')
+                    <span class="text-xs text-green-600">
+                        <i class="fas fa-check-circle"></i> Paid
+                    </span>
+                    @elseif($request->payment_status == 'pending' && $request->total_price > 0)
+                   
+                    @endif
+                </div>
+                
                 @if($request->courier)
                 <div class="mt-3 pt-3 border-t border-gray-100">
                     <p class="text-sm text-gray-600">Courier: {{ $request->courier->full_name }}</p>
@@ -191,7 +245,7 @@
         </div>
     </div>
 
-    <!-- Facility Information -->
+    <!-- Facility Information with Financial Summary -->
     @if($facility)
     <div class="card p-6">
         <h2 class="text-lg font-bold mb-6">Your Facility</h2>
@@ -208,6 +262,30 @@
                 <p class="text-gray-600">{{ $facility->city }}, {{ $facility->state }} {{ $facility->postal_code }}</p>
                 <p class="text-gray-600 mt-2">{{ $facility->contact_person_phone }}</p>
                 <p class="text-gray-600">{{ $facility->contact_person_email }}</p>
+            </div>
+            
+            <!-- Financial Summary -->
+            @php
+                $totalSpent = auth()->user()->createdRequests()->where('payment_status', 'paid')->sum('total_price');
+                $pendingPayments = auth()->user()->createdRequests()
+                    ->where('payment_status', 'pending')
+                    ->where('total_price', '>', 0)
+                    ->whereIn('status', ['pending_approval', 'approved'])
+                    ->sum('total_price');
+            @endphp
+            
+            <div class="bg-gradient-to-r from-teal-50 to-blue-50 p-4 rounded-lg">
+                <p class="font-medium mb-2 text-gray-700">Financial Summary</p>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">Total Spent:</span>
+                    <span class="font-bold text-teal-600">${{ number_format($totalSpent, 2) }}</span>
+                </div>
+                @if($pendingPayments > 0)
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Pending Payments:</span>
+                    <span class="font-bold text-orange-600">${{ number_format($pendingPayments, 2) }}</span>
+                </div>
+                @endif
             </div>
             
             <div>

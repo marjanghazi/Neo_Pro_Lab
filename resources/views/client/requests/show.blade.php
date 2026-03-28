@@ -414,6 +414,111 @@
                 </div>
             </div>
 
+            <!-- Pricing Information -->
+<div class="card p-6">
+    <h3 class="text-lg font-bold mb-6">Pricing Details</h3>
+    
+    <div class="space-y-4">
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Base Price:</span>
+            <span class="font-medium">${{ number_format($request->base_price, 2) }}</span>
+        </div>
+        
+        @if($request->distance_miles > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Distance ({{ number_format($request->distance_miles, 1) }} miles):</span>
+            <span class="font-medium">${{ number_format($request->distance_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        @if($request->stat_urgent_charge > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">STAT/Urgent Charge:</span>
+            <span class="font-medium text-orange-600">+${{ number_format($request->stat_urgent_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        @if($request->night_hours_charge > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Night Hours Charge:</span>
+            <span class="font-medium text-orange-600">+${{ number_format($request->night_hours_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        @if($request->weekend_charge > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Weekend/Holiday Charge:</span>
+            <span class="font-medium text-orange-600">+${{ number_format($request->weekend_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        @if($request->cold_chain_charge > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Cold Chain Charge:</span>
+            <span class="font-medium text-orange-600">+${{ number_format($request->cold_chain_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        @if($request->additional_stops > 0)
+        <div class="flex justify-between items-center pb-2 border-b border-gray-200">
+            <span class="text-gray-600">Additional Stops ({{ $request->additional_stops }}):</span>
+            <span class="font-medium">${{ number_format($request->additional_stop_charge, 2) }}</span>
+        </div>
+        @endif
+        
+        <div class="flex justify-between items-center pt-2">
+            <span class="text-lg font-bold text-gray-800">Subtotal:</span>
+            @php
+                $subtotal = $request->base_price 
+                    + ($request->distance_charge ?? 0) 
+                    + ($request->stat_urgent_charge ?? 0)
+                    + ($request->night_hours_charge ?? 0)
+                    + ($request->weekend_charge ?? 0)
+                    + ($request->cold_chain_charge ?? 0)
+                    + ($request->additional_stop_charge ?? 0);
+            @endphp
+            <span class="text-lg font-bold">${{ number_format($subtotal, 2) }}</span>
+        </div>
+        
+        <div class="flex justify-between items-center pt-2 border-t border-gray-300">
+            <span class="text-gray-600">Tax (8.5%):</span>
+            <span class="font-medium">${{ number_format($request->total_price - $subtotal, 2) }}</span>
+        </div>
+        
+        <div class="flex justify-between items-center pt-3 border-t-2 border-teal-500">
+            <span class="text-xl font-bold text-teal-700">Total Amount:</span>
+            <span class="text-2xl font-bold text-teal-700">${{ number_format($request->total_price, 2) }}</span>
+        </div>
+        
+        @if($request->payment)
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Payment Status:</span>
+                <span class="badge badge-{{ $request->payment_status === 'paid' ? 'success' : 'warning' }}">
+                    {{ ucfirst($request->payment_status) }}
+                </span>
+            </div>
+            
+            @if($request->payment->isPaid() && $request->payment->paid_at)
+            <div class="flex justify-between items-center mt-2">
+                <span class="text-gray-600">Paid On:</span>
+                <span class="text-sm">{{ $request->payment->paid_at->format('M d, Y h:i A') }}</span>
+            </div>
+            @endif
+            
+            @if($request->payment_status !== 'paid' && in_array($request->status, ['pending_approval', 'approved']))
+            <div class="mt-3">
+                <a href="{{ route('client.payment.show', $request) }}" 
+                   class="w-full btn-primary text-center inline-block">
+                    <i class="fas fa-credit-card mr-2"></i> Complete Payment
+                </a>
+            </div>
+            @endif
+        </div>
+        @endif
+    </div>
+</div>
+
             <!-- Quick Actions -->
             <div class="card p-6">
                 <h3 class="font-bold mb-4">Quick Actions</h3>
