@@ -849,6 +849,46 @@ function initPickupMap() {
         tryDrawRoute();
     });
 
+    // ── AUTO-DETECT USER LOCATION ──────────────────────────────────────
+    // Only runs when the form is fresh (no pre-filled pickup address).
+    // Silently falls back to DEFAULT_CENTER if the user denies permission.
+    if (!document.getElementById('pickup_latitude').value && !document.getElementById('pickup_longitude').value) {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const userLatLng = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                // Centre both maps on the user's real location
+                pickupMap.setCenter(userLatLng);
+                pickupMap.setZoom(15);
+                if (deliveryMap) {
+                    deliveryMap.setCenter(userLatLng);
+                    deliveryMap.setZoom(14);
+                }
+                // Reverse-geocode to fill the pickup address field automatically
+                reverseGeocode(new google.maps.LatLng(userLatLng.lat, userLatLng.lng), function(address) {
+                    document.getElementById('pickup_address_input').value = address;
+                    document.getElementById('pickup_address').value = address;
+                    pickupMarker.setPosition(userLatLng);
+                    pickupMarker.setVisible(true);
+                    document.getElementById('pickup_latitude').value = userLatLng.lat;
+                    document.getElementById('pickup_longitude').value = userLatLng.lng;
+                    document.getElementById('pickup_confirmed_badge').classList.add('show');
+                    debouncedPriceCalc();
+                });
+            }, function(error) {
+                // User denied or geolocation unavailable — stay on DEFAULT_CENTER silently
+                console.info('Geolocation not available:', error.message);
+            }, {
+                enableHighAccuracy: true,
+                timeout: 8000,
+                maximumAge: 60000
+            });
+        }
+    }
+    // ── END AUTO-DETECT ────────────────────────────────────────────────
+
     // Autocomplete
     pickupAutocomplete = new google.maps.places.Autocomplete(
         document.getElementById('pickup_address_input'),
