@@ -421,6 +421,7 @@ class ClientController extends Controller
             'delivery_longitude'      => $deliveryCoords['longitude'] ?? null,
             'delivery_instructions'   => $validated['delivery_instructions'] ?? null,
             'specimen_type'           => $validated['specimen_type'],
+            'specimen_type_other'     => $validated['specimen_type'] === 'other' ? ($validated['specimen_type_other'] ?? null) : null,
             'temperature_requirement' => $validated['temperature_requirement'],
             'quantity'                => $validated['quantity'],
             'priority_level'          => $validated['priority_level'],

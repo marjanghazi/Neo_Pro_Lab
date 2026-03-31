@@ -421,6 +421,19 @@ $prefilledData = session('prefilled_request_data', []);
                         @error('specimen_type')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
+                        <div id="specimen_type_other_wrapper" class="mt-3 {{ old('specimen_type', $prefilledData['specimen_type'] ?? '') === 'other' ? '' : 'hidden' }}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Please specify specimen type *</label>
+                            <input type="text"
+                                name="specimen_type_other"
+                                id="specimen_type_other"
+                                value="{{ old('specimen_type_other', $prefilledData['specimen_type_other'] ?? '') }}"
+                                maxlength="100"
+                                placeholder="Enter specimen type"
+                                class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
+                            @error('specimen_type_other')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
                     <div>
@@ -1394,10 +1407,33 @@ function calculatePriceEstimate() {
 }
 
 // Listen to other pricing-relevant fields
-['pickup_date', 'pickup_time', 'priority_level', 'specimen_type', 'temperature_requirement'].forEach(function(id) {
-    const el = document.getElementById(id);
+['pickup_date', 'pickup_time', 'priority_level', 'temperature_requirement'].forEach(function(id) {    const el = document.getElementById(id);
     if (el) el.addEventListener('change', debouncedPriceCalc);
 });
+
+function toggleSpecimenTypeOtherInput() {
+    const specimenTypeSelect = document.getElementById('specimen_type');
+    const otherWrapper = document.getElementById('specimen_type_other_wrapper');
+    const otherInput = document.getElementById('specimen_type_other');
+
+    if (!specimenTypeSelect || !otherWrapper || !otherInput) return;
+
+    if (specimenTypeSelect.value === 'other') {
+        otherWrapper.classList.remove('hidden');
+        otherInput.required = true;
+    } else {
+        otherWrapper.classList.add('hidden');
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+}
+
+document.getElementById('specimen_type').addEventListener('change', function () {
+    toggleSpecimenTypeOtherInput();
+    debouncedPriceCalc();
+});
+
+toggleSpecimenTypeOtherInput();
 
 // Show/hide specific time input when Scheduled priority is selected
 document.getElementById('priority_level').addEventListener('change', function () {

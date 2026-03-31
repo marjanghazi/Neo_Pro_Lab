@@ -309,6 +309,7 @@
                     <input type="hidden" name="delivery_address" value="{{ $validated['delivery_address'] }}">
                     <input type="hidden" name="delivery_instructions" value="{{ $validated['delivery_instructions'] ?? '' }}">
                     <input type="hidden" name="specimen_type" value="{{ $validated['specimen_type'] }}">
+                    <input type="hidden" name="specimen_type_other" value="{{ $validated['specimen_type_other'] ?? '' }}">
                     <input type="hidden" name="temperature_requirement" value="{{ $validated['temperature_requirement'] }}">
                     <input type="hidden" name="quantity" value="{{ $validated['quantity'] }}">
                     <input type="hidden" name="priority_level" value="{{ $validated['priority_level'] }}">
