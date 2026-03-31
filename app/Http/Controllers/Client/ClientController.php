@@ -391,7 +391,8 @@ class ClientController extends Controller
                     $decoded = json_decode($priceResult->getContent(), true);
                     $priceData = $decoded['success'] ? $decoded['data'] : null;
                 }
-            } catch (\Exception $e) { /* non-fatal */ }
+            } catch (\Exception $e) { /* non-fatal */
+            }
 
             $sessionDocs     = [];
             $sessionStopDocs = [];
@@ -570,8 +571,13 @@ class ClientController extends Controller
             'cancelled'   => (clone $baseQuery)->where('status', 'cancelled')->count(),
             'pending'     => (clone $baseQuery)->where('status', 'pending_approval')->count(),
             'in_progress' => (clone $baseQuery)->whereIn('status', [
-                'approved', 'assigned', 'accepted_by_courier', 'awaiting_pickup_proof',
-                'picked_up', 'in_transit', 'arrived_at_destination',
+                'approved',
+                'assigned',
+                'accepted_by_courier',
+                'awaiting_pickup_proof',
+                'picked_up',
+                'in_transit',
+                'arrived_at_destination',
             ])->count(),
         ];
 
@@ -602,8 +608,13 @@ class ClientController extends Controller
             ->pluck('count', 'month');
 
         return view('client.reports.index', compact(
-            'startDate', 'endDate', 'stats', 'requests',
-            'specimenTypes', 'priorities', 'monthlyTrend'
+            'startDate',
+            'endDate',
+            'stats',
+            'requests',
+            'specimenTypes',
+            'priorities',
+            'monthlyTrend'
         ));
     }
 
