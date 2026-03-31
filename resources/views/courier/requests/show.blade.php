@@ -287,6 +287,41 @@ body.cr-lock{overflow:hidden}
     </div>
 </div>
 
+{{-- Additional Stops --}}
+@if($specimenRequest->stops->count() > 0)
+<div class="cr-card p-4">
+    <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-gray-700">
+            <i class="fas fa-route text-teal-500 mr-1.5"></i>Additional Stops
+        </p>
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
+            {{ $specimenRequest->stops->count() }} {{ Str::plural('stop', $specimenRequest->stops->count()) }}
+        </span>
+    </div>
+
+    <div class="space-y-2">
+        @foreach($specimenRequest->stops->sortBy('stop_order') as $stop)
+        <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[10px] font-semibold text-teal-700 uppercase tracking-wide">
+                    Stop #{{ $stop->stop_order }} — {{ ucfirst($stop->stop_type ?? 'intermediate') }}
+                </span>
+                @if($stop->contact_name)
+                <span class="text-[11px] text-gray-600">Contact: {{ $stop->contact_name }}</span>
+                @endif
+            </div>
+            <p class="text-sm text-gray-700 mt-1">{{ $stop->address }}</p>
+            @if($stop->instructions)
+            <p class="text-[11px] text-gray-500 mt-1">
+                <span class="font-medium text-gray-600">Details:</span> {{ $stop->instructions }}
+            </p>
+            @endif
+        </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 {{-- Handling Instructions --}}
 <div class="cr-card p-4">
     <p class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-shield-alt text-teal-500 mr-1.5"></i>Handling Instructions</p>

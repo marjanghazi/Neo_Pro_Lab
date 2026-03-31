@@ -148,6 +148,38 @@ $totalDocs   = $allDocs->count();
                 </div>
                 @endif
             </div>
+
+             @if($request->stops->count() > 0)
+            <div class="mt-5 pt-4 border-t border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Additional Stops</p>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
+                        {{ $request->stops->count() }} {{ Str::plural('stop', $request->stops->count()) }}
+                    </span>
+                </div>
+
+                <div class="space-y-2.5">
+                    @foreach($request->stops->sortBy('stop_order') as $stop)
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[10px] font-semibold text-teal-700 uppercase tracking-wide">
+                                Stop #{{ $stop->stop_order }} — {{ ucfirst($stop->stop_type ?? 'intermediate') }}
+                            </span>
+                            @if($stop->contact_name)
+                            <span class="text-[11px] text-gray-600">Contact: {{ $stop->contact_name }}</span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-gray-800 mt-1">{{ $stop->address }}</p>
+                        @if($stop->instructions)
+                        <p class="text-[11px] text-gray-500 mt-1.5">
+                            <span class="font-medium text-gray-600">Details:</span> {{ $stop->instructions }}
+                        </p>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
 
         {{-- Documents --}}
