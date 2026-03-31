@@ -927,17 +927,36 @@ class AdminRequestController extends Controller
 
     private function buildPricing(SpecimenRequest $request): array
     {
-        $distanceMiles        = $this->calculateDistanceMiles($request);
-        $basePrice            = 50.00;
-        $distanceCharge       = $distanceMiles > 15 ? ($distanceMiles - 15) * 2.00 : 0.00;
-        $statUrgentCharge     = $request->priority_level === 'stat' ? 20.00 : 0.00;
-        $pickupTime           = $request->scheduled_pickup_time;
-        $nightHoursCharge     = ($pickupTime && $pickupTime->hour >= 18) ? 25.00 : 0.00;
-        $weekendCharge        = ($pickupTime && in_array($pickupTime->dayOfWeek, [0, 6])) ? $basePrice * 0.35 : 0.00;
-        $coldChainCharge      = in_array($request->temperature_requirement, ['2-8c', '-20c', '-80c']) ? 7.00 : 0.00;
-        $additionalStopCharge = ($request->relationLoaded('stops') ? $request->stops->count() : 0) * 10.00;
+        // IMPORTANT:
+        // If the client already generated pricing during request creation,
+        // keep those exact values to avoid admin-side recalculation drift
+        // (for example from re-geocoding / different distance miles).
+        $hasClientPricing = (float) ($request->total_price ?? 0) > 0
+            && $request->base_price !== null;
 
-        $totalPrice   = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge + $weekendCharge + $coldChainCharge + $additionalStopCharge;
+        if ($hasClientPricing) {
+            $distanceMiles        = (float) ($request->distance_miles ?? 0);
+            $basePrice            = (float) ($request->base_price ?? 0);
+            $distanceCharge       = (float) ($request->distance_charge ?? 0);
+            $statUrgentCharge     = (float) ($request->stat_urgent_charge ?? 0);
+            $nightHoursCharge     = (float) ($request->night_hours_charge ?? 0);
+            $weekendCharge        = (float) ($request->weekend_charge ?? 0);
+            $coldChainCharge      = (float) ($request->cold_chain_charge ?? 0);
+            $additionalStopCharge = (float) ($request->additional_stop_charge ?? 0);
+            $totalPrice           = (float) $request->total_price;
+        } else {
+            $distanceMiles        = $this->calculateDistanceMiles($request);
+            $basePrice            = 50.00;
+            $distanceCharge       = $distanceMiles > 15 ? ($distanceMiles - 15) * 2.00 : 0.00;
+            $statUrgentCharge     = $request->priority_level === 'stat' ? 20.00 : 0.00;
+            $pickupTime           = $request->scheduled_pickup_time;
+            $nightHoursCharge     = ($pickupTime && $pickupTime->hour >= 18) ? 25.00 : 0.00;
+            $weekendCharge        = ($pickupTime && in_array($pickupTime->dayOfWeek, [0, 6])) ? $basePrice * 0.35 : 0.00;
+            $coldChainCharge      = in_array($request->temperature_requirement, ['2-8c', '-20c', '-80c']) ? 7.00 : 0.00;
+            $additionalStopCharge = ($request->relationLoaded('stops') ? $request->stops->count() : 0) * 10.00;
+            $totalPrice           = $basePrice + $distanceCharge + $statUrgentCharge + $nightHoursCharge + $weekendCharge + $coldChainCharge + $additionalStopCharge;
+        }
+
         $courierFee   = round($totalPrice * 0.70, 2);
         $adminFee     = round($totalPrice * 0.20, 2);
         $profitMargin = round($totalPrice * 0.10, 2);
@@ -960,7 +979,9 @@ class AdminRequestController extends Controller
                 'has_night_service'      => $nightHoursCharge > 0,
                 'has_weekend_service'    => $weekendCharge > 0,
                 'has_cold_chain'         => $coldChainCharge > 0,
-                'additional_stops'       => ($request->relationLoaded('stops') ? $request->stops->count() : 0),
+                'additional_stops'       => $hasClientPricing
+                    ? (int) ($request->additional_stops ?? 0)
+                    : ($request->relationLoaded('stops') ? $request->stops->count() : 0),
                 'is_price_quoted'        => true,
             ],
         ];
@@ -1018,10 +1039,18 @@ class AdminRequestController extends Controller
     private function calculateDeliveryProgress(SpecimenRequest $request): int
     {
         $map = [
-            'pending_approval' => 5, 'approved' => 15, 'pending_courier_acceptance' => 20,
-            'assigned' => 25, 'accepted_by_courier' => 35, 'awaiting_pickup_proof' => 45,
-            'picked_up' => 55, 'in_transit' => 70, 'arrived_at_destination' => 85,
-            'delivered' => 95, 'completed' => 100, 'cancelled' => 0,
+            'pending_approval' => 5,
+            'approved' => 15,
+            'pending_courier_acceptance' => 20,
+            'assigned' => 25,
+            'accepted_by_courier' => 35,
+            'awaiting_pickup_proof' => 45,
+            'picked_up' => 55,
+            'in_transit' => 70,
+            'arrived_at_destination' => 85,
+            'delivered' => 95,
+            'completed' => 100,
+            'cancelled' => 0,
         ];
         $progress = $map[$request->status] ?? 0;
         if (in_array($request->status, ['in_transit', 'picked_up', 'accepted_by_courier', 'awaiting_pickup_proof', 'arrived_at_destination']) && $request->courier) {
