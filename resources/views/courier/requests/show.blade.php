@@ -326,8 +326,7 @@ body.cr-lock{overflow:hidden}
 <div class="cr-card p-4">
     <p class="text-xs font-semibold text-gray-700 mb-3"><i class="fas fa-shield-alt text-teal-500 mr-1.5"></i>Handling Instructions</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div class="info-row"><span class="info-label">Specimen</span><span class="info-val">{{ ucfirst($specimenRequest->specimen_type) }}</span></div>
-        <div class="info-row"><span class="info-label">Temperature</span><span class="info-val">{{ strtoupper($specimenRequest->temperature_requirement??'Standard') }}</span></div>
+        <div class="info-row"><span class="info-label">Specimen</span><span class="info-val">{{ $specimenRequest->formatted_specimen_type }}</span></div>        <div class="info-row"><span class="info-label">Temperature</span><span class="info-val">{{ strtoupper($specimenRequest->temperature_requirement??'Standard') }}</span></div>
         <div class="info-row"><span class="info-label">Quantity</span><span class="info-val">{{ $specimenRequest->quantity??1 }}</span></div>
         @if($specimenRequest->special_instructions)<div class="col-span-2 sm:col-span-3 info-row"><span class="info-label">Special Instructions</span><span class="text-sm text-gray-600 font-normal">{{ $specimenRequest->special_instructions }}</span></div>@endif
     </div>

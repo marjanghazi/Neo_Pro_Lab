@@ -123,7 +123,7 @@ $totalDocs   = $allDocs->count();
                 $fields = [
                     ['Facility', $request->facility->name ?? 'N/A'],
                     ['Recipient', $request->recipient_name],
-                    ['Specimen Type', ucfirst($request->specimen_type)],
+                    ['Specimen Type',$request->formatted_specimen_type],
                     ['Temperature', $request->temperature_requirement],
                     ['Pickup Address', $request->pickup_address],
                     ['Delivery Address', $request->delivery_address],
