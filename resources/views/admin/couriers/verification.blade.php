@@ -129,6 +129,44 @@
     {{-- ─── RIGHT: Actions + Info ───────────────────────────────────── --}}
     <div class="space-y-3">
 
+     {{-- Certification Expiry --}}
+        <div class="card overflow-hidden">
+            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+                <h3 class="text-xs font-semibold text-gray-700">Certification Expiry</h3>
+            </div>
+            <div class="p-4">
+                <form action="{{ route('admin.couriers.verification.certification-expiry', $courier) }}" method="POST" class="space-y-3">
+                    @csrf
+                    @method('PUT')
+
+                    <div>
+                        <label for="hipaa_cert_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1.5">HIPAA Certified</label>
+                        <input type="date" id="hipaa_cert_expires_at" name="hipaa_cert_expires_at"
+                               value="{{ old('hipaa_cert_expires_at', optional($courier->courierVerification->hipaa_cert_expires_at)->format('Y-m-d')) }}"
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400">
+                    </div>
+
+                    <div>
+                        <label for="cpr_cert_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1.5">CPR Certified</label>
+                        <input type="date" id="cpr_cert_expires_at" name="cpr_cert_expires_at"
+                               value="{{ old('cpr_cert_expires_at', optional($courier->courierVerification->cpr_cert_expires_at)->format('Y-m-d')) }}"
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400">
+                    </div>
+
+                    <div>
+                        <label for="specimen_handling_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1.5">Specimen Handling</label>
+                        <input type="date" id="specimen_handling_expires_at" name="specimen_handling_expires_at"
+                               value="{{ old('specimen_handling_expires_at', optional($courier->courierVerification->specimen_handling_expires_at)->format('Y-m-d')) }}"
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-400 focus:border-teal-400">
+                    </div>
+
+                    <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-2 transition-colors">
+                        <i class="fas fa-save text-[11px]"></i>Save Expiry Dates
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {{-- Verification Decision --}}
         <div class="card overflow-hidden sticky top-4">
             <div class="px-4 py-3 border-b border-gray-100 bg-teal-600">

@@ -177,9 +177,9 @@
             <div class="space-y-2">
                 @php
                 $certs = [
-                    ['HIPAA Certified',      'fa-shield-alt',  'text-green-600', 'bg-green-50',  'Dec 2024'],
-                    ['CPR Certified',        'fa-ambulance',   'text-blue-600',  'bg-blue-50',   'Sep 2024'],
-                    ['Specimen Handling',    'fa-vial',        'text-violet-600','bg-violet-50', 'Jun 2024'],
+                    ['HIPAA Certified',   'fa-shield-alt', 'text-green-600',  'bg-green-50',  optional($courier->courierVerification)->hipaa_cert_expires_at],
+                    ['CPR Certified',     'fa-ambulance',  'text-blue-600',   'bg-blue-50',   optional($courier->courierVerification)->cpr_cert_expires_at],
+                    ['Specimen Handling', 'fa-vial',       'text-violet-600', 'bg-violet-50', optional($courier->courierVerification)->specimen_handling_expires_at],
                 ];
                 @endphp
                 @foreach($certs as [$name, $icon, $ic, $bg, $exp])
@@ -189,10 +189,15 @@
                         <div>
                             <p class="text-xs font-medium text-gray-800">{{ $name }}</p>
                             <!-- <p class="text-[10px] text-gray-500 mt-0.5">Expires: {{ $exp }}</p> -->
+                             <p class="text-[10px] text-gray-500 mt-0.5">
+                                Expires: {{ $exp ? $exp->format('M d, Y') : 'Not set' }}
+                            </p>
                         </div>
                     </div>
-                    <span class="badge badge-success">Active</span>
-                </div>
+@php $isExpired = $exp && $exp->isPast(); @endphp
+                    <span class="badge {{ $isExpired ? 'badge-danger' : 'badge-success' }}">
+                        {{ $isExpired ? 'Expired' : 'Active' }}
+                    </span>                </div>
                 @endforeach
             </div>
         </div>

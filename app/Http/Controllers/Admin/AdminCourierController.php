@@ -311,6 +311,31 @@ class AdminCourierController extends Controller
                 ->with('success', 'Courier verification rejected. Note: Email notification could not be sent.');
         }
     }
+
+     public function updateCertificationExpiry(Request $request, User $courier)
+    {
+        if ($courier->role->slug !== 'courier') {
+            abort(404, 'User is not a courier');
+        }
+
+        $verification = $courier->courierVerification;
+
+        if (!$verification) {
+            return redirect()->back()->with('error', 'No verification records found for this courier.');
+        }
+
+        $validated = $request->validate([
+            'hipaa_cert_expires_at' => 'nullable|date',
+            'cpr_cert_expires_at' => 'nullable|date',
+            'specimen_handling_expires_at' => 'nullable|date',
+        ]);
+
+        $verification->update($validated);
+
+        return redirect()
+            ->route('admin.couriers.verification', $courier)
+            ->with('success', 'Certification expiry dates updated successfully.');
+    }
     public function viewDocument(User $courier, $documentType)
     {
         // Verify the user is a courier

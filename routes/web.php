@@ -156,6 +156,8 @@ Route::prefix('admin')
 
         Route::post('/couriers/{courier}/verification/reject', [AdminCourierController::class, 'rejectVerification'])
             ->name('couriers.verification.reject');
+        Route::put('/couriers/{courier}/verification/certification-expiry', [AdminCourierController::class, 'updateCertificationExpiry'])
+            ->name('couriers.verification.certification-expiry');
 
         Route::get('/couriers/{courier}/document/{documentType}', [AdminCourierController::class, 'viewDocument'])
             ->name('couriers.document');

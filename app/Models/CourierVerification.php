@@ -18,6 +18,9 @@ class CourierVerification extends Model
         'proof_of_residency',
         'drivers_license',
         'medical_transport_cert',
+        'hipaa_cert_expires_at',
+        'cpr_cert_expires_at',
+        'specimen_handling_expires_at',
         'verification_status',
         'rejection_reason',
         'submitted_at',
@@ -28,6 +31,9 @@ class CourierVerification extends Model
     protected $casts = [
         'submitted_at' => 'datetime',
         'verified_at' => 'datetime',
+        'hipaa_cert_expires_at' => 'date',
+        'cpr_cert_expires_at' => 'date',
+        'specimen_handling_expires_at' => 'date',
     ];
 
     public function user(): BelongsTo
