@@ -173,7 +173,16 @@
 
         {{-- Certifications --}}
         <div class="card p-4">
-            <h3 class="text-xs font-semibold text-gray-700 mb-3">Certifications</h3>
+ <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-semibold text-gray-700">Certifications</h3>
+                @if($courier->courierVerification)
+                <button type="button"
+                        id="toggleCertificationEdit"
+                        class="text-[11px] text-teal-600 hover:text-teal-700 font-medium">
+                    Edit Expiry Dates
+                </button>
+                @endif
+            </div>
             <div class="space-y-2">
                 @php
                 $certs = [
@@ -200,6 +209,47 @@
                     </span>                </div>
                 @endforeach
             </div>
+              @if($courier->courierVerification)
+            <form id="certificationEditForm"
+                  action="{{ route('admin.couriers.verification.certification-expiry', $courier) }}"
+                  method="POST"
+                  class="{{ $errors->has('hipaa_cert_expires_at') || $errors->has('cpr_cert_expires_at') || $errors->has('specimen_handling_expires_at') ? '' : 'hidden' }} mt-3 pt-3 border-t border-gray-100 space-y-2.5">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label for="hipaa_cert_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1">HIPAA Expiry</label>
+                    <input type="date"
+                           id="hipaa_cert_expires_at"
+                           name="hipaa_cert_expires_at"
+                           value="{{ old('hipaa_cert_expires_at', optional($courier->courierVerification->hipaa_cert_expires_at)->format('Y-m-d')) }}"
+                           class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-400">
+                </div>
+
+                <div>
+                    <label for="cpr_cert_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1">CPR Expiry</label>
+                    <input type="date"
+                           id="cpr_cert_expires_at"
+                           name="cpr_cert_expires_at"
+                           value="{{ old('cpr_cert_expires_at', optional($courier->courierVerification->cpr_cert_expires_at)->format('Y-m-d')) }}"
+                           class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-400">
+                </div>
+
+                <div>
+                    <label for="specimen_handling_expires_at" class="block text-[10px] font-semibold text-gray-600 mb-1">Specimen Handling Expiry</label>
+                    <input type="date"
+                           id="specimen_handling_expires_at"
+                           name="specimen_handling_expires_at"
+                           value="{{ old('specimen_handling_expires_at', optional($courier->courierVerification->specimen_handling_expires_at)->format('Y-m-d')) }}"
+                           class="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs focus:ring-2 focus:ring-teal-100 focus:border-teal-400">
+                </div>
+
+                <button type="submit" class="btn-primary text-xs px-3 py-1.5">
+                    Save Expiry Dates
+                </button>
+            </form>
+            @endif
+
         </div>
 
         {{-- Contact Courier --}}
@@ -266,6 +316,15 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
+  const editButton = document.getElementById('toggleCertificationEdit');
+    const editForm = document.getElementById('certificationEditForm');
+
+    if (editButton && editForm) {
+        editButton.addEventListener('click', function () {
+            editForm.classList.toggle('hidden');
+        });
+    }
     @if($weeklyData['total_deliveries'] > 0)
     var chart = new ApexCharts(document.querySelector("#performanceChart"), {
         series: [{ name: 'Deliveries', data: @json($weeklyData['deliveries']) }],

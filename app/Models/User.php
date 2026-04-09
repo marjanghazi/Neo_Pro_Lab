@@ -160,9 +160,9 @@ class User extends Authenticatable
         return $this->currentLocation;
     }
 
-    public function courierVerification()
+    public function courierVerification(): HasOne
     {
-        return $this->hasOne(CourierVerification::class);
+        return $this->hasOne(CourierVerification::class)->latestOfMany();
     }
 
     public function isVerifiedCourier(): bool

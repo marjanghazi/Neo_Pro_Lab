@@ -333,7 +333,7 @@ class AdminCourierController extends Controller
         $verification->update($validated);
 
         return redirect()
-            ->route('admin.couriers.verification', $courier)
+            ->back()
             ->with('success', 'Certification expiry dates updated successfully.');
     }
     public function viewDocument(User $courier, $documentType)
