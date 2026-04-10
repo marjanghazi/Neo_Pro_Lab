@@ -398,6 +398,7 @@ Route::prefix('courier')
         Route::get('/active-request', [CourierController::class, 'getActiveRequest'])->name('active-request');
         Route::get('/active-pickups', [CourierController::class, 'activePickups'])->name('active-pickups');
         Route::get('/active-deliveries', [CourierController::class, 'activeDeliveries'])->name('active-deliveries');
+        Route::get('/requests/{requestId}/navigation/view', [CourierController::class, 'navigationView'])->name('requests.navigation.view');
         Route::get('/requests/{requestId}/navigation', [CourierController::class, 'getNavigation'])->name('requests.navigation');
 
         // History & Proofs

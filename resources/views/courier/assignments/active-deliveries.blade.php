@@ -112,9 +112,9 @@
                     <i class="fas fa-signature mr-1"></i>Complete
                 </button>
                 @endif
-                <a href="https://www.google.com/maps/dir/?api=1&destination={{ $delivery->delivery_latitude }},{{ $delivery->delivery_longitude }}"
-                   target="_blank" class="btn-secondary text-xs px-3 py-1.5 text-center whitespace-nowrap">
-                    <i class="fas fa-directions mr-1"></i>Navigate
+                 <a href="{{ route('courier.requests.navigation.view', ['requestId' => $delivery->id, 'target' => 'delivery']) }}"
+                   class="btn-secondary text-xs px-3 py-1.5 text-center whitespace-nowrap"></a>
+                <i class="fas fa-directions mr-1"></i>Navigate
                 </a>
                 <a href="{{ route('courier.requests.show', $delivery) }}" class="text-center text-xs text-gray-400 hover:text-teal-600 py-1">
                     Details →

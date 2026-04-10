@@ -131,7 +131,7 @@
             @csrf
             <button type="submit"
                 onclick="return confirm('Accept this price quote for request #{{ $request->request_number }}? Your earnings will be ${{ number_format($quote->courier_fee, 2) }}.')"
-                class="w-full flex items-center justify-center gap-2 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors">
+                class="w-full flex items-center justify-center gap-2 py-2.5 bg-teal-600 hover:bg-teal-700 rounded-lg text-sm font-medium transition-colors">
                 <i class="fas fa-check-circle"></i>Accept Quote — Earn ${{ number_format($quote->courier_fee, 2) }}
             </button>
         </form>

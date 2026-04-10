@@ -199,8 +199,7 @@
                                 @if($req->priority_level == 'stat')<span class="text-red-500 font-medium"><i class="fas fa-bolt mr-1"></i>STAT</span>@endif
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination={{ $req->pickup_latitude }},{{ $req->pickup_longitude }}" target="_blank"
-                                   class="text-[11px] text-gray-500 hover:text-teal-600 flex items-center gap-1 border border-gray-200 rounded px-2 py-1 transition-colors">
+                                <a href="{{ route('courier.requests.navigation.view', ['requestId' => $req->id, 'target' => 'pickup']) }}"                                   class="text-[11px] text-gray-500 hover:text-teal-600 flex items-center gap-1 border border-gray-200 rounded px-2 py-1 transition-colors">
                                     <i class="fas fa-directions text-[10px]"></i>Directions
                                 </a>
                                 <a href="{{ route('courier.requests.show', $req->id) }}"
@@ -406,7 +405,7 @@ function updateLocation() {
     );
 }
 
-function getDirections(lat, lng) { window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank'); }
+// function getDirections(lat, lng) { window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank'); }
 
 function showNotification(message, type='info') {
     document.querySelectorAll('.notification-toast').forEach(n => n.remove());

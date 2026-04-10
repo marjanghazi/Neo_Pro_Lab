@@ -190,8 +190,7 @@
                             <button onclick="handleWorkflowAction('complete', {{ $assignment->id }})" class="text-green-600 hover:text-green-700 p-1" title="Mark Completed"><i class="fas fa-check-double text-sm"></i></button>
                             @endif
                             <a href="{{ route('courier.requests.show', $assignment) }}" class="text-gray-400 hover:text-gray-600 p-1" title="View Details"><i class="fas fa-eye text-sm"></i></a>
-                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $assignment->pickup_latitude }},{{ $assignment->pickup_longitude }}" target="_blank" class="text-blue-400 hover:text-blue-600 p-1" title="Directions"><i class="fas fa-directions text-sm"></i></a>
-                        </div>
+                            <a href="{{ route('courier.requests.navigation.view', ['requestId' => $assignment->id, 'target' => 'pickup']) }}" class="text-blue-400 hover:text-blue-600 p-1" title="Directions"><i class="fas fa-directions text-sm"></i></a>                        </div>
                     </td>
                 </tr>
                 @empty

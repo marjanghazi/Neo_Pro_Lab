@@ -103,8 +103,8 @@
                     <i class="fas fa-camera mr-1"></i>Upload Proof
                 </button>
                 @endif
-                <a href="https://www.google.com/maps/dir/?api=1&destination={{ $pickup->pickup_latitude }},{{ $pickup->pickup_longitude }}"
-                   target="_blank" class="btn-secondary text-xs px-3 py-1.5 text-center whitespace-nowrap">
+                <a href="{{ route('courier.requests.navigation.view', ['requestId' => $pickup->id, 'target' => 'pickup']) }}"
+                   class="btn-secondary text-xs px-3 py-1.5 text-center whitespace-nowrap"></a>
                     <i class="fas fa-directions mr-1"></i>Directions
                 </a>
                 <a href="{{ route('courier.requests.show', $pickup) }}" class="text-center text-xs text-gray-400 hover:text-teal-600 py-1">

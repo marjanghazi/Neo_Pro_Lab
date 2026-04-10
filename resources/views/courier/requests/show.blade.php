@@ -104,12 +104,12 @@ body.cr-lock{overflow:hidden}
         </div>
         <div class="flex gap-2 flex-wrap">
             @if($specimenRequest->pickup_latitude)
-            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->pickup_latitude }},{{ $specimenRequest->pickup_longitude }}"
-                target="_blank" class="cr-btn cr-btn-secondary cr-btn-sm"><i class="fas fa-map-pin text-blue-500"></i>Pickup Map</a>
+            <a href="{{ route('courier.requests.navigation.view', ['requestId' => $specimenRequest->id, 'target' => 'pickup']) }}"
+                class="cr-btn cr-btn-secondary cr-btn-sm"><i class="fas fa-map-pin text-blue-500"></i>Pickup Map</a>
             @endif
             @if($specimenRequest->delivery_latitude)
-            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}"
-                target="_blank" class="cr-btn cr-btn-secondary cr-btn-sm"><i class="fas fa-flag-checkered text-green-500"></i>Delivery Map</a>
+            <a href="{{ route('courier.requests.navigation.view', ['requestId' => $specimenRequest->id, 'target' => 'delivery']) }}"
+                class="cr-btn cr-btn-secondary cr-btn-sm"><i class="fas fa-flag-checkered text-green-500"></i>Delivery Map</a>
             @endif
         </div>
     </div>
@@ -188,7 +188,7 @@ body.cr-lock{overflow:hidden}
         <div><p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Pickup Address</p><p class="text-sm font-medium text-gray-800">{{ $specimenRequest->pickup_address }}</p></div>
     </div>
     <div class="flex flex-wrap gap-2">
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->pickup_latitude }},{{ $specimenRequest->pickup_longitude }}" target="_blank" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Directions</a>
+    <a href="{{ route('courier.requests.navigation.view', ['requestId' => $specimenRequest->id, 'target' => 'pickup']) }}" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Directions</a>
         <button type="button" onclick="crOpen('pickupModal')" class="cr-btn cr-btn-primary"><i class="fas fa-camera text-sm"></i>Upload Pickup Proof</button>
     </div>
 </div>
@@ -215,7 +215,7 @@ body.cr-lock{overflow:hidden}
         <div><p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Delivery Address</p><p class="text-sm font-medium text-gray-800">{{ $specimenRequest->delivery_address }}</p></div>
     </div>
     <div class="flex flex-wrap gap-2">
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}" target="_blank" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Directions</a>
+    <a href="{{ route('courier.requests.navigation.view', ['requestId' => $specimenRequest->id, 'target' => 'delivery']) }}" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Directions</a>
         <form action="{{ route('courier.requests.start-transit',$specimenRequest->id) }}" method="POST" style="display:inline">@csrf
             <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-truck text-sm"></i>Start Transit</button>
         </form>
@@ -234,7 +234,7 @@ body.cr-lock{overflow:hidden}
         <div><p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Delivering To</p><p class="text-sm font-medium text-gray-800">{{ $specimenRequest->delivery_address }}</p></div>
     </div>
     <div class="flex flex-wrap gap-2">
-        <a href="https://www.google.com/maps/dir/?api=1&destination={{ $specimenRequest->delivery_latitude }},{{ $specimenRequest->delivery_longitude }}" target="_blank" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Navigate</a>
+ <a href="{{ route('courier.requests.navigation.view', ['requestId' => $specimenRequest->id, 'target' => 'delivery']) }}" class="cr-btn cr-btn-secondary"><i class="fas fa-directions text-sm"></i>Navigate</a>
         <form action="{{ route('courier.requests.arrive-destination',$specimenRequest->id) }}" method="POST" style="display:inline">@csrf
             <button type="submit" class="cr-btn cr-btn-primary"><i class="fas fa-map-marker-alt text-sm"></i>Mark Arrival</button>
         </form>

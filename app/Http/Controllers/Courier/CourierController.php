@@ -1347,6 +1347,28 @@ class CourierController extends Controller
         ]);
     }
 
+      /**
+     * Navigation map view rendered inside the courier portal.
+     */
+    public function navigationView(Request $request, $requestId)
+    {
+        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+
+        if ($specimenRequest->assigned_to != Auth::id()) {
+            abort(403, 'Not authorized');
+        }
+
+        $target = $request->query('target', 'pickup');
+        if (!in_array($target, ['pickup', 'delivery'], true)) {
+            $target = 'pickup';
+        }
+
+        return view('courier.requests.navigation', [
+            'specimenRequest' => $specimenRequest,
+            'target' => $target,
+        ]);
+    }
+
     /**
      * Get navigation data - Provides coordinates for Google Maps navigation
      * Route: GET /courier/requests/{request}/navigation
