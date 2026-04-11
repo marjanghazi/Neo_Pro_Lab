@@ -104,7 +104,7 @@ $totalDocs   = $allDocs->count();
                 </div>
                 @if($request->courier && in_array($request->status, ['assigned','accepted_by_courier','awaiting_pickup_proof','picked_up','in_transit','arrived_at_destination','delivered']))
                 <a href="{{ route('admin.requests.track', $request) }}"
-                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium transition">
+                    class="inline-flex items-center gap-2 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 rounded-lg text-xs font-medium transition">
                     <span class="relative flex h-1.5 w-1.5">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400"></span>
@@ -465,7 +465,7 @@ $totalDocs   = $allDocs->count();
             <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h4 class="text-xs font-semibold text-green-700 mb-2">
                     <i class="fas fa-check-circle mr-1.5"></i>
-                    Courier Assigned@if($request->status === 'completed') — Completed ✓@endif
+                    Courier Assigned{{ $request->status === 'completed' ? ' — Completed ✓' : '' }}
                 </h4>
                 @if($request->courier)
                 <div class="flex items-center gap-3">
@@ -485,6 +485,8 @@ $totalDocs   = $allDocs->count();
                 @if($activeQuote && $activeQuote->status === 'accepted')
                 <p class="text-[10px] text-green-600 mt-2 pt-2 border-t border-green-200"><i class="fas fa-handshake mr-1"></i>Quote #{{ $activeQuote->id }} accepted {{ $activeQuote->accepted_at->format('M d, Y h:i A') }}</p>
                 @endif
+                                @endif
+
                 
             </div>
             @endif
