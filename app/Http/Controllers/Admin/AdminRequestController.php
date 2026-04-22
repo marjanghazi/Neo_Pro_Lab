@@ -998,6 +998,10 @@ class AdminRequestController extends Controller
             'weekend_charge'         => $request->weekend_charge,
             'cold_chain_charge'      => $request->cold_chain_charge,
             'additional_stops'       => $request->resolved_additional_stops,
+            'stop_details'           => $request->stops()
+                ->orderBy('stop_order')
+                ->get(['id', 'stop_order', 'stop_type', 'address', 'contact_name', 'instructions'])
+                ->toArray(),
             'additional_stop_charge' => $request->additional_stop_charge,
             'admin_fee'              => $request->admin_fee,
             'profit_margin'          => $request->profit_margin,

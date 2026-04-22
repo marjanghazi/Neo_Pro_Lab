@@ -366,7 +366,7 @@ class CourierController extends Controller
      */
     public function viewQuote($requestId)
     {
-        $specimenRequest = SpecimenRequest::with(['client', 'facility'])->findOrFail($requestId);
+        $specimenRequest = SpecimenRequest::with(['client', 'facility', 'stops'])->findOrFail($requestId);
 
         // Authorization: fetch the most recent PENDING quote for this courier first.
         // If no pending quote exists (already responded), fall back to the latest quote

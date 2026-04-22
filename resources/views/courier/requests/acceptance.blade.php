@@ -40,6 +40,8 @@
         $quoteStopCount = (int) data_get($quote->breakdown, 'additional_stops', 0);
         $displayDistanceMiles = $request->resolved_distance_miles > 0 ? $request->resolved_distance_miles : $quoteDistanceMiles;
         $displayStopCount = max($request->resolved_additional_stops, $quoteStopCount);
+        $displayStops = $request->stops->sortBy('stop_order')->values();
+        $fallbackStopDetails = collect(data_get($quote->breakdown, 'stop_details', []));
     @endphp
 
     {{-- Header --}}
@@ -111,6 +113,44 @@
                 <p class="text-xs font-medium text-gray-800">{{ ucfirst($request->specimen_type) }}</p>
             </div>
         </div>
+
+        @if($displayStopCount > 0)
+        <div class="mt-4 pt-3 border-t border-gray-100">
+            <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-2">Stop Information</p>
+
+            @if($displayStops->count() > 0)
+                <div class="space-y-2">
+                    @foreach($displayStops as $stop)
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+                        <p class="text-xs font-semibold text-gray-700">
+                            Stop #{{ $stop->stop_order ?? '?' }} — {{ ucfirst($stop->stop_type ?? 'intermediate') }}
+                        </p>
+                        <p class="text-xs text-gray-600 mt-1">{{ $stop->address }}</p>
+                        @if(!empty($stop->contact_name))
+                        <p class="text-[11px] text-gray-500 mt-1">Contact: {{ $stop->contact_name }}</p>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            @elseif($fallbackStopDetails->count() > 0)
+                <div class="space-y-2">
+                    @foreach($fallbackStopDetails as $stop)
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+                        <p class="text-xs font-semibold text-gray-700">
+                            Stop #{{ data_get($stop, 'stop_order', '?') }} — {{ ucfirst(data_get($stop, 'stop_type', 'intermediate')) }}
+                        </p>
+                        <p class="text-xs text-gray-600 mt-1">{{ data_get($stop, 'address', 'Address unavailable') }}</p>
+                        @if(data_get($stop, 'contact_name'))
+                        <p class="text-[11px] text-gray-500 mt-1">Contact: {{ data_get($stop, 'contact_name') }}</p>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-xs text-amber-600">This assignment includes additional stops, but stop addresses are still syncing.</p>
+            @endif
+        </div>
+        @endif
     </div>
 
     {{-- Earnings --}}
