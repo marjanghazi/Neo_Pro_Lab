@@ -36,8 +36,10 @@
     @php
         $isExpired = $quote->isExpired();
         $isPending = $quote->status === 'pending' && !$isExpired;
-        $displayDistanceMiles = max(0, (float) ($request->distance_miles ?? $request->total_distance ?? 0));
-        $displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
+        $quoteDistanceMiles = (float) data_get($quote->breakdown, 'distance_miles', 0);
+        $quoteStopCount = (int) data_get($quote->breakdown, 'additional_stops', 0);
+        $displayDistanceMiles = $request->resolved_distance_miles > 0 ? $request->resolved_distance_miles : $quoteDistanceMiles;
+        $displayStopCount = max($request->resolved_additional_stops, $quoteStopCount);
     @endphp
 
     {{-- Header --}}

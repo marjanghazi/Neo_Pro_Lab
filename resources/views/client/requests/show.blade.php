@@ -21,9 +21,8 @@
 @section('content')
 <div class="max-w-6xl mx-auto">
     @php
-        $calculatedDistanceMiles = (float) ($request->distance_miles ?? $request->total_distance ?? 0);
-        $displayDistanceMiles = max(0, $calculatedDistanceMiles);
-        $displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
+        $displayDistanceMiles = $request->resolved_distance_miles;
+        $displayStopCount = $request->resolved_additional_stops;
     @endphp
 
     <!-- Request Header -->

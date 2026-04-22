@@ -991,11 +991,13 @@ class AdminRequestController extends Controller
     {
         return [
             'base_price'             => $request->base_price,
+            'distance_miles'         => $request->resolved_distance_miles,
             'distance_charge'        => $request->distance_charge,
             'stat_urgent_charge'     => $request->stat_urgent_charge,
             'night_hours_charge'     => $request->night_hours_charge,
             'weekend_charge'         => $request->weekend_charge,
             'cold_chain_charge'      => $request->cold_chain_charge,
+            'additional_stops'       => $request->resolved_additional_stops,
             'additional_stop_charge' => $request->additional_stop_charge,
             'admin_fee'              => $request->admin_fee,
             'profit_margin'          => $request->profit_margin,

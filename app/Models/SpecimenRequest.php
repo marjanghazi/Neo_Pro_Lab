@@ -240,6 +240,61 @@ class SpecimenRequest extends Model
     }
 
     /**
+     * Resolve the most accurate route distance in miles for UI display.
+     */
+    public function getResolvedDistanceMilesAttribute(): float
+    {
+        $distanceMiles = (float) ($this->distance_miles ?? 0);
+        if ($distanceMiles > 0) {
+            return round($distanceMiles, 1);
+        }
+
+        $totalDistance = (float) ($this->total_distance ?? 0);
+        if ($totalDistance > 0) {
+            return round($totalDistance, 1);
+        }
+
+        if (
+            $this->pickup_latitude !== null &&
+            $this->pickup_longitude !== null &&
+            $this->delivery_latitude !== null &&
+            $this->delivery_longitude !== null
+        ) {
+            $earthRadiusMiles = 3959;
+            $latFrom = deg2rad((float) $this->pickup_latitude);
+            $lonFrom = deg2rad((float) $this->pickup_longitude);
+            $latTo = deg2rad((float) $this->delivery_latitude);
+            $lonTo = deg2rad((float) $this->delivery_longitude);
+            $latDelta = $latTo - $latFrom;
+            $lonDelta = $lonTo - $lonFrom;
+
+            $distance = $earthRadiusMiles * 2 * asin(
+                sqrt(
+                    sin($latDelta / 2) ** 2 +
+                    cos($latFrom) * cos($latTo) * sin($lonDelta / 2) ** 2
+                )
+            );
+
+            return round($distance, 1);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Resolve additional stop count from both stored pricing and related stop records.
+     */
+    public function getResolvedAdditionalStopsAttribute(): int
+    {
+        $storedStops = (int) ($this->additional_stops ?? 0);
+        $actualStops = $this->relationLoaded('stops')
+            ? $this->stops->count()
+            : $this->stops()->count();
+
+        return max($storedStops, $actualStops);
+    }
+
+    /**
      * Check if the request is active (in progress).
      */
     public function isActive(): bool

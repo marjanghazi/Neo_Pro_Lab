@@ -75,8 +75,8 @@ body.cr-lock{overflow:hidden}
     $currentStep = $stepMap[$status] ?? 0;
     $activeQuote = \App\Models\CourierQuote::where('request_id', $specimenRequest->id)->where('courier_id', auth()->id())->whereIn('status', ['accepted', 'pending'])->orderByRaw("CASE WHEN status = 'accepted' THEN 0 WHEN status = 'pending' THEN 1 ELSE 2 END")->orderBy('created_at', 'desc')->first();
     $displayCourierFee = $activeQuote ? $activeQuote->courier_fee : $specimenRequest->courier_fee;
-    $displayDistanceMiles = max(0, (float) ($specimenRequest->distance_miles ?? $specimenRequest->total_distance ?? 0));
-    $displayStopCount = max((int) ($specimenRequest->additional_stops ?? 0), $specimenRequest->stops->count());
+    $displayDistanceMiles = $specimenRequest->resolved_distance_miles;
+    $displayStopCount = $specimenRequest->resolved_additional_stops;
 @endphp
 
 {{-- Flash Messages --}}

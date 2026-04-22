@@ -40,8 +40,8 @@ $allDocs     = $request->documents;
 $generalDocs = $allDocs->whereNull('stop_id');
 $stopDocs    = $allDocs->whereNotNull('stop_id')->groupBy('stop_id');
 $totalDocs   = $allDocs->count();
-$displayDistanceMiles = max(0, (float) ($request->distance_miles ?? $request->total_distance ?? 0));
-$displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
+$displayDistanceMiles = $request->resolved_distance_miles;
+$displayStopCount = $request->resolved_additional_stops;
 @endphp
 
 {{-- ── Flash Messages ───────────────────────────────────────────── --}}
