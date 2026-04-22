@@ -20,6 +20,12 @@
 
 @section('content')
 <div class="max-w-6xl mx-auto">
+    @php
+        $calculatedDistanceMiles = (float) ($request->distance_miles ?? $request->total_distance ?? 0);
+        $displayDistanceMiles = max(0, $calculatedDistanceMiles);
+        $displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
+    @endphp
+
     <!-- Request Header -->
     <div class="card p-6 mb-6">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
@@ -100,6 +106,18 @@
             <!-- Pickup & Delivery -->
             <div class="card p-6">
                 <h3 class="text-lg font-bold mb-6">Pickup & Delivery Information</h3>
+                <div class="mb-5 rounded-lg border border-teal-100 bg-teal-50 px-4 py-3">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Route Distance</p>
+                            <p class="font-semibold text-teal-700">{{ number_format($displayDistanceMiles, 1) }} miles</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Additional Stops</p>
+                            <p class="font-semibold text-teal-700">{{ $displayStopCount }}</p>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Pickup -->
@@ -424,9 +442,9 @@
             <span class="font-medium">${{ number_format($request->base_price, 2) }}</span>
         </div>
         
-        @if($request->distance_miles > 0)
+        @if($displayDistanceMiles > 0)
         <div class="flex justify-between items-center pb-2 border-b border-gray-200">
-            <span class="text-gray-600">Distance ({{ number_format($request->distance_miles, 1) }} miles):</span>
+            <span class="text-gray-600">Distance ({{ number_format($displayDistanceMiles, 1) }} miles):</span>
             <span class="font-medium">${{ number_format($request->distance_charge, 2) }}</span>
         </div>
         @endif
@@ -459,9 +477,9 @@
         </div>
         @endif
         
-        @if($request->additional_stops > 0)
+        @if($displayStopCount > 0)
         <div class="flex justify-between items-center pb-2 border-b border-gray-200">
-            <span class="text-gray-600">Additional Stops ({{ $request->additional_stops }}):</span>
+            <span class="text-gray-600">Additional Stops ({{ $displayStopCount }}):</span>
             <span class="font-medium">${{ number_format($request->additional_stop_charge, 2) }}</span>
         </div>
         @endif

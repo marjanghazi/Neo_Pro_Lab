@@ -36,6 +36,8 @@
     @php
         $isExpired = $quote->isExpired();
         $isPending = $quote->status === 'pending' && !$isExpired;
+        $displayDistanceMiles = max(0, (float) ($request->distance_miles ?? $request->total_distance ?? 0));
+        $displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
     @endphp
 
     {{-- Header --}}
@@ -61,6 +63,11 @@
         @endif
     </div>
 
+    <div class="flex items-center gap-2.5 p-3 rounded-lg text-xs" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;">
+        <i class="fas fa-user-shield flex-shrink-0"></i>
+        <span><strong>HIPAA:</strong> handle this assignment with minimum necessary information only.</span>
+    </div>
+
     {{-- Assignment Details --}}
     <div class="card p-4">
         <p class="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b">Assignment Details</p>
@@ -75,7 +82,11 @@
             </div>
             <div>
                 <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Distance</p>
-                <p class="text-xs font-medium text-gray-800">{{ number_format($request->distance_miles ?? 0, 1) }} miles</p>
+                <p class="text-xs font-medium text-gray-800">{{ number_format($displayDistanceMiles, 1) }} miles</p>
+            </div>
+            <div>
+                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Additional Stops</p>
+                <p class="text-xs font-medium text-gray-800">{{ $displayStopCount }}</p>
             </div>
             <div>
                 <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wide mb-0.5">Priority</p>
@@ -106,7 +117,7 @@
         <div class="space-y-2">
             <div class="flex justify-between items-center">
                 <span class="text-xs text-gray-500">Trip Distance</span>
-                <span class="text-xs font-medium text-gray-800">{{ number_format($request->distance_miles ?? 0, 1) }} miles</span>
+                <span class="text-xs font-medium text-gray-800">{{ number_format($displayDistanceMiles, 1) }} miles</span>
             </div>
             @if(($request->priority_level ?? '') === 'stat')
             <div class="flex justify-between items-center">

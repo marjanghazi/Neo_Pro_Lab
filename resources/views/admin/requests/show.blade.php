@@ -40,6 +40,8 @@ $allDocs     = $request->documents;
 $generalDocs = $allDocs->whereNull('stop_id');
 $stopDocs    = $allDocs->whereNotNull('stop_id')->groupBy('stop_id');
 $totalDocs   = $allDocs->count();
+$displayDistanceMiles = max(0, (float) ($request->distance_miles ?? $request->total_distance ?? 0));
+$displayStopCount = max((int) ($request->additional_stops ?? 0), $request->stops->count());
 @endphp
 
 {{-- ── Flash Messages ───────────────────────────────────────────── --}}
@@ -118,6 +120,18 @@ $totalDocs   = $allDocs->count();
         {{-- Request Info --}}
         <div class="card p-5">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Request Information</h3>
+            <div class="mb-4 rounded-lg border border-teal-100 bg-teal-50 px-3.5 py-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <p class="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Route Distance</p>
+                        <p class="text-xs font-semibold text-teal-700 mt-0.5">{{ number_format($displayDistanceMiles, 1) }} miles</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Additional Stops</p>
+                        <p class="text-xs font-semibold text-teal-700 mt-0.5">{{ $displayStopCount }}</p>
+                    </div>
+                </div>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @php
                 $fields = [
@@ -338,7 +352,7 @@ $totalDocs   = $allDocs->count();
                         <div class="flex justify-between text-gray-600"><span>Base Price</span><span>${{ number_format($request->base_price, 2) }}</span></div>
                         @endif
                         @if($request->distance_charge > 0)
-                        <div class="flex justify-between text-gray-600"><span>Distance ({{ number_format($request->distance_miles, 1) }} mi)</span><span>${{ number_format($request->distance_charge, 2) }}</span></div>
+                        <div class="flex justify-between text-gray-600"><span>Distance ({{ number_format($displayDistanceMiles, 1) }} mi)</span><span>${{ number_format($request->distance_charge, 2) }}</span></div>
                         @endif
                         @if($request->stat_urgent_charge > 0)
                         <div class="flex justify-between text-gray-600"><span>STAT Charge</span><span>${{ number_format($request->stat_urgent_charge, 2) }}</span></div>
@@ -353,7 +367,7 @@ $totalDocs   = $allDocs->count();
                         <div class="flex justify-between text-gray-600"><span>Cold Chain</span><span>${{ number_format($request->cold_chain_charge, 2) }}</span></div>
                         @endif
                         @if($request->additional_stop_charge > 0)
-                        <div class="flex justify-between text-gray-600"><span>Additional Stops</span><span>${{ number_format($request->additional_stop_charge, 2) }}</span></div>
+                        <div class="flex justify-between text-gray-600"><span>Additional Stops ({{ $displayStopCount }})</span><span>${{ number_format($request->additional_stop_charge, 2) }}</span></div>
                         @endif
                         @endif
                         <div class="border-t border-gray-200 pt-2 flex justify-between font-semibold text-gray-800">

@@ -75,6 +75,8 @@ body.cr-lock{overflow:hidden}
     $currentStep = $stepMap[$status] ?? 0;
     $activeQuote = \App\Models\CourierQuote::where('request_id', $specimenRequest->id)->where('courier_id', auth()->id())->whereIn('status', ['accepted', 'pending'])->orderByRaw("CASE WHEN status = 'accepted' THEN 0 WHEN status = 'pending' THEN 1 ELSE 2 END")->orderBy('created_at', 'desc')->first();
     $displayCourierFee = $activeQuote ? $activeQuote->courier_fee : $specimenRequest->courier_fee;
+    $displayDistanceMiles = max(0, (float) ($specimenRequest->distance_miles ?? $specimenRequest->total_distance ?? 0));
+    $displayStopCount = max((int) ($specimenRequest->additional_stops ?? 0), $specimenRequest->stops->count());
 @endphp
 
 {{-- Flash Messages --}}
@@ -113,6 +115,11 @@ body.cr-lock{overflow:hidden}
             @endif
         </div>
     </div>
+</div>
+
+<div class="cr-alert cr-alert-i" style="margin-bottom:14px">
+    <i class="fas fa-user-shield flex-shrink-0 mt-0.5 text-sm"></i>
+    <span><strong>HIPAA Reminder:</strong> Access and share only the minimum necessary request information required to complete this delivery.</span>
 </div>
 
 {{-- Progress Stepper --}}
@@ -287,6 +294,22 @@ body.cr-lock{overflow:hidden}
     </div>
 </div>
 
+<div class="cr-card p-4" style="margin-bottom:14px">
+    <p class="text-xs font-semibold text-gray-700 mb-3">
+        <i class="fas fa-route text-teal-500 mr-1.5"></i>Route Summary
+    </p>
+    <div class="grid grid-cols-2 gap-4">
+        <div class="info-row">
+            <span class="info-label">Distance</span>
+            <span class="info-val">{{ number_format($displayDistanceMiles, 1) }} miles</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Additional Stops</span>
+            <span class="info-val">{{ $displayStopCount }}</span>
+        </div>
+    </div>
+</div>
+
 {{-- Additional Stops --}}
 @if($specimenRequest->stops->count() > 0)
 <div class="cr-card p-4">
@@ -295,7 +318,7 @@ body.cr-lock{overflow:hidden}
             <i class="fas fa-route text-teal-500 mr-1.5"></i>Additional Stops
         </p>
         <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">
-            {{ $specimenRequest->stops->count() }} {{ Str::plural('stop', $specimenRequest->stops->count()) }}
+            {{ $displayStopCount }} {{ Str::plural('stop', $displayStopCount) }}
         </span>
     </div>
 
