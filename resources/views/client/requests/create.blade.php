@@ -172,6 +172,7 @@ $prefilledData = session('prefilled_request_data', []);
                         </div>
                     </div>
                 </div>
+                <p id="priceEstimateError" class="hidden mt-3 text-sm text-red-600 font-medium"></p>
             </div>
         </div>
 
@@ -1340,8 +1341,6 @@ function calculatePriceEstimate() {
     const specimenType = document.getElementById('specimen_type').value;
     const temperatureReq = document.getElementById('temperature_requirement').value;
 
-    if (!pickupAddress || !deliveryAddress || !pickupDate || !pickupTime) return;
-
     // Collect stops
     const stops = [];
     document.querySelectorAll('[name^="stops["]').forEach(function(field) {
@@ -1370,6 +1369,26 @@ function calculatePriceEstimate() {
 
     const estimateBanner = document.getElementById('priceEstimateBanner');
     const priceDisplay = document.getElementById('estimatedPriceDisplay');
+    const errorDisplay = document.getElementById('priceEstimateError');
+    const breakdown = document.getElementById('priceBreakdown');
+
+    const missingFields = [];
+    if (!pickupAddress) missingFields.push('pickup address');
+    if (!deliveryAddress) missingFields.push('delivery address');
+    if (!pickupDate) missingFields.push('pickup date');
+    if (!pickupTime) missingFields.push('pickup time');
+
+    if (missingFields.length > 0) {
+        estimateBanner.classList.remove('hidden');
+        priceDisplay.textContent = '—';
+        breakdown.classList.add('hidden');
+        errorDisplay.textContent = 'Add ' + missingFields.join(', ') + ' to calculate estimate.';
+        errorDisplay.classList.remove('hidden');
+        return;
+    }
+
+    errorDisplay.classList.add('hidden');
+    errorDisplay.textContent = '';
     priceDisplay.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     estimateBanner.classList.remove('hidden');
 
@@ -1382,7 +1401,14 @@ function calculatePriceEstimate() {
         },
         body: JSON.stringify(data)
     })
-    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(async (r) => {
+        let payload = null;
+        try { payload = await r.json(); } catch (_) {}
+        if (!r.ok) {
+            return Promise.reject({ status: r.status, payload });
+        }
+        return payload;
+    })
     .then(result => {
         if (result.success) {
             const d = result.data;
@@ -1391,18 +1417,29 @@ function calculatePriceEstimate() {
             document.getElementById('distanceCharge').textContent = '$' + parseFloat(d.distance_charge).toFixed(2);
             document.getElementById('priorityCharge').textContent = '$' + parseFloat(d.priority_charge).toFixed(2);
             document.getElementById('temperatureCharge').textContent = '$' + parseFloat(d.temperature_charge).toFixed(2);
-            document.getElementById('priceBreakdown').classList.remove('hidden');
+            breakdown.classList.remove('hidden');
             if (d.distance_miles) {
                 document.getElementById('distanceInfo').textContent = 'Distance: ' + d.distance_miles + ' miles';
             }
+            errorDisplay.classList.add('hidden');
+            errorDisplay.textContent = '';
         } else {
             priceDisplay.textContent = 'Error';
-            document.getElementById('priceBreakdown').classList.add('hidden');
+            breakdown.classList.add('hidden');
+            errorDisplay.textContent = result.message || 'Unable to calculate estimate.';
+            errorDisplay.classList.remove('hidden');
         }
     })
-    .catch(() => {
+    .catch((err) => {
         priceDisplay.textContent = 'Unable to calculate';
-        document.getElementById('priceBreakdown').classList.add('hidden');
+        breakdown.classList.add('hidden');
+
+        const message = err?.payload?.message
+            || (err?.status === 422 ? 'Please complete required fields to calculate the estimate.' : null)
+            || 'Unable to calculate estimate right now. Please try again.';
+
+        errorDisplay.textContent = message;
+        errorDisplay.classList.remove('hidden');
     });
 }
 

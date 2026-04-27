@@ -25,6 +25,7 @@ use App\Models\Payment;
 use App\Services\PaymentService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 class ClientController extends Controller
 {
@@ -344,9 +345,20 @@ class ClientController extends Controller
                 'currency'                 => 'USD',
                 'calculation_time'         => now()->toDateTimeString(),
             ]]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please complete required fields to calculate the estimate.',
+                'errors'  => $e->errors(),
+                'code'    => 'validation_error',
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Price calculation error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to calculate estimate right now. Please verify addresses and try again.',
+                'code'    => 'calculation_failed',
+            ], 500);
         }
     }
 
