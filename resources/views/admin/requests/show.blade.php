@@ -401,6 +401,10 @@ $totalDocs   = $allDocs->count();
                                 <option value="48">48 hours</option>
                                 <option value="72">72 hours</option>
                             </select>
+                            <input type="number" name="custom_valid_hours" min="1" max="720" step="1"
+                                placeholder="Custom hours (optional)"
+                                class="mt-2 w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 bg-white">
+                            <p class="text-[10px] text-gray-400 mt-1">If set, custom hours override the dropdown.</p>
                         </div>
                     </div>
                     <div class="border-t border-teal-100 pt-3">

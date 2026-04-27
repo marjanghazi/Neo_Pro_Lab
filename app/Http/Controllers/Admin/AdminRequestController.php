@@ -319,6 +319,7 @@ class AdminRequestController extends Controller
             'courier_fee' => 'required|numeric|min:0',
             'total_price' => 'required|numeric|min:0',
             'valid_hours' => 'nullable|integer|min:1|max:72',
+            'custom_valid_hours' => 'nullable|integer|min:1|max:720',
         ]);
 
         try {
@@ -333,13 +334,15 @@ class AdminRequestController extends Controller
                 $request->refresh();
             }
 
+            $quoteValidHours = $validated['custom_valid_hours'] ?? $validated['valid_hours'] ?? 24;
+
             $quote = CourierQuote::create([
                 'request_id'  => $request->id,
                 'courier_id'  => $validated['courier_id'],
                 'courier_fee' => $validated['courier_fee'],
                 'total_price' => $validated['total_price'],
                 'breakdown'   => $this->buildBreakdown($request),
-                'valid_until' => now()->addHours($validated['valid_hours'] ?? 24),
+                'valid_until' => now()->addHours($quoteValidHours),
                 'status'      => 'pending',
             ]);
 
@@ -412,6 +415,7 @@ class AdminRequestController extends Controller
         $validated = $httpRequest->validate([
             'courier_id'         => 'required|exists:users,id',
             'valid_hours'        => 'nullable|integer|min:1|max:72',
+            'custom_valid_hours' => 'nullable|integer|min:1|max:720',
             'override_price'     => 'nullable|boolean',
             'custom_total_price' => 'required_if:override_price,1|nullable|numeric|min:0',
             'custom_courier_fee' => 'nullable|numeric|min:0',
@@ -451,13 +455,15 @@ class AdminRequestController extends Controller
                 $breakdown['overridden_at']    = now()->toDateTimeString();
             }
 
+            $quoteValidHours = $validated['custom_valid_hours'] ?? $validated['valid_hours'] ?? 24;
+
             $quote = CourierQuote::create([
                 'request_id'  => $request->id,
                 'courier_id'  => $validated['courier_id'],
                 'courier_fee' => $courierFee,
                 'total_price' => $totalPrice,
                 'breakdown'   => $breakdown,
-                'valid_until' => now()->addHours($validated['valid_hours'] ?? 24),
+                'valid_until' => now()->addHours($quoteValidHours),
                 'status'      => 'pending',
             ]);
 
