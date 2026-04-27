@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 
 
@@ -319,7 +320,8 @@ class AdminRequestController extends Controller
             'courier_fee' => 'required|numeric|min:0',
             'total_price' => 'required|numeric|min:0',
             'valid_hours' => 'nullable|integer|min:1|max:72',
-            'custom_valid_hours' => 'nullable|integer|min:1|max:720',
+            'validity_mode' => 'nullable|in:preset,custom',
+            'custom_valid_hours' => 'nullable|integer|min:0|max:720',
             'custom_valid_minutes' => 'nullable|integer|min:0|max:59',
         ]);
 
@@ -335,12 +337,20 @@ class AdminRequestController extends Controller
                 $request->refresh();
             }
 
-            $customValidHours = (int) ($validated['custom_valid_hours'] ?? 0);
+            $customValidHours   = (int) ($validated['custom_valid_hours'] ?? 0);
             $customValidMinutes = (int) ($validated['custom_valid_minutes'] ?? 0);
-            $hasCustomDuration = $customValidHours > 0 || $customValidMinutes > 0;
-            $quoteValidMinutes = $hasCustomDuration
-                ? (($customValidHours * 60) + $customValidMinutes)
-                : ((int) ($validated['valid_hours'] ?? 24) * 60);
+            $validityMode       = $validated['validity_mode'] ?? (($customValidHours > 0 || $customValidMinutes > 0) ? 'custom' : 'preset');
+
+            if ($validityMode === 'custom') {
+                if ($customValidHours === 0 && $customValidMinutes === 0) {
+                    throw ValidationException::withMessages([
+                        'custom_valid_minutes' => 'Please enter custom hours or minutes greater than 0.',
+                    ]);
+                }
+                $quoteValidMinutes = ($customValidHours * 60) + $customValidMinutes;
+            } else {
+                $quoteValidMinutes = ((int) ($validated['valid_hours'] ?? 24) * 60);
+            }
 
             $quote = CourierQuote::create([
                 'request_id'  => $request->id,
@@ -421,7 +431,8 @@ class AdminRequestController extends Controller
         $validated = $httpRequest->validate([
             'courier_id'         => 'required|exists:users,id',
             'valid_hours'        => 'nullable|integer|min:1|max:72',
-            'custom_valid_hours' => 'nullable|integer|min:1|max:720',
+            'validity_mode'      => 'nullable|in:preset,custom',
+            'custom_valid_hours' => 'nullable|integer|min:0|max:720',
             'custom_valid_minutes' => 'nullable|integer|min:0|max:59',
             'override_price'     => 'nullable|boolean',
             'custom_total_price' => 'required_if:override_price,1|nullable|numeric|min:0',
@@ -462,12 +473,20 @@ class AdminRequestController extends Controller
                 $breakdown['overridden_at']    = now()->toDateTimeString();
             }
 
-            $customValidHours = (int) ($validated['custom_valid_hours'] ?? 0);
+            $customValidHours   = (int) ($validated['custom_valid_hours'] ?? 0);
             $customValidMinutes = (int) ($validated['custom_valid_minutes'] ?? 0);
-            $hasCustomDuration = $customValidHours > 0 || $customValidMinutes > 0;
-            $quoteValidMinutes = $hasCustomDuration
-                ? (($customValidHours * 60) + $customValidMinutes)
-                : ((int) ($validated['valid_hours'] ?? 24) * 60);
+            $validityMode       = $validated['validity_mode'] ?? (($customValidHours > 0 || $customValidMinutes > 0) ? 'custom' : 'preset');
+
+            if ($validityMode === 'custom') {
+                if ($customValidHours === 0 && $customValidMinutes === 0) {
+                    throw ValidationException::withMessages([
+                        'custom_valid_minutes' => 'Please enter custom hours or minutes greater than 0.',
+                    ]);
+                }
+                $quoteValidMinutes = ($customValidHours * 60) + $customValidMinutes;
+            } else {
+                $quoteValidMinutes = ((int) ($validated['valid_hours'] ?? 24) * 60);
+            }
 
             $quote = CourierQuote::create([
                 'request_id'  => $request->id,
