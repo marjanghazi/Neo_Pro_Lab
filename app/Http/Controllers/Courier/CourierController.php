@@ -1352,7 +1352,11 @@ class CourierController extends Controller
      */
     public function navigationView(Request $request, $requestId)
     {
-        $specimenRequest = SpecimenRequest::findOrFail($requestId);
+        $specimenRequest = SpecimenRequest::with([
+            'stops' => function ($query) {
+                $query->orderBy('stop_order');
+            }
+        ])->findOrFail($requestId);
 
         if ($specimenRequest->assigned_to != Auth::id()) {
             abort(403, 'Not authorized');
