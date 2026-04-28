@@ -1338,6 +1338,7 @@ function calculatePriceEstimate() {
     const pickupTime = document.getElementById('pickup_time').value;
     const priorityLevel = document.getElementById('priority_level').value;
     const specimenType = document.getElementById('specimen_type').value;
+    const specimenTypeOther = document.getElementById('specimen_type_other')?.value || '';
     const temperatureReq = document.getElementById('temperature_requirement').value;
 
     if (!pickupAddress || !deliveryAddress || !pickupDate || !pickupTime) return;
@@ -1363,6 +1364,7 @@ function calculatePriceEstimate() {
         pickup_time: pickupTime,
         priority_level: priorityLevel,
         specimen_type: specimenType,
+        specimen_type_other: specimenTypeOther,
         temperature_requirement: temperatureReq,
         stops: validStops,
         _token: '{{ csrf_token() }}'

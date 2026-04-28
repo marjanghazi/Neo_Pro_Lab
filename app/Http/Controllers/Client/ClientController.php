@@ -299,7 +299,10 @@ class ClientController extends Controller
                 'pickup_time'             => 'required|string',
                 'priority_level'          => 'required|string',
                 'specimen_type'           => 'required|string',
-                'specimen_type_other'     => 'required_if:specimen_type,other|nullable|string|max:100',                'temperature_requirement' => 'required|string',
+                // For live pricing preview we should not block estimates when "Other" is selected
+                // but the custom value is not typed yet. Strict requirement remains on final submit.
+                'specimen_type_other'     => 'nullable|string|max:100',
+                'temperature_requirement' => 'required|string',
                 'stops'                   => 'nullable|array',
                 'stops.*.type'            => 'nullable|string',
                 'stops.*.address'         => 'nullable|string',
