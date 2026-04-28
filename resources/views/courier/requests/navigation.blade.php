@@ -75,13 +75,26 @@
 @endsection
 
 @push('scripts')
+@php
+    $navigationStops = $specimenRequest->stops->map(function ($stop, $index) {
+        return [
+            'lat' => $stop->latitude,
+            'lng' => $stop->longitude,
+            'label' => 'Stop #' . ($stop->stop_order ?: ($index + 1)),
+            'address' => $stop->address,
+            'type' => $stop->stop_type,
+            'contact' => $stop->contact_name,
+        ];
+    })->values();
+@endphp
 <script>
 const GOOGLE_API_KEY = "{{ config('services.google.maps_api_key') }}";
 const REQUEST_POINTS = {
     pickup: {
         lat: Number(@json($specimenRequest->pickup_latitude)),
         lng: Number(@json($specimenRequest->pickup_longitude)),
-        label: 'Pickup'
+        label: 'Pickup',
+        address: @json($specimenRequest->pickup_address),
     },
     delivery: {
         lat: Number(@json($specimenRequest->delivery_latitude)),
@@ -89,18 +102,7 @@ const REQUEST_POINTS = {
         label: 'Delivery',
         address: @json($specimenRequest->delivery_address),
     },
-    stops: @json(
-        $specimenRequest->stops->map(function ($stop, $index) {
-            return [
-                'lat' => $stop->latitude,
-                'lng' => $stop->longitude,
-                'label' => 'Stop #' . ($stop->stop_order ?: ($index + 1)),
-                'address' => $stop->address,
-                'type' => $stop->stop_type,
-                'contact' => $stop->contact_name,
-            ];
-        })->values()
-    ),
+    stops: @json($navigationStops),
 };
 
 let selectedTarget = @json($target);
