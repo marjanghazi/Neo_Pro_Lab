@@ -200,7 +200,8 @@
     async function loadActiveRequests() {
         try {
             const response = await fetch('/client/tracking/active');
-            const activeRequests = await response.json();
+            const payload = await response.json();
+            const activeRequests = payload.requests || [];
 
             // Clear existing markers
             markers.forEach(marker => map.removeLayer(marker));
@@ -236,14 +237,13 @@
 
     // Add request markers to map
     function addRequestMarkers(request) {
-        // Generate coordinates (in production, you would geocode addresses)
-        const baseLat = 40.7128;
-        const baseLng = -74.0060;
-        const offset = 0.05;
+        if (!request.pickup_latitude || !request.pickup_longitude || !request.delivery_latitude || !request.delivery_longitude) {
+            return;
+        }
 
-        // Pickup marker
-        const pickupLat = baseLat + (Math.random() - 0.5) * offset;
-        const pickupLng = baseLng + (Math.random() - 0.5) * offset;
+        // Pickup marker (real request coordinates)
+        const pickupLat = request.pickup_latitude;
+        const pickupLng = request.pickup_longitude;
 
         const pickupMarker = L.marker([pickupLat, pickupLng], {
             icon: L.divIcon({
@@ -268,9 +268,9 @@
 
         markers.push(pickupMarker);
 
-        // Delivery marker
-        const deliveryLat = baseLat + (Math.random() - 0.5) * offset;
-        const deliveryLng = baseLng + (Math.random() - 0.5) * offset;
+        // Delivery marker (real request coordinates)
+        const deliveryLat = request.delivery_latitude;
+        const deliveryLng = request.delivery_longitude;
 
         const deliveryMarker = L.marker([deliveryLat, deliveryLng], {
             icon: L.divIcon({
