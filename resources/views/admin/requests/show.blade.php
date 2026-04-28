@@ -40,8 +40,6 @@ $allDocs     = $request->documents;
 $generalDocs = $allDocs->whereNull('stop_id');
 $stopDocs    = $allDocs->whereNotNull('stop_id')->groupBy('stop_id');
 $totalDocs   = $allDocs->count();
-$displayDistanceMiles = $request->resolved_distance_miles;
-$displayStopCount = $request->resolved_additional_stops;
 @endphp
 
 {{-- ── Flash Messages ───────────────────────────────────────────── --}}
@@ -120,18 +118,6 @@ $displayStopCount = $request->resolved_additional_stops;
         {{-- Request Info --}}
         <div class="card p-5">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Request Information</h3>
-            <div class="mb-4 rounded-lg border border-teal-100 bg-teal-50 px-3.5 py-3">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <p class="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Route Distance</p>
-                        <p class="text-xs font-semibold text-teal-700 mt-0.5">{{ number_format($displayDistanceMiles, 1) }} miles</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Additional Stops</p>
-                        <p class="text-xs font-semibold text-teal-700 mt-0.5">{{ $displayStopCount }}</p>
-                    </div>
-                </div>
-            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @php
                 $fields = [
@@ -352,7 +338,7 @@ $displayStopCount = $request->resolved_additional_stops;
                         <div class="flex justify-between text-gray-600"><span>Base Price</span><span>${{ number_format($request->base_price, 2) }}</span></div>
                         @endif
                         @if($request->distance_charge > 0)
-                        <div class="flex justify-between text-gray-600"><span>Distance ({{ number_format($displayDistanceMiles, 1) }} mi)</span><span>${{ number_format($request->distance_charge, 2) }}</span></div>
+                        <div class="flex justify-between text-gray-600"><span>Distance ({{ number_format($request->distance_miles, 1) }} mi)</span><span>${{ number_format($request->distance_charge, 2) }}</span></div>
                         @endif
                         @if($request->stat_urgent_charge > 0)
                         <div class="flex justify-between text-gray-600"><span>STAT Charge</span><span>${{ number_format($request->stat_urgent_charge, 2) }}</span></div>
@@ -367,7 +353,7 @@ $displayStopCount = $request->resolved_additional_stops;
                         <div class="flex justify-between text-gray-600"><span>Cold Chain</span><span>${{ number_format($request->cold_chain_charge, 2) }}</span></div>
                         @endif
                         @if($request->additional_stop_charge > 0)
-                        <div class="flex justify-between text-gray-600"><span>Additional Stops ({{ $displayStopCount }})</span><span>${{ number_format($request->additional_stop_charge, 2) }}</span></div>
+                        <div class="flex justify-between text-gray-600"><span>Additional Stops</span><span>${{ number_format($request->additional_stop_charge, 2) }}</span></div>
                         @endif
                         @endif
                         <div class="border-t border-gray-200 pt-2 flex justify-between font-semibold text-gray-800">
@@ -409,12 +395,44 @@ $displayStopCount = $request->resolved_additional_stops;
                         </div>
                         <div>
                             <label class="block text-[10px] font-medium text-gray-500 mb-1">Valid For</label>
-                            <select name="valid_hours" class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 bg-white">
-                                <option value="12">12 hours</option>
-                                <option value="24" selected>24 hours</option>
-                                <option value="48">48 hours</option>
-                                <option value="72">72 hours</option>
-                            </select>
+                            @php
+                            $durationMode = old('validity_mode', 'preset');
+                            @endphp
+                            <div class="bg-white border border-gray-200 rounded-md p-2.5 space-y-2">
+                                <label class="flex items-center gap-2 text-[11px] text-gray-700">
+                                    <input type="radio" name="validity_mode" value="preset" {{ $durationMode === 'preset' ? 'checked' : '' }}
+                                        class="text-teal-600 focus:ring-teal-500"
+                                        onchange="toggleValidityMode()">
+                                    <span>Use preset duration</span>
+                                </label>
+                                <select id="presetValidHours" name="valid_hours" class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 bg-white">
+                                    <option value="12" {{ old('valid_hours') == '12' ? 'selected' : '' }}>12 hours</option>
+                                    <option value="24" {{ old('valid_hours', '24') == '24' ? 'selected' : '' }}>24 hours</option>
+                                    <option value="48" {{ old('valid_hours') == '48' ? 'selected' : '' }}>48 hours</option>
+                                    <option value="72" {{ old('valid_hours') == '72' ? 'selected' : '' }}>72 hours</option>
+                                </select>
+
+                                <label class="flex items-center gap-2 text-[11px] text-gray-700 pt-1">
+                                    <input type="radio" name="validity_mode" value="custom" {{ $durationMode === 'custom' ? 'checked' : '' }}
+                                        class="text-teal-600 focus:ring-teal-500"
+                                        onchange="toggleValidityMode()">
+                                    <span>Use custom duration</span>
+                                </label>
+                                <div id="customValidityFields" class="grid grid-cols-2 gap-2 {{ $durationMode === 'custom' ? '' : 'hidden' }}">
+                                    <input type="number" name="custom_valid_hours" min="0" max="720" step="1"
+                                        value="{{ old('custom_valid_hours') }}"
+                                        placeholder="Hours"
+                                        class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 bg-white">
+                                    <input type="number" name="custom_valid_minutes" min="0" max="59" step="1"
+                                        value="{{ old('custom_valid_minutes') }}"
+                                        placeholder="Minutes"
+                                        class="w-full border border-gray-200 rounded-md px-3 py-2 text-xs focus:ring-1 focus:ring-teal-500 bg-white">
+                                </div>
+                                <p class="text-[10px] text-gray-400">For custom mode, enter hours and/or minutes (at least one must be greater than 0).</p>
+                            </div>
+                            @error('custom_valid_minutes')
+                            <p class="text-[10px] text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
                     <div class="border-t border-teal-100 pt-3">
@@ -795,4 +813,19 @@ $displayStopCount = $request->resolved_additional_stops;
     </div>{{-- end right --}}
 
 </div>{{-- end grid --}}
+<script>
+function toggleValidityMode() {
+    const selectedMode = document.querySelector('input[name="validity_mode"]:checked')?.value;
+    const presetField = document.getElementById('presetValidHours');
+    const customFields = document.getElementById('customValidityFields');
+
+    if (!presetField || !customFields) return;
+
+    const isCustom = selectedMode === 'custom';
+    customFields.classList.toggle('hidden', !isCustom);
+    presetField.disabled = isCustom;
+}
+
+document.addEventListener('DOMContentLoaded', toggleValidityMode);
+</script>
 @endsection
