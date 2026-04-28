@@ -501,26 +501,24 @@ function startTrackingUpdates() {
 }
 
 function fetchTrackingData() {
-    fetch(`/admin/requests/${REQUEST_ID}/tracking-data`, {
+    fetch(`{{ route('admin.api.tracking.details', $request->id) }}`, {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            updateTrackingUI(data);
-        }
+        updateTrackingUI(data);
     })
     .catch(err => console.error('Tracking error:', err));
 }
 
 function fetchCourierLocation() {
     if (!COURIER_ID) return;
-    fetch(`/admin/couriers/${COURIER_ID}/location`, {
+    fetch(`{{ route('admin.api.tracking.courier-location', $request->id) }}`, {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success && data.location) {
+        if (data.location) {
             updateLocationUI(data.location);
             if (mapsReady) updateCourierMarker(data.location.latitude, data.location.longitude, data.location.formatted_address, data.location.speed, data.location.heading);
         }

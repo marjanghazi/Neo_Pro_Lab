@@ -735,37 +735,99 @@ class ClientController extends Controller
     public function getTrackingDetails(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
-        $request->load(['courier', 'stops', 'pickupProofs']);
+        $request->load(['courier', 'stops', 'pickupProofs', 'signatures', 'payment']);
 
         $courierLocation = null;
-        if ($request->courier_id) {
-            $courierLocation = Cache::get('courier_location_' . $request->courier_id);
-            if (!$courierLocation) {
-                $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+        $courier = $request->courier;
+
+        if ($courier) {
+            $cachedLocation = Cache::get('courier_location_' . $courier->id);
+            if (! $cachedLocation) {
+                $dbLoc = CourierLocation::where('courier_id', $courier->id)->latest()->first();
                 if ($dbLoc) {
-                    $courierLocation = [
-                        'latitude'  => (float) $dbLoc->latitude,
-                        'longitude' => (float) $dbLoc->longitude,
-                        'is_online' => (bool) $dbLoc->is_online,
-                        'timestamp' => $dbLoc->created_at->timestamp,
+                    $cachedLocation = [
+                        'latitude'      => (float) $dbLoc->latitude,
+                        'longitude'     => (float) $dbLoc->longitude,
+                        'accuracy'      => $dbLoc->accuracy ? (float) $dbLoc->accuracy : null,
+                        'speed'         => $dbLoc->speed ? (float) $dbLoc->speed : null,
+                        'heading'       => $dbLoc->heading ? (float) $dbLoc->heading : null,
+                        'battery_level' => $dbLoc->battery_level,
+                        'is_online'     => (bool) $dbLoc->is_online,
+                        'timestamp'     => $dbLoc->created_at->timestamp,
+                        'last_update'   => $dbLoc->last_update ?? $dbLoc->created_at,
                     ];
                 }
             }
+            $courierLocation = $cachedLocation;
+        }
+
+        $distances = [];
+        if ($courierLocation && !empty($courierLocation['latitude']) && !empty($courierLocation['longitude'])) {
+            $source = 'estimated';
+            if ($request->pickup_latitude && $request->pickup_longitude) {
+                $toPickup = $this->calculateDistance($courierLocation['latitude'], $courierLocation['longitude'], $request->pickup_latitude, $request->pickup_longitude);
+                $distances['to_pickup_km'] = round($toPickup, 2);
+                $distances['eta_to_pickup_minutes'] = $this->calculateETA($toPickup, $courierLocation['speed'] ?? 0);
+            }
+            if ($request->delivery_latitude && $request->delivery_longitude) {
+                $toDelivery = $this->calculateDistance($courierLocation['latitude'], $courierLocation['longitude'], $request->delivery_latitude, $request->delivery_longitude);
+                $distances['to_delivery_km'] = round($toDelivery, 2);
+                $distances['eta_to_delivery_minutes'] = $this->calculateETA($toDelivery, $courierLocation['speed'] ?? 0);
+            }
+            $distances['source'] = $source;
         }
 
         return response()->json([
-            'request_status'     => $request->status,
-            'pickup_latitude'    => $request->pickup_latitude    ? (float) $request->pickup_latitude    : null,
-            'pickup_longitude'   => $request->pickup_longitude   ? (float) $request->pickup_longitude   : null,
-            'delivery_latitude'  => $request->delivery_latitude  ? (float) $request->delivery_latitude  : null,
-            'delivery_longitude' => $request->delivery_longitude ? (float) $request->delivery_longitude : null,
-            'courier_location'   => $courierLocation,
-            'stops'              => $request->stops->map(fn($s) => [
+            'request' => [
+                'id'                 => $request->id,
+                'request_number'     => $request->request_number,
+                'status'             => $request->status,
+                'pickup_address'     => $request->pickup_address,
+                'pickup_latitude'    => $request->pickup_latitude ? (float) $request->pickup_latitude : null,
+                'pickup_longitude'   => $request->pickup_longitude ? (float) $request->pickup_longitude : null,
+                'delivery_address'   => $request->delivery_address,
+                'delivery_latitude'  => $request->delivery_latitude ? (float) $request->delivery_latitude : null,
+                'delivery_longitude' => $request->delivery_longitude ? (float) $request->delivery_longitude : null,
+                'payment_status'     => $request->payment_status,
+            ],
+            'courier' => $courier ? [
+                'id'            => $courier->id,
+                'name'          => $courier->full_name,
+                'phone'         => $courier->phone,
+                'email'         => $courier->email,
+                'vehicle_type'  => $courier->vehicle_type ?? null,
+                'profile_image' => $courier->profile_image ? asset('storage/' . $courier->profile_image) : null,
+                'rating'        => $courier->rating ?? 4.5,
+            ] : null,
+            'courier_location' => $courierLocation ? array_merge($courierLocation, [
+                'formatted_address' => $this->reverseGeocode($courierLocation['latitude'] ?? null, $courierLocation['longitude'] ?? null),
+                'coordinates'       => [
+                    'latitude'  => $courierLocation['latitude'] ?? null,
+                    'longitude' => $courierLocation['longitude'] ?? null,
+                    'formatted' => (!empty($courierLocation['latitude']) && !empty($courierLocation['longitude']))
+                        ? sprintf('%.6f, %.6f', $courierLocation['latitude'], $courierLocation['longitude'])
+                        : null,
+                ],
+            ]) : null,
+            'distances' => $distances,
+            'progress' => $this->calculateDeliveryProgressForClient($request->status),
+            'timestamps' => [
+                'created_at'                => $request->created_at?->toIso8601String(),
+                'accepted_at'               => $request->accepted_at?->toIso8601String(),
+                'courier_accepted_at'       => $request->courier_accepted_at?->toIso8601String(),
+                'pickup_started_at'         => $request->pickup_started_at?->toIso8601String(),
+                'pickup_completed_at'       => $request->pickup_completed_at?->toIso8601String(),
+                'transit_started_at'        => $request->transit_started_at?->toIso8601String(),
+                'arrived_at_destination_at' => $request->arrived_at_destination_at?->toIso8601String(),
+                'delivered_at'              => $request->delivered_at?->toIso8601String(),
+                'completed_at'              => $request->completed_at?->toIso8601String(),
+            ],
+            'stops' => $request->stops->map(fn($s) => [
                 'id'        => $s->id,
                 'address'   => $s->address,
                 'type'      => $s->stop_type,
                 'completed' => $s->completed,
-                'latitude'  => $s->latitude  ? (float) $s->latitude  : null,
+                'latitude'  => $s->latitude ? (float) $s->latitude : null,
                 'longitude' => $s->longitude ? (float) $s->longitude : null,
             ]),
         ]);
@@ -1047,14 +1109,149 @@ class ClientController extends Controller
             ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
             ->with(['courier'])
             ->get();
-        return response()->json(['requests' => $requests]);
+
+        $payload = $requests->map(function ($request) {
+            $courierLocation = null;
+            if ($request->courier_id) {
+                $courierLocation = Cache::get('courier_location_' . $request->courier_id);
+                if (! $courierLocation) {
+                    $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+                    if ($dbLoc) {
+                        $courierLocation = [
+                            'latitude'  => (float) $dbLoc->latitude,
+                            'longitude' => (float) $dbLoc->longitude,
+                            'is_online' => (bool) $dbLoc->is_online,
+                            'timestamp' => $dbLoc->created_at->timestamp,
+                        ];
+                    }
+                }
+            }
+
+            return [
+                'id'                 => $request->id,
+                'request_number'     => $request->request_number,
+                'status'             => $request->status,
+                'pickup_address'     => $request->pickup_address,
+                'pickup_latitude'    => $request->pickup_latitude ? (float) $request->pickup_latitude : null,
+                'pickup_longitude'   => $request->pickup_longitude ? (float) $request->pickup_longitude : null,
+                'delivery_address'   => $request->delivery_address,
+                'delivery_latitude'  => $request->delivery_latitude ? (float) $request->delivery_latitude : null,
+                'delivery_longitude' => $request->delivery_longitude ? (float) $request->delivery_longitude : null,
+                'courier' => $request->courier ? [
+                    'id'       => $request->courier->id,
+                    'name'     => $request->courier->full_name,
+                    'phone'    => $request->courier->phone,
+                    'location' => $courierLocation,
+                ] : null,
+            ];
+        });
+
+        return response()->json(['requests' => $payload]);
     }
 
     public function getCourierLocation(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
-        $location = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
-        return response()->json(['location' => $location]);
+        if (! $request->courier_id) {
+            return response()->json([
+                'error'    => 'No courier assigned to this request yet.',
+                'courier'  => null,
+                'location' => null,
+                'status'   => 'offline',
+            ]);
+        }
+
+        $location = Cache::get('courier_location_' . $request->courier_id);
+        if (! $location) {
+            $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+            if ($dbLoc) {
+                $location = [
+                    'latitude'      => (float) $dbLoc->latitude,
+                    'longitude'     => (float) $dbLoc->longitude,
+                    'accuracy'      => $dbLoc->accuracy ? (float) $dbLoc->accuracy : null,
+                    'speed'         => $dbLoc->speed ? (float) $dbLoc->speed : null,
+                    'heading'       => $dbLoc->heading ? (float) $dbLoc->heading : null,
+                    'battery_level' => $dbLoc->battery_level,
+                    'is_online'     => (bool) $dbLoc->is_online,
+                    'timestamp'     => $dbLoc->created_at->timestamp,
+                    'last_update'   => $dbLoc->last_update ?? $dbLoc->created_at,
+                ];
+            }
+        }
+
+        $formatted = $location ? $this->reverseGeocode($location['latitude'] ?? null, $location['longitude'] ?? null) : null;
+
+        return response()->json([
+            'courier' => $request->courier ? [
+                'id'       => $request->courier->id,
+                'name'     => $request->courier->full_name,
+                'phone'    => $request->courier->phone,
+                'last_seen'=> $location && isset($location['last_update']) ? Carbon::parse($location['last_update'])->diffForHumans() : 'Unknown',
+            ] : null,
+            'location' => $location ? array_merge($location, [
+                'formatted_address' => $formatted,
+                'coordinates' => [
+                    'latitude'  => $location['latitude'] ?? null,
+                    'longitude' => $location['longitude'] ?? null,
+                    'formatted' => (!empty($location['latitude']) && !empty($location['longitude']))
+                        ? sprintf('%.6f, %.6f', $location['latitude'], $location['longitude'])
+                        : null,
+                ],
+            ]) : null,
+            'status' => ($location && ($location['is_online'] ?? false)) ? 'online' : 'offline',
+        ]);
+    }
+
+    private function calculateDeliveryProgressForClient(string $status): int
+    {
+        $map = [
+            'pending_approval'         => 10,
+            'approved'                 => 20,
+            'pending_courier_acceptance' => 30,
+            'assigned'                 => 35,
+            'accepted_by_courier'      => 45,
+            'awaiting_pickup_proof'    => 55,
+            'picked_up'                => 65,
+            'in_transit'               => 80,
+            'arrived_at_destination'   => 90,
+            'delivered'                => 95,
+            'completed'                => 100,
+            'cancelled'                => 0,
+        ];
+
+        return $map[$status] ?? 0;
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2): float
+    {
+        $earthRadiusKm = 6371;
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadiusKm * $c;
+    }
+
+    private function calculateETA($distanceKm, $speedMps): ?int
+    {
+        if (! $distanceKm || $distanceKm <= 0) {
+            return null;
+        }
+
+        if ($speedMps && $speedMps > 0) {
+            $speedKmH = $speedMps * 3.6;
+            if ($speedKmH > 0) {
+                return (int) round(($distanceKm / $speedKmH) * 60);
+            }
+        }
+
+        return (int) round($distanceKm * 2.5);
     }
 
     // ====================================================================
