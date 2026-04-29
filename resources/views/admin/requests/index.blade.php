@@ -179,16 +179,11 @@
                                 <i class="fas fa-eye text-[11px]"></i>
                             </a>
                             @if($request->status == 'pending_approval')
-                            <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
-                                @csrf
-                                <input type="hidden" name="status" value="approved">
-                                <button type="submit"
-                                    class="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-green-50 hover:text-green-600 transition-colors"
-                                    title="Approve"
-                                    onclick="return confirm('Approve this request?')">
-                                    <i class="fas fa-check text-[11px]"></i>
-                                </button>
-                            </form>
+                            <a href="{{ route('admin.requests.show', $request) }}"
+                                class="w-7 h-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                title="Review & Price">
+                                <i class="fas fa-calculator text-[11px]"></i>
+                            </a>
                             <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                                 @csrf
                                 <input type="hidden" name="status" value="rejected">

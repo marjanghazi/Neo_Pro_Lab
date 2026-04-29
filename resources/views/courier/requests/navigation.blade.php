@@ -41,6 +41,27 @@
                 <p class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Delivery</p>
                 <p class="text-sm text-gray-800">{{ $specimenRequest->delivery_address }}</p>
             </div>
+            @if($specimenRequest->stops->count())
+                <div>
+                    <p class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-2">Additional Stops</p>
+                    <div class="space-y-2">
+                        @foreach($specimenRequest->stops as $stop)
+                            <div class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                                <p class="text-xs font-semibold text-gray-700">
+                                    Stop #{{ $stop->stop_order ?: ($loop->index + 1) }}
+                                    @if($stop->stop_type)
+                                        — {{ ucfirst($stop->stop_type) }}
+                                    @endif
+                                </p>
+                                <p class="text-xs text-gray-700 mt-0.5">{{ $stop->address }}</p>
+                                @if($stop->contact_name)
+                                    <p class="text-[11px] text-gray-500 mt-0.5">Contact: {{ $stop->contact_name }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
             <div class="pt-2 border-t border-gray-100">
                 <p class="text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Distance / ETA</p>
                 <p id="etaText" class="text-sm text-gray-700">Waiting for location…</p>
@@ -54,26 +75,112 @@
 @endsection
 
 @push('scripts')
+@php
+    $navigationStops = $specimenRequest->stops->map(function ($stop, $index) {
+        return [
+            'lat' => $stop->latitude,
+            'lng' => $stop->longitude,
+            'label' => 'Stop #' . ($stop->stop_order ?: ($index + 1)),
+            'address' => $stop->address,
+            'type' => $stop->stop_type,
+            'contact' => $stop->contact_name,
+        ];
+    })->values();
+@endphp
 <script>
 const GOOGLE_API_KEY = "{{ config('services.google.maps_api_key') }}";
 const REQUEST_POINTS = {
     pickup: {
         lat: Number(@json($specimenRequest->pickup_latitude)),
         lng: Number(@json($specimenRequest->pickup_longitude)),
-        label: 'Pickup'
+        label: 'Pickup',
+        address: @json($specimenRequest->pickup_address),
     },
     delivery: {
         lat: Number(@json($specimenRequest->delivery_latitude)),
         lng: Number(@json($specimenRequest->delivery_longitude)),
-        label: 'Delivery'
-    }
+        label: 'Delivery',
+        address: @json($specimenRequest->delivery_address),
+    },
+    stops: @json($navigationStops),
 };
 
 let selectedTarget = @json($target);
 let navMap;
 let directionsService;
 let directionsRenderer;
-let targetMarker;
+let staticMarkers = [];
+let sharedInfoWindow;
+
+function isValidCoordinate(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n !== 0;
+}
+
+function clearStaticMarkers() {
+    staticMarkers.forEach(marker => marker.setMap(null));
+    staticMarkers = [];
+}
+
+function getValidStops() {
+    return (REQUEST_POINTS.stops || []).filter(stop => isValidCoordinate(stop.lat) && isValidCoordinate(stop.lng));
+}
+
+function renderRequestMarkers() {
+    clearStaticMarkers();
+
+    const markerEntries = [
+        {
+            lat: REQUEST_POINTS.pickup.lat,
+            lng: REQUEST_POINTS.pickup.lng,
+            title: REQUEST_POINTS.pickup.label,
+            address: REQUEST_POINTS.pickup.address,
+            badge: 'P',
+        },
+        ...getValidStops().map((stop, index) => ({
+            lat: Number(stop.lat),
+            lng: Number(stop.lng),
+            title: stop.label || `Stop #${index + 1}`,
+            address: stop.address,
+            meta: [stop.type, stop.contact ? `Contact: ${stop.contact}` : null].filter(Boolean).join(' • '),
+            badge: `${index + 1}`,
+        })),
+        {
+            lat: REQUEST_POINTS.delivery.lat,
+            lng: REQUEST_POINTS.delivery.lng,
+            title: REQUEST_POINTS.delivery.label,
+            address: REQUEST_POINTS.delivery.address,
+            badge: 'D',
+        }
+    ].filter(point => isValidCoordinate(point.lat) && isValidCoordinate(point.lng));
+
+    markerEntries.forEach((point) => {
+        const marker = new google.maps.Marker({
+            position: { lat: Number(point.lat), lng: Number(point.lng) },
+            map: navMap,
+            title: point.title,
+            label: {
+                text: point.badge,
+                color: '#ffffff',
+                fontSize: '11px',
+                fontWeight: '700',
+            }
+        });
+
+        marker.addListener('click', () => {
+            sharedInfoWindow.setContent(`
+                <div style="font-size:12px;line-height:1.4;max-width:250px;">
+                    <strong>${point.title}</strong><br>
+                    <span>${point.address || 'Address unavailable'}</span>
+                    ${point.meta ? `<br><span style="color:#6b7280">${point.meta}</span>` : ''}
+                </div>
+            `);
+            sharedInfoWindow.open(navMap, marker);
+        });
+
+        staticMarkers.push(marker);
+    });
+}
 
 function setStatus(text, isError = false) {
     const el = document.getElementById('mapStatus');
@@ -103,12 +210,14 @@ function initNavigationMap() {
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({
         map: navMap,
-        suppressMarkers: false,
+        suppressMarkers: true,
         polylineOptions: {
             strokeColor: '#0f766e',
             strokeWeight: 5,
         }
     });
+    sharedInfoWindow = new google.maps.InfoWindow();
+    renderRequestMarkers();
 
     document.getElementById('pickupTargetBtn').addEventListener('click', () => {
         selectedTarget = 'pickup';
@@ -134,12 +243,7 @@ function refreshRoute() {
         return;
     }
 
-    if (targetMarker) targetMarker.setMap(null);
-    targetMarker = new google.maps.Marker({
-        position: destination,
-        map: navMap,
-        title: destination.label,
-    });
+    renderRequestMarkers();
 
     setStatus('Fetching your live location…');
 
@@ -160,6 +264,13 @@ function refreshRoute() {
         directionsService.route({
             origin,
             destination,
+            waypoints: selectedTarget === 'delivery'
+                ? getValidStops().map(stop => ({
+                    location: { lat: Number(stop.lat), lng: Number(stop.lng) },
+                    stopover: true,
+                }))
+                : [],
+            optimizeWaypoints: false,
             travelMode: google.maps.TravelMode.DRIVING,
             unitSystem: google.maps.UnitSystem.METRIC,
         }, (result, status) => {
@@ -174,8 +285,10 @@ function refreshRoute() {
             } else {
                 setStatus('Could not load driving route. Showing destination marker only.', true);
                 document.getElementById('etaText').textContent = 'Route unavailable.';
-                navMap.setCenter(destination);
-                navMap.setZoom(14);
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(destination);
+                getValidStops().forEach(stop => bounds.extend({ lat: Number(stop.lat), lng: Number(stop.lng) }));
+                navMap.fitBounds(bounds);
             }
         });
     }, () => {
