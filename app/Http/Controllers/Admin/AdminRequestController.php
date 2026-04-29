@@ -92,6 +92,16 @@ class AdminRequestController extends Controller
 
     public function assignCourier(Request $httpRequest, SpecimenRequest $request)
     {
+        if ($request->status !== 'approved') {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Approve this request before assigning a courier.');
+        }
+
+        if (! $request->is_price_quoted || (float) ($request->total_price ?? 0) <= 0) {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Calculate price before assigning a courier.');
+        }
+
         $validated = $httpRequest->validate([
             'courier_id' => 'required|exists:users,id',
         ]);
@@ -188,6 +198,19 @@ class AdminRequestController extends Controller
             'status' => 'required|in:approved,rejected,cancelled',
             'rejection_reason' => 'required_if:status,rejected|nullable|string|max:500',
         ]);
+
+        if (
+            $validated['status'] === 'approved'
+            && (! $request->is_price_quoted || (float) ($request->total_price ?? 0) <= 0)
+        ) {
+            $message = 'Calculate the request price before approving.';
+            if ($httpRequest->ajax() || $httpRequest->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', $message);
+        }
 
         $updates = ['status' => $validated['status']];
 
@@ -315,6 +338,16 @@ class AdminRequestController extends Controller
 
     public function createQuote(Request $httpRequest, SpecimenRequest $request)
     {
+        if ($request->status !== 'approved') {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Approve this request before sending a courier quote.');
+        }
+
+        if (! $request->is_price_quoted || (float) ($request->total_price ?? 0) <= 0) {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Calculate price before sending a courier quote.');
+        }
+
         $validated = $httpRequest->validate([
             'courier_id'  => 'required|exists:users,id',
             'courier_fee' => 'required|numeric|min:0',
@@ -330,12 +363,6 @@ class AdminRequestController extends Controller
                 ->where('courier_id', $validated['courier_id'])
                 ->where('status', 'pending')
                 ->update(['status' => 'expired']);
-
-            if (! $request->is_price_quoted) {
-                $pricing = $this->buildPricing($request);
-                $request->update($pricing['fields']);
-                $request->refresh();
-            }
 
             $customValidHours   = (int) ($validated['custom_valid_hours'] ?? 0);
             $customValidMinutes = (int) ($validated['custom_valid_minutes'] ?? 0);
@@ -428,6 +455,16 @@ class AdminRequestController extends Controller
 
     public function assignWithQuote(Request $httpRequest, SpecimenRequest $request)
     {
+        if ($request->status !== 'approved') {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Approve this request before assigning with quote.');
+        }
+
+        if (! $request->is_price_quoted || (float) ($request->total_price ?? 0) <= 0) {
+            return redirect()->route('admin.requests.show', $request)
+                ->with('error', 'Calculate price before assigning with quote.');
+        }
+
         $validated = $httpRequest->validate([
             'courier_id'         => 'required|exists:users,id',
             'valid_hours'        => 'nullable|integer|min:1|max:72',
@@ -444,12 +481,6 @@ class AdminRequestController extends Controller
             CourierQuote::where('request_id', $request->id)
                 ->where('status', 'pending')
                 ->update(['status' => 'expired']);
-
-            if (! $request->is_price_quoted) {
-                $pricing = $this->buildPricing($request);
-                $request->update($pricing['fields']);
-                $request->refresh();
-            }
 
             $useOverride = $httpRequest->boolean('override_price');
 

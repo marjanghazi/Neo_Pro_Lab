@@ -261,13 +261,9 @@
                     @endif
 
                     @if(in_array($request->status, ['pending_approval']))
-                    <form method="POST" action="{{ route('admin.requests.status', $request) }}">
-                        @csrf
-                        <input type="hidden" name="status" value="approved">
-                        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition">
-                            <i class="fas fa-check text-[10px]"></i>Approve Request
-                        </button>
-                    </form>
+                    <a href="{{ route('admin.requests.show', $request) }}" class="w-full inline-flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition">
+                        <i class="fas fa-calculator text-[10px]"></i>Review & Calculate Price
+                    </a>
                     @endif
 
                     @if(in_array($request->status, ['pending_approval', 'approved', 'assigned']))

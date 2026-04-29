@@ -229,11 +229,19 @@ $totalDocs   = $allDocs->count();
                 <i class="fas fa-tag text-teal-500"></i>Pricing & Courier Assignment
             </h3>
 
-            {{-- Step 1: Approve first --}}
+            {{-- Step 1: Calculate price, then approve --}}
             @if($request->status === 'pending_approval')
             <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <p class="text-amber-700 text-xs font-medium mb-3"><i class="fas fa-clock mr-1.5"></i>Approve this request before assigning a courier.</p>
+                <p class="text-amber-700 text-xs font-medium mb-3"><i class="fas fa-clock mr-1.5"></i>Calculate price first, then approve and assign courier.</p>
                 <div class="flex gap-2">
+                    @if(!$request->is_price_quoted || (float)($request->total_price ?? 0) <= 0)
+                    <form action="{{ route('admin.requests.calculate-price', $request) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="btn-primary text-xs px-3 py-1.5" onclick="return confirm('Calculate price now?')">
+                            <i class="fas fa-calculator"></i>Calculate Price
+                        </button>
+                    </form>
+                    @else
                     <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                         @csrf
                         <input type="hidden" name="status" value="approved">
@@ -241,6 +249,7 @@ $totalDocs   = $allDocs->count();
                             <i class="fas fa-check"></i>Approve
                         </button>
                     </form>
+                    @endif
                     <form action="{{ route('admin.requests.status', $request) }}" method="POST" class="inline">
                         @csrf
                         <input type="hidden" name="status" value="rejected">
@@ -672,6 +681,14 @@ $totalDocs   = $allDocs->count();
         <div class="card p-4">
             <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h3>
             <div class="space-y-2">
+                @if(!$request->is_price_quoted || (float)($request->total_price ?? 0) <= 0)
+                <form action="{{ route('admin.requests.calculate-price', $request) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn-primary w-full text-xs py-2" onclick="return confirm('Calculate price now?')">
+                        <i class="fas fa-calculator"></i>Calculate Price
+                    </button>
+                </form>
+                @else
                 <form action="{{ route('admin.requests.status', $request) }}" method="POST">
                     @csrf
                     <input type="hidden" name="status" value="approved">
@@ -679,6 +696,7 @@ $totalDocs   = $allDocs->count();
                         <i class="fas fa-check"></i>Approve Request
                     </button>
                 </form>
+                @endif
                 <form action="{{ route('admin.requests.status', $request) }}" method="POST">
                     @csrf
                     <input type="hidden" name="status" value="rejected">
