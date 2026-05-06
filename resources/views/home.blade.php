@@ -6,6 +6,7 @@
     <section class="hero-section">
         <div class="hero-content animate-fade-in">
             <h1 class="hero-title animate-slide-up">Reliable Medical Courier Services You Can Trust</h1>
+            <p class="hero-greeting animate-slide-up delay-1">Welcome, Marjan!</p>
             <p class="hero-subtitle animate-slide-up delay-1">Fast, secure, and HIPAA-compliant transport for medical specimens, lab samples, medications, and critical healthcare materials.</p>
             
             <div class="hero-buttons animate-slide-up delay-2">
@@ -419,6 +420,13 @@
         font-weight: 800;
         line-height: 1.2;
         letter-spacing: -1px;
+    }
+
+    .hero-greeting {
+        font-size: 26px;
+        margin-bottom: 14px;
+        font-weight: 700;
+        color: #8EF9F6;
     }
 
     .hero-subtitle {
