@@ -18,7 +18,7 @@
             </div>
 
             <div class="contact-info animate-slide-up delay-3">
-                <a href="tel:7742970597" class="contact-link hover-scale">📞 (774) 297-0597</a>
+                <a href="tel:7742970597" class="contact-link hover-scale">📞 (508) 933-6750</a>
                 <a href="mailto:info@neoprolab.com" class="contact-link hover-scale">📧 info@neoprolab.com</a>
             </div>
         </div>

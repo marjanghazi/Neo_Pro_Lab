@@ -186,7 +186,7 @@
 
             <div class="info-box">
                 <h3>📞 Phone</h3>
-                <p><a href="tel:7742970597">(774) 297-0597</a></p>
+                <p><a href="tel:7742970597">(508) 933-6750</a></p>
             </div>
 
             <div class="info-box">
@@ -202,7 +202,7 @@
 
             <div class="info-box">
                 <h3>📍 Service Area</h3>
-                <p>Massachusetts & Rhode Island</p>
+                <p>878 Washington street  #19 , Attleboro , Ma 02703</p>
                 <p style="font-size: 14px; margin-top: 8px;">Attleboro • North Attleboro • Providence • Pawtucket • Plainville • Seekonk</p>
             </div>
         </div>

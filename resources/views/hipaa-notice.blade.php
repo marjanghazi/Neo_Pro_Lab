@@ -303,7 +303,7 @@
             <h3>Questions or Concerns?</h3>
             <p>If you have questions about this notice or our privacy practices, please contact:</p>
             <p><strong>NeoProlab Couriers Privacy Officer</strong></p>
-            <p><a href="tel:7742970597">📞 (774) 297-0597</a></p>
+            <p><a href="tel:7742970597">📞 (508) 933-6750</a></p>
             <p><a href="mailto:privacy@neoprolab.com">📧 privacy@neoprolab.com</a></p>
             <p style="margin-top: 20px; font-size: 14px; color: rgba(255, 255, 255, 0.7);">
                 Effective Date: January 1, 2024<br>

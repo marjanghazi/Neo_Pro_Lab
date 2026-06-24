@@ -240,7 +240,7 @@
             </div>
 
             <div class="footer">
-                <p><strong>Need Help?</strong> Contact admin at <a href="mailto:admin@neoprolab.com">admin@neoprolab.com</a> or call (774) 297-0597</p>
+                <p><strong>Need Help?</strong> Contact admin at <a href="mailto:admin@neoprolab.com">admin@neoprolab.com</a> or call (508) 933-6750</p>
                 <p>Please complete this assignment as soon as possible. Update the status in your dashboard to keep everyone informed.</p>
                 <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
             </div>

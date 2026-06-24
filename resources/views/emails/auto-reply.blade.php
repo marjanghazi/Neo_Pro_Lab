@@ -41,7 +41,7 @@
                                 <tr>
                                     <td align="center">
                                         <p style="margin: 0 0 10px 0; color: #0D1B2A;"><strong>📞 Need immediate assistance?</strong></p>
-                                        <p style="margin: 0; font-size: 20px; color: #00A9A5;"><strong>(774) 297-0597</strong></p>
+                                        <p style="margin: 0; font-size: 20px; color: #00A9A5;"><strong>(508) 933-6750</strong></p>
                                     </td>
                                 </tr>
                             </table>

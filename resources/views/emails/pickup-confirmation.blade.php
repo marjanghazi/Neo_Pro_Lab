@@ -10,7 +10,7 @@ Thank you for scheduling a pickup with NeoProLab Couriers.
 - Scheduled Date: {{ $data['pickupDate'] }}
 - Preferred Time: {{ $data['pickupTime'] }}
 
-Our team will contact you within 2 hours to confirm the pickup details. If you have any urgent questions, please call (774) 297-0597.
+Our team will contact you within 2 hours to confirm the pickup details. If you have any urgent questions, please call (508) 933-6750.
 
 <x-mail::button :url="route('home')">
 Visit Our Website

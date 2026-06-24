@@ -508,7 +508,7 @@
                         <span class="font-bold text-xl">NeoProLab Couriers</span>
                     </div>
                     <p class="text-gray-400 text-sm leading-relaxed">
-                        Reliable medical courier services for healthcare providers in Massachusetts & Rhode Island. HIPAA-compliant and certified medical transport.
+                        Reliable medical courier services for healthcare providers in 878 Washington street  #19 , Attleboro , Ma 02703. HIPAA-compliant and certified medical transport.
                     </p>
                     <div class="flex space-x-3 mt-6">
                         <a href="#" class="social-icon">
@@ -600,7 +600,7 @@
                     <ul class="space-y-3">
                         <li class="contact-item flex items-center space-x-3 text-gray-400">
                             <i class="fas fa-phone text-teal-400 w-5"></i>
-                            <a href="tel:7742970597" class="hover:text-teal-400 transition flex-1">(774) 297-0597</a>
+                            <a href="tel:7742970597" class="hover:text-teal-400 transition flex-1">(508) 933-6750</a>
                         </li>
                         <li class="contact-item flex items-center space-x-3 text-gray-400">
                             <i class="fas fa-envelope text-teal-400 w-5"></i>
@@ -608,7 +608,7 @@
                         </li>
                         <li class="contact-item flex items-center space-x-3 text-gray-400">
                             <i class="fas fa-map-marker-alt text-teal-400 w-5"></i>
-                            <span class="flex-1">Massachusetts & Rhode Island</span>
+                            <span class="flex-1">878 Washington street  #19 , Attleboro , Ma 02703</span>
                         </li>
                         <li class="contact-item flex items-center space-x-3 text-gray-400">
                             <i class="fas fa-clock text-teal-400 w-5"></i>

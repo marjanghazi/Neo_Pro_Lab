@@ -178,7 +178,7 @@
             </div>
 
             <div class="footer">
-                <p>If you need help understanding why your request wasn't approved or need assistance with a new request, please don't hesitate to contact us at <a href="mailto:support@neoprolab.com">support@neoprolab.com</a> or call (774) 297-0597.</p>
+                <p>If you need help understanding why your request wasn't approved or need assistance with a new request, please don't hesitate to contact us at <a href="mailto:support@neoprolab.com">support@neoprolab.com</a> or call (508) 933-6750.</p>
                 <p>&copy; {{ date('Y') }} {{ config('app.name') }}. All rights reserved.</p>
             </div>
         </div>

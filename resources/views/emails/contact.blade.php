@@ -58,7 +58,7 @@
                                         <tr>
                                             <td align="center">
                                                 <a href="mailto:{{ $data['contactEmail'] }}" style="display: inline-block; background: linear-gradient(135deg, #00A9A5 0%, #008B85 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-right: 10px;">📧 Reply Now</a>
-                                                <span style="color: #718096; font-size: 14px;">or call <strong style="color: #00A9A5;">{{ $data['contactPhone'] ?? '(774) 297-0597' }}</strong></span>
+                                                <span style="color: #718096; font-size: 14px;">or call <strong style="color: #00A9A5;">{{ $data['contactPhone'] ?? '(508) 933-6750' }}</strong></span>
                                             </td>
                                         </tr>
                                     </table>

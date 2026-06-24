@@ -123,7 +123,7 @@
             @endif
 
             <div class="footer">
-                <p>If you have any questions or need assistance, please contact our support team at <a href="mailto:support@neoprolab.com">support@neoprolab.com</a> or call (774) 297-0597.</p>
+                <p>If you have any questions or need assistance, please contact our support team at <a href="mailto:support@neoprolab.com">support@neoprolab.com</a> or call (508) 933-6750.</p>
                 <p>&copy; {{ date('Y') }} {{ $appName }}. All rights reserved.</p>
             </div>
         </div>
