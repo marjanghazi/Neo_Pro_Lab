@@ -682,7 +682,9 @@ class ClientController extends Controller
     {
         if ($request->client_id != Auth::id()) abort(403);
         $payment = $request->payment;
-        return view('client.payment', compact('request', 'payment'));
+        $payment = $payment ?: (new PaymentService())->createPayment($request, Auth::user());
+        $config = (new PaymentService())->getConfig();
+        return view('client.payments.payment', compact('request', 'payment', 'config'));
     }
 
     public function processPayment(Request $httpRequest, SpecimenRequest $request)
@@ -691,7 +693,10 @@ class ClientController extends Controller
         try {
             $result = (new PaymentService())->processPayment($request, $httpRequest->all());
             if ($result['success'] ?? false) {
-                return redirect()->route('client.payments.success', $result['payment'] ?? $request->id)
+                if (!empty($result['checkout_url'])) {
+                    return redirect()->away($result['checkout_url']);
+                }
+                return redirect()->route('client.payments.success', $result['payment'])
                     ->with('success', 'Payment processed successfully!');
             }
             return back()->with('error', $result['message'] ?? 'Payment failed. Please try again.');
@@ -703,8 +708,20 @@ class ClientController extends Controller
 
     public function paymentSuccess(Request $httpRequest, $payment)
     {
-        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
-        return view('client.payments.success', compact('request'));
+        $payment = Payment::with(['request', 'user'])->findOrFail($payment);
+        if ($payment->request->client_id != Auth::id()) abort(403);
+
+        if ($httpRequest->query('session_id')) {
+            try {
+                $payment = (new PaymentService())->completeCheckout($payment, $httpRequest->query('session_id'));
+            } catch (\Exception $e) {
+                Log::error('Payment verification failed: ' . $e->getMessage());
+                return redirect()->route('client.payments.show', $payment->request)->with('error', 'We could not verify that Stripe payment yet. Please contact support if your bank shows a debit.');
+            }
+        }
+
+        $request = $payment->request;
+        return view('client.payments.success', compact('request', 'payment'));
     }
 
     public function paymentCallback(Request $httpRequest, $payment)

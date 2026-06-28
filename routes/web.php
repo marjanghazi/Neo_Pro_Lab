@@ -24,7 +24,14 @@ use App\Http\Controllers\Client\FacilityController;
 use Http\Controllers\Public\PickupRequestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ContactController;
+use App\Services\PaymentService;
 
+
+
+Route::post('/stripe/webhook', function (Request $request) {
+    (new PaymentService())->handleStripeWebhook($request->getContent(), $request->header('Stripe-Signature'));
+    return response()->json(['received' => true]);
+})->name('stripe.webhook');
 
 Route::post('/contact/send', [ContactController::class, 'send'])->name('contact.send');
 

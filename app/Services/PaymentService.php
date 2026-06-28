@@ -5,241 +5,215 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\SpecimenRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Stripe\Checkout\Session;
+use Stripe\Stripe;
+use Stripe\Webhook;
 
 class PaymentService
 {
-    protected $gateway;
-    protected $testMode;
-    protected $currency;
+    protected string $gateway;
+    protected bool $testMode;
+    protected string $currency;
 
     public function __construct()
     {
         $this->gateway = config('services.payment.gateway', 'stripe');
-        $this->testMode = config('services.payment.test_mode', true);
-        $this->currency = config('services.payment.currency', 'USD');
+        $this->testMode = (bool) config('services.payment.test_mode', true);
+        $this->currency = strtoupper(config('services.payment.currency', config('services.stripe.currency', 'USD')));
     }
 
-    /**
-     * Create a payment for a request
-     */
-    public function createPayment(SpecimenRequest $request, User $user, array $data = [])
+    public function createPayment(SpecimenRequest $request, User $user, array $data = []): Payment
     {
-        $payment = Payment::create([
-            'request_id' => $request->id,
-            'user_id' => $user->id,
-            'amount' => $request->estimated_price ?? 0,
+        return Payment::firstOrCreate(
+            ['request_id' => $request->id, 'payment_status' => Payment::STATUS_PENDING],
+            [
+                'user_id' => $user->id,
+                'amount' => $this->amountDue($request),
+                'currency' => $this->currency,
+                'payment_method' => null,
+                'payment_gateway' => Payment::GATEWAY_STRIPE,
+                'billing_name' => $data['billing_name'] ?? $user->full_name,
+                'billing_email' => $data['billing_email'] ?? $user->email,
+                'billing_phone' => $data['billing_phone'] ?? $user->phone,
+                'billing_address' => $data['billing_address'] ?? null,
+            ]
+        );
+    }
+
+    public function processPayment(SpecimenRequest $request, array $data): array
+    {
+        if ($this->gateway !== Payment::GATEWAY_STRIPE) {
+            return ['success' => false, 'message' => 'Stripe is the configured payment gateway for online invoice payments.'];
+        }
+
+        if (blank(config('services.stripe.secret'))) {
+            return ['success' => false, 'message' => 'Stripe is not configured. Please set STRIPE_SECRET in the environment.'];
+        }
+
+        $user = auth()->user() ?: $request->client;
+        $payment = $request->payments()
+            ->where('payment_status', Payment::STATUS_PENDING)
+            ->latest()
+            ->first() ?: $this->createPayment($request, $user, $data);
+
+        if ($this->amountDue($request) <= 0) {
+            return ['success' => false, 'message' => 'This invoice does not have an amount due yet.'];
+        }
+        $payment->update([
+            'amount' => $this->amountDue($request),
             'currency' => $this->currency,
             'payment_status' => Payment::STATUS_PENDING,
-            'payment_gateway' => $this->gateway,
-            'billing_name' => $data['billing_name'] ?? $user->full_name,
-            'billing_email' => $data['billing_email'] ?? $user->email,
-            'billing_phone' => $data['billing_phone'] ?? $user->phone,
-            'billing_address' => $data['billing_address'] ?? null,
+            'payment_gateway' => Payment::GATEWAY_STRIPE,
+            'billing_name' => $data['billing_name'] ?? $payment->billing_name ?? $user?->full_name,
+            'billing_email' => $data['billing_email'] ?? $payment->billing_email ?? $user?->email,
+            'billing_phone' => $data['billing_phone'] ?? $payment->billing_phone,
+            'billing_address' => $data['billing_address'] ?? $payment->billing_address,
         ]);
 
-        // Update request with payment due date
-        $dueDays = config('services.payment.due_days', 7);
-        $request->update([
-            'payment_due_at' => now()->addDays($dueDays),
-            'payment_status' => 'pending',
-        ]);
+        Stripe::setApiKey(config('services.stripe.secret'));
 
-        return $payment;
-    }
-
-    /**
-     * Process payment via Stripe
-     */
-    public function processStripePayment(Payment $payment, $token, $saveCard = false)
-    {
-        try {
-            \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
-
-            $customer = $this->getOrCreateStripeCustomer($payment->user, $payment->billing_email);
-
-            // Create payment intent
-            $intent = \Stripe\PaymentIntent::create([
-                'amount' => $this->convertToCents($payment->amount),
-                'currency' => strtolower($payment->currency),
-                'customer' => $customer->id,
-                'payment_method' => $token,
-                'confirm' => true,
-                'return_url' => route('client.payments.callback', $payment->id),
-                'metadata' => [
-                    'request_id' => $payment->request_id,
-                    'user_id' => $payment->user_id,
-                    'payment_id' => $payment->id,
+        $session = Session::create([
+            'mode' => 'payment',
+            'payment_method_types' => ['card', 'us_bank_account'],
+            'customer_email' => $payment->billing_email,
+            'line_items' => [[
+                'price_data' => [
+                    'currency' => strtolower($payment->currency),
+                    'unit_amount' => $this->convertToCents($payment->amount),
+                    'product_data' => [
+                        'name' => 'NeoProLab Invoice ' . $request->request_number,
+                        'description' => 'Secure courier invoice payment for ' . ($request->facility->name ?? 'NeoProLab Couriers LLC'),
+                    ],
                 ],
-            ]);
-
-            if ($intent->status === 'succeeded') {
-                $payment->update([
-                    'payment_id' => $intent->id,
-                    'payment_method' => Payment::METHOD_CARD,
-                    'card_last_four' => $intent->charges->data[0]->payment_method_details->card->last4 ?? null,
-                    'card_brand' => $intent->charges->data[0]->payment_method_details->card->brand ?? null,
-                    'receipt_url' => $intent->charges->data[0]->receipt_url ?? null,
-                    'gateway_response' => $intent->toArray(),
-                ]);
-
-                $payment->markAsCompleted($intent->id);
-
-                return [
-                    'success' => true,
-                    'payment' => $payment,
-                    'receipt_url' => $payment->receipt_url,
-                ];
-            }
-
-            $payment->update([
-                'payment_status' => Payment::STATUS_FAILED,
-                'gateway_response' => $intent->toArray(),
-            ]);
-
-            return [
-                'success' => false,
-                'error' => 'Payment failed: ' . ($intent->last_payment_error->message ?? 'Unknown error'),
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Stripe payment error: ' . $e->getMessage());
-            
-            $payment->update([
-                'payment_status' => Payment::STATUS_FAILED,
-                'notes' => $e->getMessage(),
-            ]);
-
-            return [
-                'success' => false,
-                'error' => 'Payment processing failed: ' . $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Process offline payment (manual)
-     */
-    public function processOfflinePayment(Payment $payment, array $data)
-    {
-        $payment->update([
-            'payment_method' => $data['payment_method'] ?? Payment::METHOD_CASH,
-            'notes' => $data['notes'] ?? null,
-            'payment_status' => Payment::STATUS_PENDING,
-        ]);
-
-        // For offline payments, admin needs to manually mark as completed
-        return [
-            'success' => true,
-            'message' => 'Offline payment recorded. Waiting for admin confirmation.',
-            'payment' => $payment,
-        ];
-    }
-
-    /**
-     * Refund a payment
-     */
-    public function refundPayment(Payment $payment, $amount = null, $reason = null)
-    {
-        try {
-            if ($payment->payment_gateway === Payment::GATEWAY_STRIPE && $payment->payment_id) {
-                \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
-
-                $refund = \Stripe\Refund::create([
-                    'payment_intent' => $payment->payment_id,
-                    'amount' => $amount ? $this->convertToCents($amount) : $this->convertToCents($payment->amount),
-                    'reason' => $reason ?? 'requested_by_customer',
-                ]);
-
-                $refundAmount = $amount ?? $payment->amount;
-                $payment->update([
-                    'payment_status' => $amount < $payment->amount ? Payment::STATUS_PARTIALLY_REFUNDED : Payment::STATUS_REFUNDED,
-                    'refunded_at' => now(),
-                    'notes' => ($payment->notes ? $payment->notes . "\n" : '') . "Refunded: $refundAmount. Reason: $reason",
-                ]);
-
-                return [
-                    'success' => true,
-                    'refund' => $refund,
-                    'message' => 'Payment refunded successfully',
-                ];
-            }
-
-            // For offline payments
-            $payment->update([
-                'payment_status' => Payment::STATUS_REFUNDED,
-                'refunded_at' => now(),
-                'notes' => ($payment->notes ? $payment->notes . "\n" : '') . "Refunded manually. Reason: $reason",
-            ]);
-
-            return [
-                'success' => true,
-                'message' => 'Payment marked as refunded',
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Refund error: ' . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Refund failed: ' . $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Get or create Stripe customer
-     */
-    private function getOrCreateStripeCustomer(User $user, $email)
-    {
-        if ($user->stripe_customer_id) {
-            try {
-                return \Stripe\Customer::retrieve($user->stripe_customer_id);
-            } catch (\Exception $e) {
-                // Customer not found, create new
-            }
-        }
-
-        $customer = \Stripe\Customer::create([
-            'email' => $email,
-            'name' => $user->full_name,
-            'phone' => $user->phone,
+                'quantity' => 1,
+            ]],
+            'success_url' => route('client.payments.success', $payment->id) . '?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('client.payments.show', $request) . '?payment=cancelled',
             'metadata' => [
-                'user_id' => $user->id,
+                'payment_id' => (string) $payment->id,
+                'request_id' => (string) $request->id,
+                'invoice_number' => $request->request_number,
+                'client_id' => (string) $request->client_id,
+            ],
+            'payment_intent_data' => [
+                'metadata' => [
+                    'payment_id' => (string) $payment->id,
+                    'request_id' => (string) $request->id,
+                    'invoice_number' => $request->request_number,
+                ],
             ],
         ]);
 
-        $user->update(['stripe_customer_id' => $customer->id]);
-        return $customer;
+        $payment->update([
+            'payment_id' => $session->id,
+            'payment_method' => 'stripe_checkout',
+            'gateway_response' => array_merge((array) $payment->gateway_response, ['checkout_session_id' => $session->id]),
+        ]);
+        $payment->log('checkout_session_created', ['checkout_session_id' => $session->id]);
+
+        return ['success' => true, 'payment' => $payment, 'checkout_url' => $session->url];
     }
 
-    /**
-     * Convert amount to cents (Stripe requires cents)
-     */
-    private function convertToCents($amount)
+    public function completeCheckout(Payment $payment, ?string $sessionId = null): Payment
     {
-        return (int) round($amount * 100);
+        if (blank(config('services.stripe.secret'))) {
+            throw new \RuntimeException('Stripe secret key is missing. Set STRIPE_SECRET in the environment.');
+        }
+
+        Stripe::setApiKey(config('services.stripe.secret'));
+        $sessionId = $sessionId ?: ($payment->gateway_response['checkout_session_id'] ?? $payment->payment_id);
+        $session = Session::retrieve($sessionId, ['expand' => ['payment_intent.latest_charge']]);
+
+        if ($session->payment_status !== 'paid') {
+            return $payment;
+        }
+
+        $intent = $session->payment_intent;
+        $charge = is_object($intent) ? ($intent->latest_charge ?? null) : null;
+        $methodType = $session->payment_method_types[0] ?? 'stripe_checkout';
+        $card = $charge?->payment_method_details?->card ?? null;
+
+        $alreadyCompleted = $payment->payment_status === Payment::STATUS_COMPLETED;
+
+        $payment->update([
+            'payment_id' => is_object($intent) ? $intent->id : $session->id,
+            'payment_method' => $methodType === 'us_bank_account' ? Payment::METHOD_BANK_TRANSFER : Payment::METHOD_CARD,
+            'card_last_four' => $card?->last4,
+            'card_brand' => $card?->brand,
+            'receipt_url' => $charge?->receipt_url,
+            'gateway_response' => array_merge((array) $payment->gateway_response, ['checkout_session' => $session->toArray()]),
+        ]);
+        $payment->markAsCompleted($payment->payment_id, ['checkout_session_id' => $session->id]);
+        $payment->request?->update(['payment_status' => 'paid']);
+
+        if (!$alreadyCompleted) {
+            $this->sendConfirmationEmails($payment->fresh(['request', 'user']));
+        }
+
+        return $payment->fresh(['request', 'user']);
     }
 
-    /**
-     * Check if payment is required for pickup
-     */
-    public function isPaymentRequiredForPickup()
+    public function handleStripeWebhook(string $payload, ?string $signature): void
     {
-        return config('services.payment.required_before_pickup', true);
+        $secret = config('services.stripe.webhook_secret');
+        $event = $secret ? Webhook::constructEvent($payload, $signature, $secret) : json_decode($payload);
+
+        if (($event->type ?? null) === 'checkout.session.completed') {
+            $session = $event->data->object;
+            $paymentId = $session->metadata->payment_id ?? null;
+            $payment = $paymentId ? Payment::find($paymentId) : Payment::where('payment_id', $session->id)->first();
+            if ($payment) {
+                $this->completeCheckout($payment, $session->id);
+            }
+        }
     }
 
-    /**
-     * Get payment configuration
-     */
-    public function getConfig()
+    public function sendConfirmationEmails(Payment $payment): void
+    {
+        $request = $payment->request;
+        $invoiceNumber = $request->request_number ?? $payment->id;
+        $receiptUrl = $payment->receipt_url ?: ($request ? route('client.requests.show', $request) : null);
+
+        $data = [
+            'payment' => $payment,
+            'request' => $request,
+            'invoiceNumber' => $invoiceNumber,
+            'receiptUrl' => $receiptUrl,
+            'adminEmail' => config('services.payment.admin_email', 'info@neoprolab.com'),
+        ];
+
+        if ($payment->billing_email) {
+            Mail::send('emails.payment-confirmation', $data, function ($message) use ($payment, $invoiceNumber) {
+                $message->to($payment->billing_email, $payment->billing_name)
+                    ->subject('NeoProLab payment confirmation - Invoice ' . $invoiceNumber);
+            });
+        }
+
+        Mail::send('emails.payment-notification', $data, function ($message) use ($invoiceNumber) {
+            $message->to(config('services.payment.admin_email', 'info@neoprolab.com'))
+                ->subject('Payment received - Invoice ' . $invoiceNumber);
+        });
+    }
+
+    public function getConfig(): array
     {
         return [
             'gateway' => $this->gateway,
             'test_mode' => $this->testMode,
             'currency' => $this->currency,
             'stripe_public_key' => config('services.stripe.key'),
-            'payment_required_before_pickup' => $this->isPaymentRequiredForPickup(),
+            'payment_required_before_pickup' => config('services.payment.required_before_pickup', true),
         ];
+    }
+
+    private function amountDue(SpecimenRequest $request): float
+    {
+        return (float) ($request->total_price ?? $request->estimated_price ?? 0);
+    }
+
+    private function convertToCents($amount): int
+    {
+        return (int) round(((float) $amount) * 100);
     }
 }
