@@ -140,269 +140,226 @@
 @endsection
 
 @push('styles')
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-    #trackingMap {
-        z-index: 1;
-    }
-
-    .leaflet-container {
-        font-family: inherit;
-    }
-
-    .courier-marker {
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.1);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
+    #trackingMap { z-index: 1; }
+    .courier-marker { animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+    .map-popup { padding: 8px; min-width: 180px; }
+    .map-popup h4 { font-weight: 700; margin-bottom: 4px; }
+    .map-popup p { margin: 2px 0; color: #4b5563; font-size: 12px; }
 </style>
 @endpush
 
 @push('scripts')
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let map;
     let markers = [];
-    let polylines = [];
+    let routeRenderers = [];
     let courierMarkers = {};
     let updateInterval;
+    let directionsService;
+    let mapsReady = false;
 
-    // Initialize map
-    function initMap() {
-        if (document.getElementById('trackingMap')) {
-            map = L.map('trackingMap').setView([40.7128, -74.0060], 12);
+    const GOOGLE_API_KEY = "{{ config('services.google.maps_api_key') }}";
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+    window.initClientTrackingMap = function() {
+        const mapEl = document.getElementById('trackingMap');
+        if (!mapEl) return;
 
-            // Load active requests
-            loadActiveRequests();
+        mapsReady = true;
+        map = new google.maps.Map(mapEl, {
+            center: { lat: 39.8283, lng: -98.5795 },
+            zoom: 5,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+            styles: [
+                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+                { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+            ],
+        });
+        directionsService = new google.maps.DirectionsService();
+        loadActiveRequests();
+        startAutoUpdate();
+    };
 
-            // Start auto-update
-            startAutoUpdate();
+    function loadGoogleMaps() {
+        const mapEl = document.getElementById('trackingMap');
+        if (!mapEl) return;
+
+        if (!GOOGLE_API_KEY) {
+            mapEl.innerHTML = '<div class="h-full flex items-center justify-center bg-yellow-50 rounded-lg p-6 text-center text-yellow-800">Google Maps API key is missing. Set GOOGLE_MAPS_API_KEY in the environment to enable live map tracking.</div>';
+            return;
         }
+
+        const script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GOOGLE_API_KEY) + '&callback=initClientTrackingMap&loading=async';
+        script.async = true;
+        script.defer = true;
+        script.onerror = function() {
+            mapEl.innerHTML = '<div class="h-full flex items-center justify-center bg-red-50 rounded-lg p-6 text-center text-red-700">Google Maps failed to load. Please check the API key, Maps JavaScript API, and allowed domains.</div>';
+        };
+        document.head.appendChild(script);
     }
 
-    // Load active requests
+    function clearMap() {
+        markers.forEach(marker => marker.setMap(null));
+        markers = [];
+        Object.values(courierMarkers).forEach(marker => marker.setMap(null));
+        courierMarkers = {};
+        routeRenderers.forEach(renderer => renderer.setMap(null));
+        routeRenderers = [];
+    }
+
     async function loadActiveRequests() {
+        if (!mapsReady) return;
         try {
-            const response = await fetch('/client/tracking/active');
+            const response = await fetch('{{ route('client.tracking.active') }}', { headers: { 'Accept': 'application/json' } });
             const payload = await response.json();
             const activeRequests = payload.requests || [];
 
-            // Clear existing markers
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
+            clearMap();
+            const bounds = new google.maps.LatLngBounds();
+            let hasPoints = false;
 
-            Object.values(courierMarkers).forEach(marker => map.removeLayer(marker));
-            courierMarkers = {};
-
-            polylines.forEach(polyline => map.removeLayer(polyline));
-            polylines = [];
-
-            // Add markers for each request
             activeRequests.forEach(request => {
-                addRequestMarkers(request);
+                const added = addRequestMarkers(request, bounds);
+                hasPoints = hasPoints || added;
             });
 
-            // Update courier status indicators
             updateCourierStatuses(activeRequests);
-
-            // Update statistics
             updateStatistics(activeRequests);
 
-            // Fit bounds to show all markers
-            if (markers.length > 0) {
-                const group = new L.featureGroup(markers);
-                map.fitBounds(group.getBounds().pad(0.1));
+            if (hasPoints) {
+                map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+                if (map.getZoom() > 15) map.setZoom(15);
             }
-
         } catch (error) {
             console.error('Error loading active requests:', error);
         }
     }
 
-    // Add request markers to map
-    function addRequestMarkers(request) {
-        if (!request.pickup_latitude || !request.pickup_longitude || !request.delivery_latitude || !request.delivery_longitude) {
-            return;
-        }
-
-        // Pickup marker (real request coordinates)
-        const pickupLat = request.pickup_latitude;
-        const pickupLng = request.pickup_longitude;
-
-        const pickupMarker = L.marker([pickupLat, pickupLng], {
-            icon: L.divIcon({
-                html: `<div class="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                     <i class="fas fa-map-marker-alt text-white text-xs"></i>
-                   </div>`,
-                iconSize: [24, 24],
-                className: 'pickup-marker'
-            })
-        }).addTo(map);
-
-        pickupMarker.bindPopup(`
-        <div class="p-2">
-            <h4 class="font-bold">Pickup Location</h4>
-            <p class="text-sm">${request.request_number}</p>
-            <p class="text-xs text-gray-600">${request.pickup_address.substring(0, 50)}...</p>
-            <a href="/client/requests/${request.id}/track" class="text-xs text-teal-600 hover:underline mt-2 inline-block">
-                Track this request
-            </a>
-        </div>
-    `);
-
-        markers.push(pickupMarker);
-
-        // Delivery marker (real request coordinates)
-        const deliveryLat = request.delivery_latitude;
-        const deliveryLng = request.delivery_longitude;
-
-        const deliveryMarker = L.marker([deliveryLat, deliveryLng], {
-            icon: L.divIcon({
-                html: `<div class="w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                     <i class="fas fa-truck text-white text-xs"></i>
-                   </div>`,
-                iconSize: [24, 24],
-                className: 'delivery-marker'
-            })
-        }).addTo(map);
-
-        deliveryMarker.bindPopup(`
-        <div class="p-2">
-            <h4 class="font-bold">Delivery Location</h4>
-            <p class="text-sm">${request.request_number}</p>
-            <p class="text-xs text-gray-600">${request.delivery_address.substring(0, 50)}...</p>
-        </div>
-    `);
-
-        markers.push(deliveryMarker);
-
-        // Draw polyline
-        const polyline = L.polyline([pickupMarker.getLatLng(), deliveryMarker.getLatLng()], {
-            color: '#0d9488',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '5, 10'
-        }).addTo(map);
-
-        polylines.push(polyline);
-
-        // Store coordinates for later use
-        request.pickupCoords = [pickupLat, pickupLng];
-        request.deliveryCoords = [deliveryLat, deliveryLng];
-
-        // Add courier marker if available
-        if (request.courier && request.courier.location) {
-            updateCourierMarker(request);
-        }
+    function markerIcon(color, scale = 10) {
+        return {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale,
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+        };
     }
 
-    // Update courier marker
-    function updateCourierMarker(request) {
-        const courierId = request.courier?.id;
+    function courierIcon(heading = 0) {
+        return {
+            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 7,
+            fillColor: '#3b82f6',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2,
+            rotation: heading || 0,
+        };
+    }
 
-        if (!courierId || !request.courier.location) return;
+    function addRequestMarkers(request, bounds) {
+        let hasPoints = false;
+        const pickupReady = request.pickup_latitude && request.pickup_longitude;
+        const deliveryReady = request.delivery_latitude && request.delivery_longitude;
 
-        const {
-            latitude,
-            longitude
-        } = request.courier.location;
-
-        if (!latitude || !longitude) return;
-
-        // Remove existing marker
-        if (courierMarkers[courierId]) {
-            map.removeLayer(courierMarkers[courierId]);
+        if (pickupReady) {
+            const pos = { lat: Number(request.pickup_latitude), lng: Number(request.pickup_longitude) };
+            const marker = new google.maps.Marker({ position: pos, map, icon: markerIcon('#ef4444'), title: 'Pickup: ' + request.request_number });
+            marker.addListener('click', () => new google.maps.InfoWindow({ content: `<div class="map-popup"><h4>Pickup Location</h4><p>${request.request_number}</p><p>${request.pickup_address || ''}</p><a href="/client/requests/${request.id}/track">Track this request</a></div>` }).open(map, marker));
+            markers.push(marker);
+            bounds.extend(pos);
+            hasPoints = true;
         }
 
-        // Create new marker
-        const marker = L.marker([latitude, longitude], {
-            icon: L.divIcon({
-                html: `<div class="w-8 h-8 bg-blue-500 rounded-full border-3 border-white shadow-lg flex items-center justify-center courier-marker">
-                     <i class="fas fa-user text-white text-sm"></i>
-                   </div>`,
-                iconSize: [32, 32],
-                className: 'courier-marker'
-            })
-        }).addTo(map);
+        if (deliveryReady) {
+            const pos = { lat: Number(request.delivery_latitude), lng: Number(request.delivery_longitude) };
+            const marker = new google.maps.Marker({ position: pos, map, icon: markerIcon('#22c55e'), title: 'Delivery: ' + request.request_number });
+            marker.addListener('click', () => new google.maps.InfoWindow({ content: `<div class="map-popup"><h4>Delivery Location</h4><p>${request.request_number}</p><p>${request.delivery_address || ''}</p></div>` }).open(map, marker));
+            markers.push(marker);
+            bounds.extend(pos);
+            hasPoints = true;
+        }
 
-        marker.bindPopup(`
-        <div class="p-2">
-            <h4 class="font-bold">${request.courier.name}</h4>
-            <p class="text-sm">${request.request_number}</p>
-            <p class="text-xs text-gray-600">On the way to delivery</p>
-            <p class="text-xs">Phone: ${request.courier.phone}</p>
-            <a href="/client/requests/${request.id}/track" class="text-xs text-teal-600 hover:underline mt-2 inline-block">
-                View detailed tracking
-            </a>
-        </div>
-    `);
+        if (pickupReady && deliveryReady) {
+            const renderer = new google.maps.DirectionsRenderer({
+                map,
+                suppressMarkers: true,
+                preserveViewport: true,
+                polylineOptions: { strokeColor: '#0d9488', strokeWeight: 4, strokeOpacity: 0.75 },
+            });
+            directionsService.route({
+                origin: { lat: Number(request.pickup_latitude), lng: Number(request.pickup_longitude) },
+                destination: { lat: Number(request.delivery_latitude), lng: Number(request.delivery_longitude) },
+                travelMode: google.maps.TravelMode.DRIVING,
+            }, (result, status) => {
+                if (status === google.maps.DirectionsStatus.OK) renderer.setDirections(result);
+            });
+            routeRenderers.push(renderer);
+        }
 
+        if (request.courier && request.courier.location) {
+            updateCourierMarker(request, bounds);
+            hasPoints = true;
+        }
+
+        return hasPoints;
+    }
+
+    function updateCourierMarker(request, bounds) {
+        const courierId = request.courier?.id;
+        const location = request.courier?.location;
+        if (!courierId || !location?.latitude || !location?.longitude) return;
+
+        const pos = { lat: Number(location.latitude), lng: Number(location.longitude) };
+        const marker = new google.maps.Marker({
+            position: pos,
+            map,
+            icon: courierIcon(location.heading),
+            title: request.courier.name || 'Courier',
+            zIndex: 10,
+            optimized: false,
+        });
+        marker.addListener('click', () => new google.maps.InfoWindow({ content: `<div class="map-popup"><h4>${request.courier.name || 'Courier'}</h4><p>${request.request_number}</p><p>${location.formatted_address || 'Live GPS location'}</p><p>Phone: ${request.courier.phone || 'N/A'}</p><a href="/client/requests/${request.id}/track">View detailed tracking</a></div>` }).open(map, marker));
         courierMarkers[courierId] = marker;
         markers.push(marker);
+        bounds.extend(pos);
     }
 
-    // Update courier status indicators
     function updateCourierStatuses(requests) {
         requests.forEach(request => {
             if (request.courier) {
                 const statusElement = document.querySelector(`.courier-status[data-courier-id="${request.courier.id}"]`);
                 if (statusElement) {
-                    const isOnline = request.courier.location ? true : false;
-                    statusElement.innerHTML = `
-                    <i class="fas fa-circle ${isOnline ? 'text-green-500' : 'text-gray-400'}"></i>
-                    <span class="ml-1">${isOnline ? 'Online' : 'Offline'}</span>
-                `;
+                    const isOnline = Boolean(request.courier.location?.is_online || request.courier.location);
+                    statusElement.innerHTML = `<i class="fas fa-circle ${isOnline ? 'text-green-500' : 'text-gray-400'}"></i><span class="ml-1">${isOnline ? 'Online' : 'Offline'}</span>`;
                 }
             }
         });
     }
 
-    // Update statistics
     function updateStatistics(requests) {
         const onlineCouriers = requests.filter(r => r.courier?.location).length;
         document.getElementById('onlineCouriers').textContent = onlineCouriers;
         document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
     }
 
-    // Focus on a specific request
     function focusOnRequest(requestId) {
         window.location.href = `/client/requests/${requestId}/track`;
     }
 
-    // Start auto-update
     function startAutoUpdate() {
-        // Initial load
-        loadActiveRequests();
-
-        // Set up interval for updates
-        updateInterval = setInterval(loadActiveRequests, 30000); // Every 30 seconds
+        updateInterval = setInterval(loadActiveRequests, 30000);
     }
 
-    // Initialize when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        initMap();
-
-        // Clean up on page unload
+        loadGoogleMaps();
         window.addEventListener('beforeunload', function() {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-            }
+            if (updateInterval) clearInterval(updateInterval);
         });
     });
 </script>

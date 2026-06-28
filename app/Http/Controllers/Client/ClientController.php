@@ -868,8 +868,8 @@ class ClientController extends Controller
     public function getCourierLocationApi(Request $httpRequest, User $courier)
     {
         $hasRequest = SpecimenRequest::where('client_id', Auth::id())
-            ->where('courier_id', $courier->id)
-            ->whereIn('status', ['assigned', 'accepted_by_courier', 'picked_up', 'in_transit', 'arrived_at_destination'])
+            ->where('assigned_to', $courier->id)
+            ->whereIn('status', ['assigned', 'pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination', 'in_delivery', 'delivered'])
             ->exists();
 
         if (!$hasRequest) abort(403);
@@ -1129,7 +1129,7 @@ class ClientController extends Controller
     public function tracking()
     {
         $activeRequests = Auth::user()->createdRequests()
-            ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
+            ->whereIn('status', ['assigned', 'pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination', 'in_delivery', 'delivered'])
             ->with(['courier', 'stops'])
             ->get();
         return view('client.tracking.index', compact('activeRequests'));
@@ -1138,16 +1138,16 @@ class ClientController extends Controller
     public function getActiveTracking()
     {
         $requests = Auth::user()->createdRequests()
-            ->whereIn('status', ['assigned', 'accepted_by_courier', 'in_transit', 'picked_up'])
+            ->whereIn('status', ['assigned', 'pending_courier_acceptance', 'accepted_by_courier', 'awaiting_pickup_proof', 'picked_up', 'in_transit', 'arrived_at_destination', 'in_delivery', 'delivered'])
             ->with(['courier'])
             ->get();
 
         $payload = $requests->map(function ($request) {
             $courierLocation = null;
-            if ($request->courier_id) {
-                $courierLocation = Cache::get('courier_location_' . $request->courier_id);
+            if ($request->assigned_to) {
+                $courierLocation = Cache::get('courier_location_' . $request->assigned_to);
                 if (! $courierLocation) {
-                    $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+                    $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->latest()->first();
                     if ($dbLoc) {
                         $courierLocation = [
                             'latitude'  => (float) $dbLoc->latitude,
@@ -1184,7 +1184,7 @@ class ClientController extends Controller
     public function getCourierLocation(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
-        if (! $request->courier_id) {
+        if (! $request->assigned_to) {
             return response()->json([
                 'error'    => 'No courier assigned to this request yet.',
                 'courier'  => null,
@@ -1193,9 +1193,9 @@ class ClientController extends Controller
             ]);
         }
 
-        $location = Cache::get('courier_location_' . $request->courier_id);
+        $location = Cache::get('courier_location_' . $request->assigned_to);
         if (! $location) {
-            $dbLoc = CourierLocation::where('courier_id', $request->courier_id)->latest()->first();
+            $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->latest()->first();
             if ($dbLoc) {
                 $location = [
                     'latitude'      => (float) $dbLoc->latitude,

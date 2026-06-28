@@ -572,14 +572,14 @@ window.initTrackingMaps = function() {
 
     trackingMap = new google.maps.Map(document.getElementById('trackingMap'), {
         zoom: 12,
-        center: { lat: 30.1575, lng: 71.5249 },
+        center: initialMapCenter(),
         mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
         styles: mapStyles(),
     });
 
     miniMap = new google.maps.Map(document.getElementById('miniMap'), {
         zoom: 13,
-        center: { lat: 30.1575, lng: 71.5249 },
+        center: initialMapCenter(),
         mapTypeControl: false, streetViewControl: false,
         fullscreenControl: false, zoomControl: false,
         styles: mapStyles(),
@@ -595,6 +595,18 @@ window.initTrackingMaps = function() {
     startTrackingUpdates();
 };
 
+
+function initialMapCenter() {
+    const pickupLat = Number(@json($request->pickup_latitude));
+    const pickupLng = Number(@json($request->pickup_longitude));
+    const deliveryLat = Number(@json($request->delivery_latitude));
+    const deliveryLng = Number(@json($request->delivery_longitude));
+
+    if (pickupLat && pickupLng) return { lat: pickupLat, lng: pickupLng };
+    if (deliveryLat && deliveryLng) return { lat: deliveryLat, lng: deliveryLng };
+    return { lat: 39.8283, lng: -98.5795 };
+}
+
 function mapStyles() {
     return [
         { featureType:'poi',     elementType:'labels', stylers:[{ visibility:'off' }] },
@@ -603,7 +615,12 @@ function mapStyles() {
 }
 
 (function() {
-    if (!GOOGLE_API_KEY) return;
+    if (!GOOGLE_API_KEY) {
+        const message = '<div class="flex items-center justify-center h-full bg-yellow-50 rounded-lg p-6 text-center text-yellow-800">Google Maps API key is missing. Set GOOGLE_MAPS_API_KEY in the environment to enable live tracking.</div>';
+        document.getElementById('trackingMap').innerHTML = message;
+        document.getElementById('miniMap').innerHTML = message;
+        return;
+    }
     var s = document.createElement('script');
     s.src = 'https://maps.googleapis.com/maps/api/js'
         + '?key=' + encodeURIComponent(GOOGLE_API_KEY)
