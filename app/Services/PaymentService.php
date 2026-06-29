@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\SpecimenRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
@@ -131,16 +132,18 @@ class PaymentService
 
         $intent = $session->payment_intent;
         $charge = is_object($intent) ? ($intent->latest_charge ?? null) : null;
-        $methodType = $session->payment_method_types[0] ?? 'stripe_checkout';
-        $card = $charge?->payment_method_details?->card ?? null;
+        $methodDetails = $charge?->payment_method_details ?? null;
+        $methodType = $methodDetails?->type ?? ($session->payment_method_types[0] ?? 'stripe_checkout');
+        $card = $methodDetails?->card ?? null;
+        $bankAccount = $methodDetails?->us_bank_account ?? null;
 
         $alreadyCompleted = $payment->payment_status === Payment::STATUS_COMPLETED;
 
         $payment->update([
             'payment_id' => is_object($intent) ? $intent->id : $session->id,
             'payment_method' => $methodType === 'us_bank_account' ? Payment::METHOD_BANK_TRANSFER : Payment::METHOD_CARD,
-            'card_last_four' => $card?->last4,
-            'card_brand' => $card?->brand,
+            'card_last_four' => $card?->last4 ?? $bankAccount?->last4,
+            'card_brand' => $card?->brand ?? $bankAccount?->bank_name,
             'receipt_url' => $charge?->receipt_url,
             'gateway_response' => array_merge((array) $payment->gateway_response, ['checkout_session' => $session->toArray()]),
         ]);
@@ -159,12 +162,28 @@ class PaymentService
         $secret = config('services.stripe.webhook_secret');
         $event = $secret ? Webhook::constructEvent($payload, $signature, $secret) : json_decode($payload);
 
-        if (($event->type ?? null) === 'checkout.session.completed') {
+        $type = $event->type ?? null;
+
+        if (in_array($type, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
             $session = $event->data->object;
             $paymentId = $session->metadata->payment_id ?? null;
             $payment = $paymentId ? Payment::find($paymentId) : Payment::where('payment_id', $session->id)->first();
             if ($payment) {
                 $this->completeCheckout($payment, $session->id);
+            }
+            return;
+        }
+
+        if ($type === 'checkout.session.async_payment_failed') {
+            $session = $event->data->object;
+            $paymentId = $session->metadata->payment_id ?? null;
+            $payment = $paymentId ? Payment::find($paymentId) : Payment::where('payment_id', $session->id)->first();
+            if ($payment) {
+                $payment->update([
+                    'payment_status' => Payment::STATUS_FAILED,
+                    'gateway_response' => array_merge((array) $payment->gateway_response, ['checkout_session_failed' => method_exists($session, 'toArray') ? $session->toArray() : (array) $session]),
+                ]);
+                $payment->log('checkout_session_async_payment_failed', ['checkout_session_id' => $session->id]);
             }
         }
     }
@@ -183,17 +202,81 @@ class PaymentService
             'adminEmail' => config('services.payment.admin_email', 'info@neoprolab.com'),
         ];
 
-        if ($payment->billing_email) {
-            Mail::send('emails.payment-confirmation', $data, function ($message) use ($payment, $invoiceNumber) {
-                $message->to($payment->billing_email, $payment->billing_name)
-                    ->subject('NeoProLab payment confirmation - Invoice ' . $invoiceNumber);
+        try {
+            if ($payment->billing_email) {
+                Mail::send('emails.payment-confirmation', $data, function ($message) use ($payment, $invoiceNumber) {
+                    $message->to($payment->billing_email, $payment->billing_name)
+                        ->subject('NeoProLab payment confirmation - Invoice ' . $invoiceNumber);
+                });
+            }
+
+            Mail::send('emails.payment-notification', $data, function ($message) use ($invoiceNumber) {
+                $message->to(config('services.payment.admin_email', 'info@neoprolab.com'))
+                    ->subject('Payment received - Invoice ' . $invoiceNumber);
             });
+        } catch (\Throwable $e) {
+            Log::error('Payment email send failed: ' . $e->getMessage(), ['payment_id' => $payment->id]);
+        }
+    }
+
+
+    public function handleCallback($payment, array $data = []): ?Payment
+    {
+        $paymentModel = $payment instanceof Payment ? $payment : Payment::find($payment);
+        if (!$paymentModel) {
+            return null;
         }
 
-        Mail::send('emails.payment-notification', $data, function ($message) use ($invoiceNumber) {
-            $message->to(config('services.payment.admin_email', 'info@neoprolab.com'))
-                ->subject('Payment received - Invoice ' . $invoiceNumber);
-        });
+        $sessionId = $data['session_id'] ?? $data['checkout_session_id'] ?? null;
+        return $this->completeCheckout($paymentModel, $sessionId);
+    }
+
+    public function refundPayment(Payment $payment, $amount = null, $reason = null): array
+    {
+        try {
+            if ($payment->payment_gateway === Payment::GATEWAY_STRIPE && $payment->payment_id && !blank(config('services.stripe.secret'))) {
+                Stripe::setApiKey(config('services.stripe.secret'));
+                $refund = \Stripe\Refund::create(array_filter([
+                    'payment_intent' => $payment->payment_id,
+                    'amount' => $amount ? $this->convertToCents($amount) : null,
+                    'reason' => in_array($reason, ['duplicate', 'fraudulent', 'requested_by_customer'], true) ? $reason : 'requested_by_customer',
+                    'metadata' => [
+                        'payment_id' => (string) $payment->id,
+                        'request_id' => (string) $payment->request_id,
+                        'note' => is_string($reason) ? $reason : null,
+                    ],
+                ], fn ($value) => $value !== null));
+
+                $payment->update([
+                    'payment_status' => $amount && $amount < $payment->amount ? Payment::STATUS_PARTIALLY_REFUNDED : Payment::STATUS_REFUNDED,
+                    'refunded_at' => now(),
+                    'gateway_response' => array_merge((array) $payment->gateway_response, ['refund' => $refund->toArray()]),
+                    'notes' => trim(($payment->notes ? $payment->notes . PHP_EOL : '') . 'Refunded via Stripe. ' . ($reason ?: '')),
+                ]);
+                $payment->request?->update(['payment_status' => 'refunded']);
+                $payment->log('payment_refunded', ['refund_id' => $refund->id ?? null]);
+
+                return ['success' => true, 'refund' => $refund, 'message' => 'Payment refunded successfully.'];
+            }
+
+            $payment->update([
+                'payment_status' => Payment::STATUS_REFUNDED,
+                'refunded_at' => now(),
+                'notes' => trim(($payment->notes ? $payment->notes . PHP_EOL : '') . 'Marked refunded manually. ' . ($reason ?: '')),
+            ]);
+            $payment->request?->update(['payment_status' => 'refunded']);
+            $payment->log('payment_refunded_manually', ['reason' => $reason]);
+
+            return ['success' => true, 'message' => 'Payment marked as refunded.'];
+        } catch (\Throwable $e) {
+            Log::error('Payment refund failed: ' . $e->getMessage(), ['payment_id' => $payment->id]);
+            return ['success' => false, 'message' => 'Refund failed: ' . $e->getMessage()];
+        }
+    }
+
+    public function isPaymentRequiredForPickup(): bool
+    {
+        return (bool) config('services.payment.required_before_pickup', true);
     }
 
     public function getConfig(): array

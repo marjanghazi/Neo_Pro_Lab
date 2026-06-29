@@ -775,7 +775,7 @@ class ClientController extends Controller
         if ($courier) {
             $cachedLocation = Cache::get('courier_location_' . $courier->id);
             if (! $cachedLocation) {
-                $dbLoc = CourierLocation::where('courier_id', $courier->id)->latest()->first();
+                $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
                 if ($dbLoc) {
                     $cachedLocation = [
                         'latitude'      => (float) $dbLoc->latitude,
@@ -876,7 +876,7 @@ class ClientController extends Controller
 
         $location = Cache::get('courier_location_' . $courier->id);
         if (!$location) {
-            $dbLoc = CourierLocation::where('courier_id', $courier->id)->latest()->first();
+            $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
             if ($dbLoc) {
                 $location = [
                     'latitude'  => (float) $dbLoc->latitude,
@@ -1147,7 +1147,7 @@ class ClientController extends Controller
             if ($request->assigned_to) {
                 $courierLocation = Cache::get('courier_location_' . $request->assigned_to);
                 if (! $courierLocation) {
-                    $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->latest()->first();
+                    $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
                     if ($dbLoc) {
                         $courierLocation = [
                             'latitude'  => (float) $dbLoc->latitude,
@@ -1195,7 +1195,7 @@ class ClientController extends Controller
 
         $location = Cache::get('courier_location_' . $request->assigned_to);
         if (! $location) {
-            $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->latest()->first();
+            $dbLoc = CourierLocation::where('courier_id', $request->assigned_to)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
             if ($dbLoc) {
                 $location = [
                     'latitude'      => (float) $dbLoc->latitude,

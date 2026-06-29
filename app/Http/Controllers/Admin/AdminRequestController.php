@@ -686,7 +686,7 @@ class AdminRequestController extends Controller
 
         if (! $location) {
             if (class_exists(CourierLocation::class)) {
-                $dbLoc = CourierLocation::where('courier_id', $courier->id)->first();
+                $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
                 if ($dbLoc) {
                     $location = [
                         'latitude'    => $dbLoc->latitude,
@@ -844,7 +844,7 @@ class AdminRequestController extends Controller
             $cachedLocation = Cache::get('courier_location_' . $courier->id);
 
             if (! $cachedLocation && class_exists(CourierLocation::class)) {
-                $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('created_at', 'desc')->first();
+                $dbLoc = CourierLocation::where('courier_id', $courier->id)->orderBy('last_update', 'desc')->orderBy('created_at', 'desc')->first();
                 if ($dbLoc) {
                     $cachedLocation = [
                         'latitude'      => (float) $dbLoc->latitude,

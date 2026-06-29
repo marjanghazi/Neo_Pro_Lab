@@ -46,7 +46,7 @@ return [
     'payment' => [
         'gateway' => env('PAYMENT_GATEWAY', 'stripe'),
         'test_mode' => env('PAYMENT_TEST_MODE', true),
-        'currency' => env('PAYMENT_CURRENCY', env('STRIPE_CURRENCY', 'USD')),
+        'currency' => env('PAYMENT_CURRENCY', env('STRIPE_CURRENCY', env('CURRENCY', 'USD'))),
         'due_days' => env('PAYMENT_DUE_DAYS', 7),
         'required_before_pickup' => env('PAYMENT_REQUIRED_BEFORE_PICKUP', true),
         'admin_email' => env('PAYMENT_ADMIN_EMAIL', 'info@neoprolab.com'),
