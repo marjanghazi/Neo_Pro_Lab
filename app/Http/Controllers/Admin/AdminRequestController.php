@@ -11,6 +11,8 @@ use App\Models\CourierQuote;
 use App\Models\CourierLocation;
 use App\Models\AuditLog;
 use App\Models\RequestDocument;
+use App\Models\Payment;
+use App\Services\PaymentService;
 use App\Traits\Notifiable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -950,29 +952,59 @@ class AdminRequestController extends Controller
 
     public function payments(Request $httpRequest)
     {
-        $payments = SpecimenRequest::whereNotNull('total_price')
-            ->where('total_price', '>', 0)
-            ->with(['client', 'facility', 'courier'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $query = Payment::with(['request.client', 'request.facility', 'user']);
 
-        return view('admin.payments.index', compact('payments'));
+        if ($httpRequest->filled('status')) {
+            $query->where('payment_status', $httpRequest->status);
+        }
+
+        if ($httpRequest->filled('search')) {
+            $search = $httpRequest->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('payment_id', 'LIKE', "%{$search}%")
+                    ->orWhere('billing_name', 'LIKE', "%{$search}%")
+                    ->orWhere('billing_email', 'LIKE', "%{$search}%")
+                    ->orWhereHas('request', fn ($requestQuery) => $requestQuery->where('request_number', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $payments = $query->latest()->paginate(20)->withQueryString();
+        $payableRequests = SpecimenRequest::with(['client', 'facility', 'payment'])
+            ->whereIn('status', ['in_transit', 'picked_up', 'in_delivery', 'delivered'])
+            ->where(function ($query) {
+                $query->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid');
+            })
+            ->where('total_price', '>', 0)
+            ->latest()
+            ->get();
+
+        return view('admin.payments.index', compact('payments', 'payableRequests'));
     }
 
-    public function viewPayment(SpecimenRequest $payment)
+    public function viewPayment(Payment $payment)
     {
+        $payment->load(['request.client', 'request.facility', 'request.courier', 'user', 'logs']);
         return view('admin.payments.show', compact('payment'));
     }
 
-    public function refundPayment(Request $httpRequest, SpecimenRequest $payment)
+    public function refundPayment(Request $httpRequest, Payment $payment)
     {
-        $payment->update(['payment_status' => 'refunded']);
-        return back()->with('success', 'Payment marked as refunded.');
+        $result = (new PaymentService())->refundPayment($payment, null, $httpRequest->input('reason'));
+        return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }
 
-    public function markPaymentAsPaid(Request $httpRequest, SpecimenRequest $payment)
+    public function markPaymentAsPaid(Request $httpRequest, Payment $payment)
     {
-        $payment->update(['payment_status' => 'paid']);
+        $payment->update([
+            'payment_status' => Payment::STATUS_COMPLETED,
+            'payment_method' => $httpRequest->input('payment_method', Payment::METHOD_CASH),
+            'payment_gateway' => Payment::GATEWAY_OFFLINE,
+            'paid_at' => now(),
+            'notes' => trim(($payment->notes ? $payment->notes . PHP_EOL : '') . 'Marked paid by admin #' . Auth::id()),
+        ]);
+        $payment->request?->update(['payment_status' => 'paid']);
+        $payment->log('payment_marked_paid_by_admin', ['admin_id' => Auth::id()]);
+
         return back()->with('success', 'Payment marked as paid.');
     }
 

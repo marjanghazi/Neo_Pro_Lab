@@ -681,6 +681,12 @@ class ClientController extends Controller
     public function showPayment(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
+
+        if (! $this->clientCanPay($request)) {
+            return redirect()->route('client.requests.show', $request)
+                ->with('error', 'Payment becomes available once the order is in transit and a final invoice amount has been assigned.');
+        }
+
         $payment = $request->payment;
         $payment = $payment ?: (new PaymentService())->createPayment($request, Auth::user());
         $config = (new PaymentService())->getConfig();
@@ -690,6 +696,12 @@ class ClientController extends Controller
     public function processPayment(Request $httpRequest, SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
+
+        if (! $this->clientCanPay($request)) {
+            return redirect()->route('client.requests.show', $request)
+                ->with('error', 'Payment is only available once the order is in transit and has an amount due.');
+        }
+
         try {
             $result = (new PaymentService())->processPayment($request, $httpRequest->all());
             if ($result['success'] ?? false) {
@@ -736,8 +748,11 @@ class ClientController extends Controller
 
     public function downloadReceipt(Request $httpRequest, $payment)
     {
-        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
-        $content = "RECEIPT\nRequest #: {$request->request_number}\nDate: {$request->created_at->format('Y-m-d')}\nStatus: {$request->status}\nAmount: \${$request->estimated_price}\n";
+        $payment = Payment::with('request')->findOrFail($payment);
+        if ($payment->request->client_id != Auth::id()) abort(403);
+        $request = $payment->request;
+        $receiptDate = $payment->paid_at?->format('Y-m-d') ?? $payment->created_at->format('Y-m-d');
+        $content = "RECEIPT\nRequest #: {$request->request_number}\nDate: {$receiptDate}\nStatus: {$payment->payment_status}\nAmount: \$" . number_format((float) $payment->amount, 2) . " {$payment->currency}\n";
         return response($content, 200, [
             'Content-Type'        => 'text/plain',
             'Content-Disposition' => "attachment; filename=\"receipt-{$request->request_number}.txt\"",
@@ -746,18 +761,44 @@ class ClientController extends Controller
 
     public function paymentHistory()
     {
-        $payments = Auth::user()->createdRequests()
-            ->with(['facility'])
-            ->whereNotNull('payment_status')
-            ->orderBy('created_at', 'desc')
+        $payments = Payment::with(['request.facility'])
+            ->where('user_id', Auth::id())
+            ->latest()
             ->paginate(15);
-        return view('client.payments.history', compact('payments'));
+
+        $payableRequests = Auth::user()->createdRequests()
+            ->with(['facility', 'payment'])
+            ->whereIn('status', ['in_transit', 'picked_up', 'in_delivery', 'delivered'])
+            ->where(function ($query) {
+                $query->whereNull('payment_status')->orWhere('payment_status', '!=', 'paid');
+            })
+            ->where('total_price', '>', 0)
+            ->latest()
+            ->get();
+
+        return view('client.payments.history', compact('payments', 'payableRequests'));
     }
 
     public function viewPayment(Request $httpRequest, $payment)
     {
-        $request = SpecimenRequest::where('client_id', Auth::id())->findOrFail($payment);
-        return view('client.payments.view', compact('request'));
+        $payment = Payment::with(['request.facility', 'request.courier'])->findOrFail($payment);
+        if ($payment->request->client_id != Auth::id()) abort(403);
+        return view('client.payments.view', compact('payment'));
+    }
+
+
+    private function clientCanPay(SpecimenRequest $request): bool
+    {
+        return in_array($request->status, ['in_transit', 'picked_up', 'in_delivery', 'delivered'], true)
+            && (float) ($request->total_price ?? 0) > 0
+            && $request->payment_status !== 'paid';
+    }
+
+    private function requestRequiresPaymentBeforeCompletion(SpecimenRequest $request): bool
+    {
+        return (float) ($request->total_price ?? 0) > 0
+            && $request->payment_status !== 'paid'
+            && ! optional($request->payment)->isPaid();
     }
 
     // ====================================================================
@@ -1078,12 +1119,24 @@ class ClientController extends Controller
     public function confirmDelivery(SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
+
+        if ($this->requestRequiresPaymentBeforeCompletion($request)) {
+            return redirect()->route('client.payments.show', $request)
+                ->with('error', 'Please pay this invoice before confirming completion.');
+        }
+
         return view('client.requests.confirm', compact('request'));
     }
 
     public function submitConfirmation(Request $httpRequest, SpecimenRequest $request)
     {
         if ($request->client_id != Auth::id()) abort(403);
+
+        if ($this->requestRequiresPaymentBeforeCompletion($request)) {
+            return redirect()->route('client.payments.show', $request)
+                ->with('error', 'Please pay this invoice before confirming completion.');
+        }
+
         $validated = $httpRequest->validate([
             'recipient_name' => 'required|string|max:200',
             'notes'          => 'nullable|string',
@@ -1092,7 +1145,7 @@ class ClientController extends Controller
             'status'         => 'completed',
             'completed_at'   => now(),
             'recipient_name' => $validated['recipient_name'],
-            'delivery_notes' => $validated['notes'],
+            'delivery_notes' => $validated['notes'] ?? null,
         ]);
         return redirect()->route('client.requests.show', $request)->with('success', 'Delivery confirmed successfully! Thank you.');
     }

@@ -24,5 +24,10 @@
     <i class="fas fa-users w-4"></i>
     <span>Users</span>
 </a>
+
+<a href="{{ route('admin.payments.index') }}" class="sidebar-item {{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
+    <i class="fas fa-credit-card w-4"></i>
+    <span>Payments</span>
+</a>
 {{-- Reports & Settings commented out --}}
 @endsection

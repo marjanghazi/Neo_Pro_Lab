@@ -25,6 +25,11 @@
     <span>Track Delivery</span>
 </a>
 
+<a href="{{ route('client.payments.history') }}" class="sidebar-item {{ request()->routeIs('client.payments.*') ? 'active' : '' }}">
+    <i class="fas fa-credit-card w-5"></i>
+    <span>Payments</span>
+</a>
+
 <a href="{{ route('client.reports') }}" class="sidebar-item {{ request()->routeIs('client.reports') ? 'active' : '' }}">
     <i class="fas fa-file-alt w-5"></i>
     <span>Reports</span>
