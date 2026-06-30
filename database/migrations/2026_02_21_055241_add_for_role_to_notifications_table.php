@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up()
     {
+        if (! Schema::hasTable('notifications') || Schema::hasColumn('notifications', 'for_role')) {
+            return;
+        }
+
         Schema::table('notifications', function (Blueprint $table) {
             $table->string('for_role')->nullable()->after('user_id')->index();
         });
@@ -16,6 +20,10 @@ return new class extends Migration
 
     public function down()
     {
+        if (! Schema::hasTable('notifications') || ! Schema::hasColumn('notifications', 'for_role')) {
+            return;
+        }
+
         Schema::table('notifications', function (Blueprint $table) {
             $table->dropColumn('for_role');
         });
