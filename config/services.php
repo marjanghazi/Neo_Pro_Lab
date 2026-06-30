@@ -1,5 +1,7 @@
 <?php
 
+$paymentTestMode = filter_var(env('PAYMENT_TEST_MODE', true), FILTER_VALIDATE_BOOLEAN);
+
 return [
 
     /*
@@ -37,15 +39,21 @@ return [
 
 
     'stripe' => [
-        'key' => env('STRIPE_KEY'),
-        'secret' => env('STRIPE_SECRET'),
-        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'key' => $paymentTestMode
+            ? env('STRIPE_TEST_KEY', env('STRIPE_KEY'))
+            : env('STRIPE_LIVE_KEY', env('STRIPE_KEY')),
+        'secret' => $paymentTestMode
+            ? env('STRIPE_TEST_SECRET', env('STRIPE_SECRET'))
+            : env('STRIPE_LIVE_SECRET', env('STRIPE_SECRET')),
+        'webhook_secret' => $paymentTestMode
+            ? env('STRIPE_TEST_WEBHOOK_SECRET', env('STRIPE_WEBHOOK_SECRET'))
+            : env('STRIPE_LIVE_WEBHOOK_SECRET', env('STRIPE_WEBHOOK_SECRET')),
         'currency' => env('STRIPE_CURRENCY', 'USD'),
     ],
 
     'payment' => [
         'gateway' => env('PAYMENT_GATEWAY', 'stripe'),
-        'test_mode' => env('PAYMENT_TEST_MODE', true),
+        'test_mode' => $paymentTestMode,
         'currency' => env('PAYMENT_CURRENCY', env('STRIPE_CURRENCY', env('CURRENCY', 'USD'))),
         'due_days' => env('PAYMENT_DUE_DAYS', 7),
         'required_before_pickup' => env('PAYMENT_REQUIRED_BEFORE_PICKUP', true),

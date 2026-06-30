@@ -49,8 +49,13 @@ class PaymentService
             return ['success' => false, 'message' => 'Stripe is the configured payment gateway for online invoice payments.'];
         }
 
-        if (blank(config('services.stripe.secret'))) {
-            return ['success' => false, 'message' => 'Stripe is not configured. Please set STRIPE_SECRET in the environment.'];
+        if (blank($this->stripeSecret())) {
+            return ['success' => false, 'message' => 'Stripe is not configured. Please set the appropriate Stripe secret key in the environment.'];
+        }
+
+        $modeError = $this->stripeModeError();
+        if ($modeError) {
+            return ['success' => false, 'message' => $modeError];
         }
 
         $user = auth()->user() ?: $request->client;
@@ -73,7 +78,7 @@ class PaymentService
             'billing_address' => $data['billing_address'] ?? $payment->billing_address,
         ]);
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        Stripe::setApiKey($this->stripeSecret());
 
         $session = Session::create([
             'mode' => 'payment',
@@ -119,11 +124,16 @@ class PaymentService
 
     public function completeCheckout(Payment $payment, ?string $sessionId = null): Payment
     {
-        if (blank(config('services.stripe.secret'))) {
-            throw new \RuntimeException('Stripe secret key is missing. Set STRIPE_SECRET in the environment.');
+        if (blank($this->stripeSecret())) {
+            throw new \RuntimeException('Stripe secret key is missing. Set the appropriate Stripe secret key in the environment.');
         }
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        $modeError = $this->stripeModeError();
+        if ($modeError) {
+            throw new \RuntimeException($modeError);
+        }
+
+        Stripe::setApiKey($this->stripeSecret());
         $sessionId = $sessionId ?: ($payment->gateway_response['checkout_session_id'] ?? $payment->payment_id);
         $session = Session::retrieve($sessionId, ['expand' => ['payment_intent.latest_charge']]);
 
@@ -235,8 +245,8 @@ class PaymentService
     public function refundPayment(Payment $payment, $amount = null, $reason = null): array
     {
         try {
-            if ($payment->payment_gateway === Payment::GATEWAY_STRIPE && $payment->payment_id && !blank(config('services.stripe.secret'))) {
-                Stripe::setApiKey(config('services.stripe.secret'));
+            if ($payment->payment_gateway === Payment::GATEWAY_STRIPE && $payment->payment_id && !blank($this->stripeSecret())) {
+                Stripe::setApiKey($this->stripeSecret());
                 $refund = \Stripe\Refund::create(array_filter([
                     'payment_intent' => $payment->payment_id,
                     'amount' => $amount ? $this->convertToCents($amount) : null,
@@ -289,6 +299,31 @@ class PaymentService
             'stripe_public_key' => config('services.stripe.key'),
             'payment_required_before_pickup' => config('services.payment.required_before_pickup', true),
         ];
+    }
+
+
+    private function stripeSecret(): ?string
+    {
+        return config('services.stripe.secret');
+    }
+
+    private function stripeModeError(): ?string
+    {
+        $secret = (string) $this->stripeSecret();
+
+        if ($this->testMode && str_starts_with($secret, 'sk_live_')) {
+            return 'Stripe is configured for test mode but a live secret key is selected. Set PAYMENT_TEST_MODE=false for live checkout.';
+        }
+
+        if (! $this->testMode && str_starts_with($secret, 'sk_test_')) {
+            return 'Stripe is configured for live mode but a test secret key is selected. Remove duplicate STRIPE_SECRET entries or set STRIPE_LIVE_SECRET.';
+        }
+
+        if (! $this->testMode && str_starts_with($secret, 'rk_test_')) {
+            return 'Stripe is configured for live mode but a test restricted key is selected. Remove duplicate STRIPE_SECRET entries or set STRIPE_LIVE_SECRET.';
+        }
+
+        return null;
     }
 
     private function amountDue(SpecimenRequest $request): float
