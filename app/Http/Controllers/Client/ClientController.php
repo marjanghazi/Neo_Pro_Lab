@@ -791,7 +791,8 @@ class ClientController extends Controller
     {
         return in_array($request->status, ['in_transit', 'picked_up', 'in_delivery', 'delivered'], true)
             && (float) ($request->total_price ?? 0) > 0
-            && $request->payment_status !== 'paid';
+            && $request->payment_status !== 'paid'
+            && ! optional($request->payment)->isPaid();
     }
 
     private function requestRequiresPaymentBeforeCompletion(SpecimenRequest $request): bool
