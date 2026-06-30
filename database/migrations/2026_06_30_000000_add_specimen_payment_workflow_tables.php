@@ -29,7 +29,7 @@ return new class extends Migration
         if (! Schema::hasTable('payments')) {
             Schema::create('payments', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('request_id')->constrained('specimen_requests')->cascadeOnDelete();
+                $table->foreignId('specimen_request_id')->constrained('specimen_requests')->cascadeOnDelete();
                 $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
                 $table->string('payment_id')->nullable()->index();
                 $table->decimal('amount', 10, 2)->default(0);
@@ -50,7 +50,7 @@ return new class extends Migration
                 $table->text('notes')->nullable();
                 $table->timestamps();
                 $table->softDeletes();
-                $table->index(['request_id', 'payment_status']);
+                $table->index(['specimen_request_id', 'payment_status']);
                 $table->index(['user_id', 'payment_status']);
             });
         }

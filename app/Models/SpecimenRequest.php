@@ -480,12 +480,12 @@ class SpecimenRequest extends Model
     // Add this relationship
     public function payment()
     {
-        return $this->hasOne(Payment::class, 'request_id')->latestOfMany();
+        return $this->hasOne(Payment::class, 'specimen_request_id')->latestOfMany();
     }
 
     public function payments()
     {
-        return $this->hasMany(Payment::class, 'request_id');
+        return $this->hasMany(Payment::class, 'specimen_request_id');
     }
 
     public function getPaymentStatusBadgeAttribute()

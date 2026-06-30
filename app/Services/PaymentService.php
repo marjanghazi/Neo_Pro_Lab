@@ -27,9 +27,10 @@ class PaymentService
     public function createPayment(SpecimenRequest $request, User $user, array $data = []): Payment
     {
         return Payment::firstOrCreate(
-            ['request_id' => $request->id, 'payment_status' => Payment::STATUS_PENDING],
+            ['specimen_request_id' => $request->id, 'payment_status' => Payment::STATUS_PENDING],
             [
                 'user_id' => $user->id,
+                'specimen_request_id' => $request->id,
                 'amount' => $this->amountDue($request),
                 'currency' => $this->currency,
                 'payment_method' => null,

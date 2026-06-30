@@ -10,6 +10,7 @@ class Payment extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'specimen_request_id',
         'request_id',
         'user_id',
         'payment_id',
@@ -63,7 +64,7 @@ class Payment extends Model
 
     public function request()
     {
-        return $this->belongsTo(SpecimenRequest::class, 'request_id');
+        return $this->belongsTo(SpecimenRequest::class, 'specimen_request_id');
     }
 
     public function user()
@@ -74,6 +75,16 @@ class Payment extends Model
     public function logs()
     {
         return $this->hasMany(PaymentLog::class);
+    }
+
+    public function getRequestIdAttribute($value)
+    {
+        return $value ?? $this->attributes['specimen_request_id'] ?? null;
+    }
+
+    public function setRequestIdAttribute($value): void
+    {
+        $this->attributes['specimen_request_id'] = $value;
     }
 
     public function getFormattedAmountAttribute()

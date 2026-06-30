@@ -85,7 +85,7 @@ class PaymentController extends Controller
 
             // Create pending payment record
             Payment::create([
-                'request_id' => $request->id,
+                'specimen_request_id' => $request->id,
                 'client_id' => Auth::id(),
                 'stripe_session_id' => $session->id,
                 'stripe_payment_intent_id' => $session->payment_intent ?? null,
