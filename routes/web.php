@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\AdminFacilityController;
 use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminRequestController;
+use App\Http\Controllers\Admin\AdminInvoiceController;
+use App\Http\Controllers\Client\InvoiceController;
 use App\Http\Controllers\Client\ClientController;
 use App\Http\Controllers\Courier\CourierController;
 use App\Http\Controllers\PagesController;
@@ -240,6 +242,11 @@ Route::prefix('admin')
         Route::post('/requests/{request}/assign-with-quote', [AdminRequestController::class, 'assignWithQuote'])->name('requests.assign-with-quote');
         Route::post('/requests/{request}/cancel-quote', [AdminRequestController::class, 'cancelQuote'])->name('requests.cancel-quote');
 
+        // Facility invoices (Admin)
+        Route::get('/invoices', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+        Route::post('/invoices/generate', [AdminInvoiceController::class, 'generate'])->name('invoices.generate');
+        Route::get('/invoices/{invoice}', [AdminInvoiceController::class, 'show'])->name('invoices.show');
+
         // Payments (Admin)
         Route::post('/requests/{request}/update-payment', [AdminRequestController::class, 'updatePaymentStatus'])->name('requests.update-payment');
         Route::get('/payments', [AdminRequestController::class, 'payments'])->name('payments.index');
@@ -323,6 +330,12 @@ Route::middleware(['auth', 'role:client', 'user.approved'])->prefix('client')->n
     // Reports
     Route::get('/reports', [ClientController::class, 'reports'])->name('reports');
     Route::post('/reports/download', [ClientController::class, 'downloadReport'])->name('reports.download');
+
+    // Combined facility invoices
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::post('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
+    Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
 
     // Payment routes
     Route::get('/requests/{request}/payment', [ClientController::class, 'showPayment'])->name('payments.show');

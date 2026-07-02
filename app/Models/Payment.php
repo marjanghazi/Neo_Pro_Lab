@@ -11,6 +11,7 @@ class Payment extends Model
 
     protected $fillable = [
         'specimen_request_id',
+        'facility_invoice_id',
         'request_id',
         'user_id',
         'payment_id',
@@ -65,6 +66,11 @@ class Payment extends Model
     public function request()
     {
         return $this->belongsTo(SpecimenRequest::class, 'specimen_request_id');
+    }
+
+    public function facilityInvoice()
+    {
+        return $this->belongsTo(FacilityInvoice::class, 'facility_invoice_id');
     }
 
     public function user()
@@ -134,6 +140,10 @@ class Payment extends Model
         // Update request payment status
         if ($this->request) {
             $this->request->update(['payment_status' => 'paid']);
+        }
+
+        if ($this->facilityInvoice) {
+            $this->facilityInvoice->markPaid($this->paid_at ?: now());
         }
 
         $this->log('payment_completed', $data);

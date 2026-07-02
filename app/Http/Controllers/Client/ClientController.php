@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use App\Models\Payment;
+use App\Models\FacilityInvoice;
 use App\Services\PaymentService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Mail;
@@ -53,7 +54,14 @@ class ClientController extends Controller
             ->limit(10)
             ->get();
 
-        return view('client.dashboard', compact('stats', 'recentRequests', 'facility'));
+        $facilityIds = $user->facilities()->pluck('facilities.id');
+        $billingSummary = [
+            'current_balance' => FacilityInvoice::whereIn('facility_id', $facilityIds)->whereNotIn('status', ['paid', 'cancelled'])->sum('grand_total'),
+            'open_invoices' => FacilityInvoice::whereIn('facility_id', $facilityIds)->whereNotIn('status', ['paid', 'cancelled'])->count(),
+            'paid_invoices' => FacilityInvoice::whereIn('facility_id', $facilityIds)->where('status', 'paid')->count(),
+        ];
+
+        return view('client.dashboard', compact('stats', 'recentRequests', 'facility', 'billingSummary'));
     }
 
     public function requests()

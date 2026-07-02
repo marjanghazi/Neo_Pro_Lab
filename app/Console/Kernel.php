@@ -15,7 +15,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('billing:generate-facility-invoices')->dailyAt('00:15');
+        $schedule->command('billing:send-facility-invoice-reminders')->dailyAt('08:00');
     }
 
     /**

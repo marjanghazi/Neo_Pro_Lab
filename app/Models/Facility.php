@@ -31,11 +31,21 @@ class Facility extends Model
         'approved_by',
         'approved_at',
         'status',
+        'billing_cycle',
+        'custom_billing_days',
+        'payment_terms',
+        'custom_payment_term_days',
+        'tax_rate',
+        'last_invoiced_at',
     ];
 
     protected $casts = [
         'is_approved' => 'boolean',
         'approved_at' => 'datetime',
+        'custom_billing_days' => 'integer',
+        'custom_payment_term_days' => 'integer',
+        'tax_rate' => 'decimal:2',
+        'last_invoiced_at' => 'datetime',
     ];
 
     // ---------- Relationships ----------
@@ -55,6 +65,34 @@ class Facility extends Model
     public function specimenRequests()
     {
         return $this->hasMany(SpecimenRequest::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(FacilityInvoice::class);
+    }
+
+    public function billingCycleDays(): int
+    {
+        return match ($this->billing_cycle) {
+            'daily' => 1,
+            'every_5_days' => 5,
+            'every_10_days' => 10,
+            'every_15_days' => 15,
+            'custom' => max(1, (int) ($this->custom_billing_days ?: 30)),
+            default => 30,
+        };
+    }
+
+    public function paymentTermDays(): int
+    {
+        return match ($this->payment_terms) {
+            'net_5' => 5,
+            'net_10' => 10,
+            'net_30' => 30,
+            'custom' => max(0, (int) ($this->custom_payment_term_days ?: 0)),
+            default => 15,
+        };
     }
 
     // ---------- Accessors ----------

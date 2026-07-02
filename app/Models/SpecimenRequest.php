@@ -85,6 +85,10 @@ class SpecimenRequest extends Model
         'payment_required',
         'payment_due_at',
         'payment_reminder_sent_at',
+        'invoice_id',
+        'billing_status',
+        'wait_time_fee',
+        'signature_fee',
 
     ];
 
@@ -133,6 +137,8 @@ class SpecimenRequest extends Model
         'payment_required' => 'boolean',
         'payment_due_at' => 'datetime',
         'payment_reminder_sent_at' => 'datetime',
+        'wait_time_fee' => 'decimal:2',
+        'signature_fee' => 'decimal:2',
 
     ];
 
@@ -486,6 +492,11 @@ class SpecimenRequest extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'specimen_request_id');
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(FacilityInvoice::class, 'invoice_id');
     }
 
     public function getPaymentStatusBadgeAttribute()

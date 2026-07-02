@@ -68,8 +68,16 @@ class AdminFacilityController extends Controller
             'is_approved'          => 'boolean',
             'status'               => 'required|in:pending,active,suspended,rejected',
             'notes'                => 'nullable|string|max:1000',
+            'billing_cycle'        => 'nullable|in:daily,every_5_days,every_10_days,every_15_days,monthly,custom',
+                'custom_billing_days'  => 'required_if:billing_cycle,custom|nullable|integer|min:1|max:365',
+                'payment_terms'        => 'nullable|in:net_5,net_10,net_15,net_30,custom',
+                'custom_payment_term_days' => 'required_if:payment_terms,custom|nullable|integer|min:0|max:365',
+                'tax_rate'             => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $validated['billing_cycle'] = $validated['billing_cycle'] ?? 'monthly';
+        $validated['payment_terms'] = $validated['payment_terms'] ?? 'net_15';
+        $validated['tax_rate'] = $validated['tax_rate'] ?? 0;
         $validated['is_approved'] = $request->has('is_approved');
 
         if ($validated['is_approved']) {
@@ -147,8 +155,16 @@ class AdminFacilityController extends Controller
                 'is_approved'          => 'sometimes|boolean',
                 'status'               => 'required|in:pending,active,suspended,rejected',
                 'notes'                => 'nullable|string|max:1000',
+                'billing_cycle'        => 'nullable|in:daily,every_5_days,every_10_days,every_15_days,monthly,custom',
+                'custom_billing_days'  => 'required_if:billing_cycle,custom|nullable|integer|min:1|max:365',
+                'payment_terms'        => 'nullable|in:net_5,net_10,net_15,net_30,custom',
+                'custom_payment_term_days' => 'required_if:payment_terms,custom|nullable|integer|min:0|max:365',
+                'tax_rate'             => 'nullable|numeric|min:0|max:100',
             ]);
 
+            $validated['billing_cycle'] = $validated['billing_cycle'] ?? $facility->billing_cycle ?? 'monthly';
+            $validated['payment_terms'] = $validated['payment_terms'] ?? $facility->payment_terms ?? 'net_15';
+            $validated['tax_rate'] = $validated['tax_rate'] ?? $facility->tax_rate ?? 0;
             $validated['is_approved'] = $request->has('is_approved');
 
             // Record approval details when newly approved
