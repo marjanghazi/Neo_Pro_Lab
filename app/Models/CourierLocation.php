@@ -35,6 +35,7 @@ class CourierLocation extends Model
         'battery_level' => 'integer',
         'is_online' => 'boolean',
         'created_at' => 'datetime',
+        'last_update' => 'datetime',
     ];
 
     /**
@@ -59,7 +60,7 @@ class CourierLocation extends Model
     public function scopeOnline($query)
     {
         return $query->where('is_online', true)
-            ->where('created_at', '>=', now()->subMinutes(5));
+            ->where('last_update', '>=', now()->subMinutes(5));
     }
 
     /**
@@ -125,8 +126,8 @@ class CourierLocation extends Model
             'accuracy' => $this->accuracy,
             'speed' => $this->speed,
             'heading' => $this->heading,
-            'timestamp' => $this->created_at->timestamp,
-            'formatted_time' => $this->created_at->format('Y-m-d H:i:s'),
+            'timestamp' => optional($this->last_update ?? $this->created_at)->timestamp,
+            'formatted_time' => optional($this->last_update ?? $this->created_at)->format('Y-m-d H:i:s'),
         ];
     }
 }

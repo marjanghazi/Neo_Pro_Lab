@@ -368,13 +368,32 @@
 
 @push('scripts')
 <script>
+let courierLocationWatcher = null;
+let lastSentLocation = null;
+let pendingLocationRequest = null;
+const ACTIVE_REQUEST_ID = @json(optional($activeRequests->first())->id);
+
+function courierTrackingEnabled() {
+    return Boolean(ACTIVE_REQUEST_ID);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById('updateLocationBtn');
-    if (btn) btn.addEventListener('click', updateLocation);
-    @if($activeRequests->count() > 0)
-        setTimeout(updateLocation, 1000);
-        setInterval(updateLocation, 30000);
-    @endif
+    if (btn) btn.addEventListener('click', () => updateLocation({ force: true, notify: true }));
+
+    if (courierTrackingEnabled()) {
+        startCourierLocationTracking();
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && courierTrackingEnabled()) {
+            startCourierLocationTracking();
+            updateLocation({ force: true, notify: false });
+        }
+    });
+
+    window.addEventListener('online', flushCachedLocation);
+    window.addEventListener('beforeunload', sendLastKnownLocationBeacon);
 });
 
 function getCsrfToken() {
@@ -384,25 +403,126 @@ function getCsrfToken() {
     return i ? i.value : null;
 }
 
-function updateLocation() {
+function getBatteryLevel() {
+    if (!navigator.getBattery) return Promise.resolve(null);
+    return navigator.getBattery()
+        .then(battery => Math.round((battery.level || 0) * 100))
+        .catch(() => null);
+}
+
+function normalizePosition(position) {
+    return {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        speed: position.coords.speed || 0,
+        heading: position.coords.heading || 0,
+        altitude: position.coords.altitude || 0,
+        request_id: ACTIVE_REQUEST_ID,
+    };
+}
+
+function shouldSendLocation(data, force = false) {
+    if (force || !lastSentLocation) return true;
+    const elapsed = Date.now() - lastSentLocation.sentAt;
+    const movedMeters = distanceInMeters(lastSentLocation.latitude, lastSentLocation.longitude, data.latitude, data.longitude);
+    return elapsed >= 15000 || movedMeters >= 20 || (data.accuracy && data.accuracy < lastSentLocation.accuracy - 15);
+}
+
+function startCourierLocationTracking() {
+    if (!navigator.geolocation) {
+        showNotification('Geolocation not supported by this browser.', 'error');
+        return;
+    }
+
+    if (courierLocationWatcher !== null) return;
+
+    courierLocationWatcher = navigator.geolocation.watchPosition(
+        position => handleLocationPosition(position, { notify: false }),
+        error => {
+            const msgs = { [error.PERMISSION_DENIED]:'Location access denied. Please allow location permissions.', [error.POSITION_UNAVAILABLE]:'Location unavailable. Check GPS/network settings.', [error.TIMEOUT]:'GPS timeout. Retrying automatically.' };
+            showNotification(msgs[error.code] || 'Enable location services', 'error');
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+    );
+
+    updateLocation({ force: true, notify: false });
+    setInterval(() => updateLocation({ force: true, notify: false }), 60000);
+}
+
+function updateLocation(options = {}) {
     if (!navigator.geolocation) { showNotification('Geolocation not supported', 'error'); return; }
     navigator.geolocation.getCurrentPosition(
-        function(position) {
-            const csrfToken = getCsrfToken();
-            if (!csrfToken) { showNotification('Security token missing. Refresh page.', 'error'); return; }
-            const data = { latitude:position.coords.latitude, longitude:position.coords.longitude, accuracy:position.coords.accuracy, speed:position.coords.speed||0, heading:position.coords.heading||0, altitude:position.coords.altitude||0, _token:csrfToken };
-            localStorage.setItem('last_known_location', JSON.stringify({...data, timestamp:new Date().toISOString(), courier_id:'{{ auth()->id() }}'}));
-            fetch('{{ route("courier.location.update") }}', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'}, body:JSON.stringify(data) })
-            .then(r => r.ok ? r.json() : { success: true })
-            .then(d => showNotification(d.success ? 'Location updated' : 'Location cached locally', 'success'))
-            .catch(() => showNotification('Location cached locally', 'info'));
-        },
+        position => handleLocationPosition(position, options),
         function(error) {
             const msgs = { [error.PERMISSION_DENIED]:'Location access denied.', [error.POSITION_UNAVAILABLE]:'Location unavailable.', [error.TIMEOUT]:'Location request timed out.' };
             showNotification(msgs[error.code] || 'Enable location services', 'error');
+            flushCachedLocation();
         },
-        { enableHighAccuracy:true, timeout:10000, maximumAge:0 }
+        { enableHighAccuracy:true, timeout:20000, maximumAge:5000 }
     );
+}
+
+async function handleLocationPosition(position, options = {}) {
+    const data = normalizePosition(position);
+    if (!shouldSendLocation(data, options.force)) return;
+    data.battery_level = await getBatteryLevel();
+    await sendLocationUpdate(data, options.notify);
+}
+
+async function sendLocationUpdate(data, notify = false) {
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) { showNotification('Security token missing. Refresh page.', 'error'); return; }
+
+    const payload = { ...data, _token: csrfToken };
+    localStorage.setItem('last_known_location', JSON.stringify({...payload, timestamp:new Date().toISOString(), courier_id:'{{ auth()->id() }}'}));
+
+    if (pendingLocationRequest) return;
+
+    pendingLocationRequest = fetch('{{ route("courier.location.update") }}', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json'},
+        body:JSON.stringify(payload),
+        keepalive: true,
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('Location update failed')))
+    .then(d => {
+        lastSentLocation = { ...data, sentAt: Date.now() };
+        localStorage.removeItem('last_known_location');
+        if (notify) showNotification(d.success ? 'Location updated' : 'Location cached locally', d.success ? 'success' : 'info');
+    })
+    .catch(() => {
+        if (notify) showNotification('Location cached locally and will retry automatically', 'info');
+    })
+    .finally(() => { pendingLocationRequest = null; });
+
+    return pendingLocationRequest;
+}
+
+function flushCachedLocation() {
+    const cached = localStorage.getItem('last_known_location');
+    if (!cached) return;
+    try { sendLocationUpdate(JSON.parse(cached), false); } catch (e) { localStorage.removeItem('last_known_location'); }
+}
+
+function sendLastKnownLocationBeacon() {
+    const cached = localStorage.getItem('last_known_location');
+    const csrfToken = getCsrfToken();
+    if (!cached || !csrfToken || !navigator.sendBeacon) return;
+    try {
+        const payload = JSON.parse(cached);
+        payload._token = csrfToken;
+        navigator.sendBeacon('{{ route("courier.location.update") }}', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    } catch (e) {}
+}
+
+function distanceInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = value => value * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 // function getDirections(lat, lng) { window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank'); }

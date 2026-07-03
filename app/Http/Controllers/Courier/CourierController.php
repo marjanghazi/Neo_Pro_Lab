@@ -405,12 +405,13 @@ class CourierController extends Controller
         try {
             // Basic validation
             $validated = $request->validate([
-                'latitude' => 'required|numeric',
-                'longitude' => 'required|numeric',
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
                 'accuracy' => 'nullable|numeric',
                 'speed' => 'nullable|numeric',
                 'heading' => 'nullable|numeric',
                 'altitude' => 'nullable|numeric',
+                'battery_level' => 'nullable|integer|min:0|max:100',
                 'request_id' => 'nullable|exists:specimen_requests,id',
             ]);
 
@@ -441,7 +442,7 @@ class CourierController extends Controller
                 ];
 
                 // Cache location for real-time tracking
-                cache()->put('courier_location_' . $user->id, $locationData, 35);
+                cache()->put('courier_location_' . $user->id, $locationData, now()->addMinutes(5));
 
                 return response()->json([
                     'success' => true,
@@ -461,7 +462,7 @@ class CourierController extends Controller
                 'altitude' => $validated['altitude'] ?? 0,
                 'is_online' => true,
                 'last_update' => now(),
-                'battery_level' => $request->battery_level ?? null,
+                'battery_level' => $validated['battery_level'] ?? null,
             ];
 
             // Add request_id if provided (handle nullable)
@@ -495,7 +496,7 @@ class CourierController extends Controller
                         'speed' => $validated['speed'] ?? 0,
                         'heading' => $validated['heading'] ?? 0,
                         'altitude' => $validated['altitude'] ?? 0,
-                        'battery_level' => $request->battery_level ?? null,
+                        'battery_level' => $validated['battery_level'] ?? null,
                     ]);
                     \Log::info('Location history saved');
                 } catch (\Exception $historyError) {
@@ -516,7 +517,7 @@ class CourierController extends Controller
                 'heading' => $validated['heading'] ?? 0,
                 'altitude' => $validated['altitude'] ?? 0,
                 'is_online' => true,
-            ], 35);
+            ], now()->addMinutes(5));
 
             return response()->json([
                 'success' => true,
@@ -545,7 +546,7 @@ class CourierController extends Controller
                     'is_online' => true,
                 ];
 
-                cache()->put('courier_location_' . $user->id, $locationData, 35);
+                cache()->put('courier_location_' . $user->id, $locationData, now()->addMinutes(5));
             }
 
             return response()->json([
