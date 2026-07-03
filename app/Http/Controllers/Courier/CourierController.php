@@ -395,6 +395,44 @@ class CourierController extends Controller
         cache()->put("courier_online_{$request->assigned_to}", true, now()->addHours(24));
     }
 
+
+    private function trackableCourierStatuses(): array
+    {
+        return [
+            'assigned',
+            'accepted_by_courier',
+            'at_stop',
+            'awaiting_pickup_proof',
+            'awaiting_transit_proof',
+            'awaiting_arrival_proof',
+            'awaiting_delivery_proof',
+            'picked_up',
+            'in_transit',
+            'arrived_at_destination',
+        ];
+    }
+
+    private function activeTrackingRequestForCourier($courierId): ?SpecimenRequest
+    {
+        return SpecimenRequest::where('assigned_to', $courierId)
+            ->whereIn('status', $this->trackableCourierStatuses())
+            ->orderByRaw("CASE priority_level WHEN 'stat' THEN 0 WHEN 'urgent' THEN 1 ELSE 2 END")
+            ->orderBy('scheduled_delivery_time')
+            ->first();
+    }
+
+    private function validateTrackingRequestOwnership($requestId, $courierId): ?SpecimenRequest
+    {
+        if (!$requestId) {
+            return $this->activeTrackingRequestForCourier($courierId);
+        }
+
+        return SpecimenRequest::where('id', $requestId)
+            ->where('assigned_to', $courierId)
+            ->whereIn('status', $this->trackableCourierStatuses())
+            ->first();
+    }
+
     /**
      * Update courier location - FIXED VERSION - Called by JavaScript location tracking
      * Route: POST /courier/location/update
@@ -416,6 +454,16 @@ class CourierController extends Controller
             ]);
 
             $user = Auth::user();
+            $trackingRequest = $this->validateTrackingRequestOwnership($validated['request_id'] ?? null, $user->id);
+
+            if (!$trackingRequest) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active assigned request is available for courier live tracking.',
+                ], 422);
+            }
+
+            $validated['request_id'] = $trackingRequest->id;
 
             // Log the incoming data for debugging
             \Log::info('Location update received', [
@@ -439,6 +487,9 @@ class CourierController extends Controller
                     'last_update' => now(),
                     'courier_id' => $user->id,
                     'courier_name' => $user->full_name,
+                    'request_id' => $validated['request_id'],
+                    'battery_level' => $validated['battery_level'] ?? null,
+                    'is_online' => true,
                 ];
 
                 // Cache location for real-time tracking
@@ -517,6 +568,8 @@ class CourierController extends Controller
                 'heading' => $validated['heading'] ?? 0,
                 'altitude' => $validated['altitude'] ?? 0,
                 'is_online' => true,
+                'request_id' => $validated['request_id'],
+                'battery_level' => $validated['battery_level'] ?? null,
             ], now()->addMinutes(5));
 
             return response()->json([
@@ -543,6 +596,8 @@ class CourierController extends Controller
                     'last_update' => now(),
                     'courier_id' => $user->id,
                     'courier_name' => $user->full_name,
+                    'request_id' => $validated['request_id'] ?? null,
+                    'battery_level' => $validated['battery_level'] ?? null,
                     'is_online' => true,
                 ];
 
@@ -566,20 +621,23 @@ class CourierController extends Controller
     public function locationStatus()
     {
         $user = Auth::user();
+        $activeRequest = $this->activeTrackingRequestForCourier($user->id);
 
         if (class_exists(CourierLocation::class)) {
             $location = CourierLocation::where('courier_id', $user->id)->first();
             $lastUpdate = $location ? $location->last_update : null;
-            $isOnline = $location ? $location->is_online : false;
+            $isOnline = $location && $location->is_online && $location->last_update && $location->last_update->gte(now()->subMinutes(5));
         } else {
             $lastUpdate = null;
             $isOnline = false;
         }
 
         return response()->json([
-            'is_online' => $isOnline,
+            'is_online' => (bool) $isOnline,
             'last_update' => $lastUpdate,
             'tracking_active' => cache()->has("courier_online_{$user->id}"),
+            'has_active_request' => (bool) $activeRequest,
+            'active_request_id' => optional($activeRequest)->id,
         ]);
     }
 
