@@ -159,6 +159,8 @@
     .coverage-item:nth-child(4) { animation-delay: 0.4s; }
     .coverage-item:nth-child(5) { animation-delay: 0.5s; }
     .coverage-item:nth-child(6) { animation-delay: 0.6s; }
+    .coverage-item:nth-child(7) { animation-delay: 0.7s; }
+    .coverage-item:nth-child(8) { animation-delay: 0.8s; }
 
     @keyframes fadeInUp {
         from {
@@ -247,18 +249,21 @@
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
         animation: fadeIn 1s ease-out;
         position: relative;
-        height: 450px;
+        height: 550px;
+        background: var(--navy);
     }
 
     .map-image {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
         transition: transform 0.8s;
+        background: #f8f9fa;
+        padding: 10px;
     }
 
     .map-container:hover .map-image {
-        transform: scale(1.05);
+        transform: scale(1.02);
     }
 
     .map-overlay {
@@ -267,12 +272,13 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(135deg, rgba(13, 27, 42, 0.3), rgba(0, 169, 165, 0.3));
+        background: linear-gradient(135deg, rgba(13, 27, 42, 0.2), rgba(0, 169, 165, 0.2));
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0;
         transition: opacity 0.4s;
+        pointer-events: none;
     }
 
     .map-container:hover .map-overlay {
@@ -288,10 +294,56 @@
         font-size: 18px;
         transform: translateY(20px);
         transition: transform 0.4s;
+        pointer-events: none;
     }
 
     .map-container:hover .map-text {
         transform: translateY(0);
+    }
+
+    .map-legend {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px 20px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        font-size: 12px;
+        color: var(--navy);
+        z-index: 10;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        max-width: 200px;
+    }
+
+    .map-legend h4 {
+        font-size: 14px;
+        margin-bottom: 8px;
+        font-weight: 700;
+        color: var(--navy);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 4px 0;
+        font-size: 12px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 4px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
 
     /* Info Box */
@@ -562,6 +614,10 @@
         .hours-box h3 {
             font-size: 24px;
         }
+        
+        .map-container {
+            height: 450px;
+        }
     }
 
     @media (max-width: 768px) {
@@ -621,7 +677,7 @@
         }
         
         .map-container {
-            height: 300px;
+            height: 350px;
         }
         
         .service-areas-list {
@@ -631,6 +687,10 @@
         .area-badge {
             padding: 8px 15px;
             font-size: 12px;
+        }
+        
+        .map-legend {
+            display: none;
         }
     }
 
@@ -667,6 +727,10 @@
             padding: 14px 30px;
             font-size: 16px;
         }
+        
+        .map-container {
+            height: 280px;
+        }
     }
 </style>
 
@@ -685,13 +749,37 @@
         </div>
     </div>
 
-    <!-- Map Section -->
+    <!-- Map Section with the uploaded image -->
     <div class="map-container">
-        <img src="https://images.unsplash.com/photo-1569336415962-a4bd9f69cdc5?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80" 
-             alt="Massachusetts and Rhode Island map" 
+        <img src="{{ asset('images/CoveregeGallery/Coverage.jpeg') }}" 
+             alt="Rhode Island and Massachusetts Navigation Map" 
              class="map-image">
         <div class="map-overlay">
             <span class="map-text">📍 MA & RI Coverage Area</span>
+        </div>
+        <!-- Legend overlay matching the map style -->
+        <div class="map-legend">
+            <h4>📍 MAP LEGEND</h4>
+            <div class="legend-item">
+                <span class="legend-dot" style="background: #0D1B2A;"></span>
+                <span>Major Cities</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FF6B35;"></span>
+                <span>Interstate Highways</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #00A9A5;"></span>
+                <span>Major Roads</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #7A7F85; border: 1px dashed #555;"></span>
+                <span>State Boundary</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #4A90D9;"></span>
+                <span>Water</span>
+            </div>
         </div>
     </div>
 

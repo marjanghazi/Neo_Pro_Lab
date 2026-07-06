@@ -115,8 +115,72 @@
         margin-top: 30px;
     }
 
-    .about-text {
+    /* --- NEW: Left-aligned images container --- */
+    .about-images-left {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
         animation: fadeInLeft 1s ease-out;
+    }
+
+    .about-image {
+        position: relative;
+        height: 250px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        transition: all 0.5s;
+        width: 100%;
+    }
+
+    .about-image:hover {
+        transform: scale(1.02);
+        box-shadow: 0 30px 60px rgba(0, 169, 165, 0.3);
+    }
+
+    .about-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.8s;
+    }
+
+    .about-image:hover img {
+        transform: scale(1.1);
+    }
+
+    .about-image-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(13, 27, 42, 0.9), transparent);
+        color: var(--white);
+        padding: 20px;
+        text-align: center;
+        transform: translateY(100%);
+        transition: transform 0.5s;
+    }
+
+    .about-image:hover .about-image-overlay {
+        transform: translateY(0);
+    }
+
+    .about-image-overlay h4 {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: var(--teal);
+    }
+
+    .about-image-overlay p {
+        font-size: 13px;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    .about-text {
+        animation: fadeInRight 1s ease-out;
     }
 
     .about-text h3 {
@@ -285,62 +349,6 @@
         background: var(--teal);
         color: var(--white);
         transform: rotate(360deg);
-    }
-
-    /* About Image Styles */
-    .about-image {
-        position: relative;
-        height: 500px;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-        animation: fadeInRight 1s ease-out;
-        transition: all 0.5s;
-    }
-
-    .about-image:hover {
-        transform: scale(1.02);
-        box-shadow: 0 30px 60px rgba(0, 169, 165, 0.3);
-    }
-
-    .about-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.8s;
-    }
-
-    .about-image:hover img {
-        transform: scale(1.1);
-    }
-
-    .about-image-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(to top, rgba(13, 27, 42, 0.9), transparent);
-        color: var(--white);
-        padding: 30px;
-        text-align: center;
-        transform: translateY(100%);
-        transition: transform 0.5s;
-    }
-
-    .about-image:hover .about-image-overlay {
-        transform: translateY(0);
-    }
-
-    .about-image-overlay h4 {
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 10px;
-        color: var(--teal);
-    }
-
-    .about-image-overlay p {
-        font-size: 14px;
-        opacity: 0.9;
     }
 
     /* Stats Grid */
@@ -544,8 +552,16 @@
             gap: 40px;
         }
 
+        .about-images-left {
+            order: 1;
+        }
+
+        .about-text {
+            order: 2;
+        }
+
         .about-image {
-            height: 350px;
+            height: 200px;
         }
 
         .section {
@@ -576,32 +592,83 @@
         }
 
         .about-image {
-            height: 250px;
+            height: 160px;
         }
 
         .certifications {
             padding: 25px;
         }
     }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--teal) 0%, #008B85 100%);
+        color: var(--white);
+        padding: 14px 32px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: inline-block;
+        position: relative;
+        overflow: hidden;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 169, 165, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 15px 35px rgba(0, 169, 165, 0.4);
+    }
+
+    .btn-secondary {
+        background: transparent;
+        border: 2.5px solid var(--teal);
+        color: var(--teal);
+        padding: 14px 32px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: inline-block;
+    }
+
+    .btn-secondary:hover {
+        background-color: var(--teal);
+        color: var(--white);
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 15px 35px rgba(0, 169, 165, 0.3);
+    }
 </style>
 
 <!-- HERO SECTION WITH BACKGROUND IMAGE -->
 <section class="hero">
     <h1>A Modern, Reliable Medical Courier Built for Today's Healthcare</h1>
-    <p>Serving 878 Washington street  #19 , Attleboro , Ma 02703 with excellence since our founding</p>
+    <p>Serving 878 Washington street #19 , Attleboro , Ma 02703 with excellence since our founding</p>
 </section>
 
 <!-- ABOUT CONTENT SECTION -->
 <section class="section">
     <div class="about-content">
-        <div class="about-image">
-            <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80" alt="Startup team working" alt="Medical courier professional">
-            <div class="about-image-overlay">
-                <h4>Professional Medical Courier Team</h4>
-                <p>Certified and trained in HIPAA compliance and medical specimen handling</p>
+        <!-- LEFT SIDE: JPEG + USPLASH IMAGES (stacked vertically) -->
+        <div class="about-images-left">
+            <div class="about-image">
+                <img src="{{ asset('images/AboutGallery/About.jpeg') }}" alt="Medical courier team in action">
+                <div class="about-image-overlay">
+                    <h4>Your Trusted Medical Courier Partner</h4>
+                    <p>Delivering excellence in medical logistics across Massachusetts and Rhode Island</p>
+                </div>
+            </div>
+            <div class="about-image">
+                <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1200&q=80" alt="Startup team working">
+                <div class="about-image-overlay">
+                    <h4>Professional Medical Courier Team</h4>
+                    <p>Certified and trained in HIPAA compliance and medical specimen handling</p>
+                </div>
             </div>
         </div>
 
+        <!-- RIGHT SIDE: TEXT CONTENT -->
         <div class="about-text">
             <span class="badge">About NeoProlab</span>
             <h3>Who We Are</h3>
@@ -674,48 +741,6 @@
         </div>
     </div>
 </section>
-
-<style>
-    .btn-primary {
-        background: linear-gradient(135deg, var(--teal) 0%, #008B85 100%);
-        color: var(--white);
-        padding: 14px 32px;
-        border-radius: 50px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        display: inline-block;
-        position: relative;
-        overflow: hidden;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0, 169, 165, 0.3);
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 15px 35px rgba(0, 169, 165, 0.4);
-    }
-
-    .btn-secondary {
-        background: transparent;
-        border: 2.5px solid var(--teal);
-        color: var(--teal);
-        padding: 14px 32px;
-        border-radius: 50px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        display: inline-block;
-    }
-
-    .btn-secondary:hover {
-        background-color: var(--teal);
-        color: var(--white);
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 15px 35px rgba(0, 169, 165, 0.3);
-    }
-</style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
