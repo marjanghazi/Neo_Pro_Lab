@@ -17,7 +17,11 @@
     </dl>
     <div class="pt-4 border-t flex gap-3">
         <a href="{{ route('client.payments.history') }}" class="px-4 py-2 border rounded-lg">Back</a>
-        @if($payment->isPaid())<a href="{{ route('client.payments.receipt', $payment) }}" class="px-4 py-2 bg-teal-600 text-white rounded-lg">Download Receipt</a>@endif
+        @if($payment->isPaid())
+            <a href="{{ route('client.payments.receipt', $payment) }}" class="px-4 py-2 bg-teal-600  rounded-lg">Download Receipt</a>
+        @elseif($payment->payment_status === 'pending')
+            <a href="{{ route('client.payments.show', $payment->request) }}" class="px-4 py-2 bg-teal-600  rounded-lg hover:bg-teal-700">Pay Now</a>
+        @endif
     </div>
 </div>
 @endsection
